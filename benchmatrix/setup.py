@@ -243,7 +243,8 @@ def identify_chameleons(ports: list[str], known: dict, cli: str = DEFAULT_CU_PY,
 
 def _ask_label(port: str, cid: str) -> str | None:
     """Which physical device just blinked? The answer is the label on its case."""
-    cues.cue_check("which Chameleon blinked?")
+    # ⚠ ONE CALL, ONE UTTERANCE. Playing the chime with `cue_check` and then asking with
+    # `ask_choice` speaks the question twice, and the two overlap.
     r = cues.ask_choice("    which Chameleon blinked — 1, 2, or s to skip? ", "12s", "s",
-                        spoken="which Chameleon blinked, one or two?")
+                        spoken="which Chameleon blinked, one or two?", sound=cues.SND_CHECK)
     return None if r == "s" else "cu" + r
