@@ -16,7 +16,7 @@ class TheSelfLicensingTrap(unittest.TestCase):
     def test_an_expectation_cannot_license_the_session_that_learned_it(self):
         """⛔⛔ Otherwise the calibration row is compared against itself and CANNOT FAIL — a control
         quietly inverted into a tautology, invisible in the grid: every licence green, every licence
-        worthless. C473 with one more step of indirection."""
+        worthless. The calibration rule defeated with one more step of indirection."""
         with self.assertRaises(learned.LearningRefused) as cm:
             learned.check_independence(rec(session="S1"), "S1")
         self.assertIn("unfailable", str(cm.exception))
@@ -53,7 +53,7 @@ class ReadingTheFlippersAnswer(unittest.TestCase):
                 "Reading stopped")
         self.assertEqual(learned.observed_value(text, "PAC/Stanley"), "ABCD1234")
         self.assertIsNone(learned.observed_value(text, "Viking"),
-                          "a name in the protocol listing is not a decode — the M28 trap")
+                          "a name in the listing is not a decode — RULES.md §6")
 
     def test_a_name_with_a_space_is_read_correctly(self):
         self.assertEqual(learned.observed_value("Radio Key 7FCB4000", "Radio Key"), "7FCB4000")

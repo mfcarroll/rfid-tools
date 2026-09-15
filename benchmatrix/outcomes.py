@@ -1,10 +1,10 @@
 """The four outcomes, and the calibration licence that is required to produce three of them.
 
-⭐⭐ THIS MODULE IS THE WHOLE POINT OF THE PROJECT. C473 published a seven-protocol positive
-conclusion built on uncalibrated silence, and the operator refuted it from their own bench in
-minutes. The defect was not the conclusion, it was that *nothing in the process refused to
-produce a verdict when the controls were missing* — `pm3grade.sh` will happily print a full grid
-with no calibration row anywhere in it.
+⭐⭐ THIS MODULE IS THE WHOLE POINT OF THE PROJECT — it implements THE CALIBRATION RULE
+(RULES.md §1). A published grid once scored seven protocols on silence that no control had
+licensed, and the operator refuted it from their own bench in minutes. The defect was not the
+conclusion; it was that *nothing in the process refused to produce a verdict when the controls
+were missing*.
 
 ⛔ SO THE LICENCE IS A TYPE, NOT A FLAG. `grade()` cannot be called without a `Calibration`, and a
 `Calibration` cannot be constructed except by `Calibration.from_row()`, which refuses anything but
@@ -12,7 +12,7 @@ an `EXACT` real-tag observation. There is deliberately no `--no-calibration`, no
 `Calibration()` bare constructor: an option to skip the control is the same defect with a nicer
 name on it.
 
-⚠ WRONG IS NOT SILENCE (DESIGN.md §1). A reader that decodes *something other than what was armed*
+⚠ WRONG IS NOT SILENCE. A reader that decodes *something other than what was armed*
 has told us a great deal; a reader that says nothing has told us nothing. Merging them is how a
 decoder bug and a dead instrument end up in the same cell. Distinguishing them requires a
 per-(protocol, reader) decode marker, which is why `registry.py` treats a missing marker as a
@@ -28,9 +28,9 @@ from typing import Optional
 
 
 class Outcome(enum.Enum):
-    """Exactly four. No free text, and no fifth value added later without changing DESIGN.md §1.
+    """Exactly four. No free text, and no fifth value added later without changing RULES.md §1.
 
-    A cell that M52 forbids is not a fifth outcome — it is never planned at all (see plan.py), so
+    A cell the subcarrier rule forbids is not a fifth outcome — it is never planned at all (see plan.py), so
     it has no cell to hold an outcome in.
     """
 
@@ -89,7 +89,7 @@ class CalibrationRefused(Exception):
 class Calibration:
     """A licence to grade one (protocol, reader) pair, in one session, on one pad.
 
-    ⛔ DESIGN.md §2.2: the licensing row must have been executed *in the same session, on the same
+    ⛔ RULES.md §1: the licensing row must have been executed *in the same session, on the same
     pad, with the same antenna position* as the emulated rows it licenses. Those three are carried
     here and checked in `licenses()` — a licence from yesterday's session, or from the other pad,
     licenses nothing. That is not pedantry: the whole failure mode is a control that was true
@@ -117,7 +117,7 @@ class Calibration:
     def from_row(cls, obs: Observation, real_sources: frozenset[str]) -> "Calibration":
         """Build a licence from a calibration row, or refuse with the reason.
 
-        ⚠ THE REFUSAL MESSAGE IS THE FINDING. DESIGN.md §2.3: when the calibration row does not
+        ⚠ THE REFUSAL MESSAGE IS THE FINDING. RULES.md §1: when the calibration row does not
         pass, "reader R cannot judge P on this bench" is itself a result, and *the only finding
         that block of the run is allowed to produce*. But a row that came back WRONG says something
         different — the write did not put what we expected on the tag — so the two are separated
@@ -126,7 +126,7 @@ class Calibration:
         if obs.source not in real_sources:
             raise CalibrationRefused(
                 "(%s, %s): source %s is not a real-tag source %s — an emulation cannot license "
-                "itself. DESIGN.md §2.1 requires t55.pm3 (or oem where a T5577 cannot hold P)."
+                "itself. RULES.md §1 requires t55.pm3 (or oem where a T5577 cannot hold P)."
                 % (obs.protocol, obs.reader, obs.source, sorted(real_sources))
             )
         if obs.outcome_if_licensed is Outcome.WRONG:

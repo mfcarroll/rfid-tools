@@ -1,8 +1,9 @@
-"""The published grid, the exclusion list, and the cross-firmware gap register (DESIGN.md §4).
+"""The published grid, the exclusion list, and the cross-firmware gap register (the gap register).
 
-⛔⛔ THE GRID NEVER AGGREGATES ACROSS PROTOCOLS TO LICENSE A CLAIM ABOUT ONE (DESIGN.md §2,
-corollary). "Reader A missed X, reader B missed Y, so each is just a decoder gap" is the fallacy
-that cost C474. Every statement this module makes is scoped to one (protocol, reader) pair. The
+⛔⛔ THE GRID NEVER AGGREGATES ACROSS PROTOCOLS TO LICENSE A CLAIM ABOUT ONE (RULES.md §1,
+corollary). "Reader A missed X, reader B missed Y, so each is just a decoder gap" is a fallacy that
+has already cost one retracted conclusion. Every statement this module makes is scoped to one
+(protocol, reader) pair. The
 per-reader tallies that do get printed are labelled as TALLIES and carry the sentence that says so,
 because a number in a summary row is read as evidence unless it is explicitly not.
 
@@ -110,7 +111,7 @@ def _tallies(result, readers: list[str]) -> list[str]:
     out = ["## tallies", "",
            "⚠ These count cells. They are **not** evidence about any single protocol: a reader's "
            "total says nothing about whether it can judge protocol P, and combining protocols to "
-           "license a claim about one of them is the C474 fallacy. Read the per-(protocol, reader) "
+           "license a claim about one of them is a fallacy (RULES.md §1). Read the per-(protocol, reader) "
            "rows above for that.", ""]
     for rdr in readers:
         mine = [c for c in result.cells if c.reader == rdr]
@@ -153,14 +154,14 @@ def _voids(result) -> list[str]:
 
 
 def gap_register(result, protocols: list[reg.Protocol]) -> list[str]:
-    """Cross-firmware gaps, as first-class rows rather than asides (DESIGN.md §4).
+    """Cross-firmware gaps, as first-class rows rather than asides.
 
     ⭐ THIS IS THE DELIVERABLE THAT MAKES THE PROJECT WORTH RUNNING AGAINST OTHER FIRMWARES. An
     upstream maintainer can run the matrix themselves, and a gap row with the capture that proves it
     is the strongest form a bug report takes.
 
     ⛔ ONLY LICENSED CELLS APPEAR HERE. A gap is a claim about a firmware; an UNGRADED cell is a
-    claim about nothing. The known gaps carried from DESIGN.md §4 are listed with their provenance
+    claim about nothing. The gaps already known are listed with their provenance
     so that a row this run produced is never confused with one taken on trust.
     """
     known = [
@@ -172,7 +173,7 @@ def gap_register(result, protocols: list[reg.Protocol]) -> list[str]:
         ("ChameleonUltra", "10 of the Flipper's 26 protocols unimplemented", "`SCOPE.md` §B"),
         ("ChameleonUltra", "FSK2a mark is a fixed 32 µs on **both** tones "
                            "(`LF_FSK2A_MARK_CYCLES = 4`); a real tag is symmetric 32/32 and 40/40",
-         "C472"),
+         "ChameleonUltra bench"),
     ]
     out = ["## gap register", "",
            "| firmware | gap | evidence |", "|---|---|---|"]

@@ -4,46 +4,61 @@ import unittest
 
 from tests.helpers import reg, tiny_plan
 from benchmatrix import plan as planning
-from benchmatrix.registry import M52_SUBCARRIER
+from benchmatrix.registry import SUBCARRIER_RULE
 from benchmatrix.topology import Bench, READERS, SOURCES
 
 
-class M52(unittest.TestCase):
+class TheSubcarrierRule(unittest.TestCase):
 
     def test_emulated_rows_against_the_chameleon_reader_are_refused_for_the_subcarrier_family(self):
-        """DESIGN.md §5: refuse them "rather than record them as failures"."""
+        """RULES.md §2: refused, never recorded as failures."""
         plan = tiny_plan(keys=reg.TIER0_ORDER, sources=("emu.cu2",), readers=("rd.cu",))
-        m52 = {e.protocol for e in plan.exclusions if e.rule == "M52"}
-        self.assertEqual(m52, set(M52_SUBCARRIER))
+        refused = {e.protocol for e in plan.exclusions if e.rule == "subcarrier"}
+        self.assertEqual(refused, set(SUBCARRIER_RULE))
 
     def test_the_rule_is_named_explicitly_not_derived_from_modulation(self):
-        """⚠ Four of the five are ASK on the coil. Deriving M52 from `family` would silently re-admit
-        them; deriving `family` from M52 would falsify the modulation record. Both are stored."""
-        ask_but_m52 = [p for p in reg.TIER0.values() if p.m52 and p.family == "ask"]
+        """⚠ Four of the five are ASK on the coil. Deriving the rule from `family` would silently
+        re-admit them; deriving `family` from the rule would falsify the modulation record."""
+        ask_but_m52 = [p for p in reg.TIER0.values() if p.subcarrier and p.family == "ask"]
         self.assertEqual({p.key for p in ask_but_m52},
                          {"gallagher", "securakey", "noralsy", "gproxii"})
 
     def test_a_refused_cell_never_becomes_an_outcome(self):
+        """The emulated cell disappears; the real-tag row that licenses the column stays, because
+        a Chameleon reading a real tag is exactly what the subcarrier rule does NOT forbid."""
         plan = tiny_plan(keys=("indala",), sources=("emu.cu2",), readers=("rd.cu",))
-        self.assertEqual(plan.cells, [])
+        self.assertEqual({(c.source, c.reader) for c in plan.cells}, {("t55.pm3", "rd.cu")})
+        self.assertNotIn("emu.cu2", {c.source for c in plan.cells})
 
 
 class WhatCannotBeMeasured(unittest.TestCase):
 
-    def test_the_chameleon_reader_column_is_refused_for_want_of_a_read_arm(self):
+    def test_the_chameleon_reads_real_silicon_and_that_is_the_point(self):
+        """⭐ An emulation is a waveform driven onto a coil; only a real tag's silicon produces
+        genuine load modulation. `(t55.pm3, rd.cu)` is the ONLY measurement that says whether our
+        own decoders work on real RF, and it is both the control for the column and the headline
+        result of the run. All 16 must plan."""
         plan = tiny_plan(keys=reg.TIER0_ORDER, sources=("t55.pm3",), readers=("rd.cu",))
+        self.assertEqual(len(plan.cells), 16)
+        self.assertTrue(all(c.is_calibration for c in plan.cells))
+        self.assertEqual(plan.exclusions, [])
+
+    def test_a_protocol_with_no_registered_read_arm_is_still_refused(self):
+        """Defensive: every tier-0 protocol has one, but a tier-1 addition might not."""
+        armless = reg.Protocol(**{**reg.TIER0["pac"].__dict__, "key": "armless", "cu_read": None})
+        plan = planning.build([armless], ["t55.pm3"], ["rd.cu"], Bench())
         self.assertEqual(plan.cells, [])
-        self.assertTrue(all(e.rule == "no-read-arm" for e in plan.exclusions))
+        self.assertEqual([e.rule for e in plan.exclusions], ["no-read-arm"])
 
     def test_the_flipper_column_needs_an_expectation_first(self):
-        """Ten protocols have no known Flipper hex; matching on the name alone is the M28 trap."""
+        """Ten protocols have no known Flipper hex; matching on the name alone breaks RULES.md §6."""
         unknown = [p.key for p in reg.TIER0.values() if p.flip_expect is None]
         plan = tiny_plan(keys=unknown, sources=("t55.pm3",), readers=("rd.flip",))
         self.assertEqual(plan.cells, [])
-        self.assertTrue(any("M28" in e.why for e in plan.exclusions))
+        self.assertTrue(any("name-match rule" in e.why for e in plan.exclusions))
 
     def test_a_registered_firmware_gap_removes_the_source(self):
-        """DESIGN.md §4: the Flipper cannot write keri/nexwatch/idteck/gproxii to a T5577.
+        """the gap register: the Flipper cannot write keri/nexwatch/idteck/gproxii to a T5577.
 
         ⚠ The calibration row survives — it is a `t55.pm3` row and the Proxmark writes keri fine.
         What disappears is the `t55.flip` source, which does not exist for this protocol.

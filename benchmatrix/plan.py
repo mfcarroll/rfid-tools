@@ -1,14 +1,14 @@
 """The run plan: which cells get measured, which are refused, and in what physical order.
 
 ⛔⛔ THE CALIBRATION ROW IS INJECTED HERE, BY THE PLANNER, AND THERE IS NO WAY TO ASK IT NOT TO.
-DESIGN.md §2.1: for every reader R and protocol P in a run, the plan MUST contain a real-tag row
-(t55.pm3, R) for P. That is not checked at the end and it is not a warning — a (P, R) pair with no
+The calibration rule (RULES.md §1): for every reader R and protocol P in a run, the plan MUST
+contain a real-tag row (t55.pm3, R) for P. That is not checked at the end and it is not a warning — a (P, R) pair with no
 licensable source is REMOVED FROM THE PLAN, with the reason printed, because a block that cannot be
 graded should not consume bench time pretending it might be.
 
 ⭐ THE THREE REFUSALS, ALL AT PLAN TIME RATHER THAN AS FAILED CELLS:
-  • M52 — `(emu.*, rd.cu)` for a subcarrier protocol. DESIGN.md §5 says the harness must REFUSE
-    these "rather than record them as failures", and a refusal that happens after the read has been
+  • the subcarrier rule (RULES.md §2) — `(emu.*, rd.cu)` for a subcarrier-dependent protocol. These
+    are refused rather than recorded as failures, and a refusal that happens after the read has been
     taken is not a refusal, it is a deletion.
   • no known expectation — `rd.flip` for a protocol whose Flipper hex we have never seen. There is
     no pass condition to compare against, so there is nothing to measure. `bench learn` fixes it.
@@ -221,7 +221,7 @@ def _blocks(steps: list[Step]) -> list[Block]:
 def licensing_source(p: reg.Protocol, bench: Bench) -> str | None:
     """The real-tag source that can license this protocol on this bench, or None.
 
-    DESIGN.md §2.1: `t55.pm3`, "or `oem` where a T5577 cannot hold P".
+    RULES.md §1: `t55.pm3`, or `oem` where a T5577 cannot hold P.
     """
     if p.t55_capable:
         return "t55.pm3"
@@ -230,9 +230,9 @@ def licensing_source(p: reg.Protocol, bench: Bench) -> str | None:
 
 def _refuse(p: reg.Protocol, source: str, reader: str, bench: Bench) -> Exclusion | None:
     """Every reason a cell must not be planned. Order matters only for which reason is reported."""
-    # M52 — DESIGN.md §5.
-    if p.m52 and source in EMULATED_SOURCES and reader == "rd.cu":
-        return Exclusion(p.key, source, reader, "M52",
+    # The subcarrier rule — RULES.md §2.
+    if p.subcarrier and source in EMULATED_SOURCES and reader == "rd.cu":
+        return Exclusion(p.key, source, reader, "subcarrier",
                          "subcarrier-dependent: the PSK/subcarrier family needs a subcarrier "
                          "phase-locked to the reader's carrier, which only a real tag has. A SAADC "
                          "read arm tested against an emulation measures the bench, not the arm.")
@@ -251,7 +251,7 @@ def _refuse(p: reg.Protocol, source: str, reader: str, bench: Bench) -> Exclusio
         return Exclusion(p.key, source, reader, "no-expectation",
                          "the Flipper's decoded hex for %s has never been observed, so there is no "
                          "byte-exact token to compare against. Matching on the protocol NAME alone "
-                         "is the M28 trap. Run `bench learn --protocol %s` from a real tag."
+                         "breaks the name-match rule. Run `bench learn --protocol %s` from a real tag."
                          % (p.key, p.key))
     if source == "emu.flip" and p.flip_expect is None:
         return Exclusion(p.key, source, reader, "no-expectation",
@@ -259,8 +259,8 @@ def _refuse(p: reg.Protocol, source: str, reader: str, bench: Bench) -> Exclusio
                          % p.key)
     if source == "t55.flip" and not p.flip_write:
         return Exclusion(p.key, source, reader, "gap:flipper-write",
-                         "the Flipper cannot write %s to a T5577 that the pm3 writes fine "
-                         "(DESIGN.md §4). This source does not exist for this protocol." % p.key)
+                         "the Flipper cannot write %s to a T5577 that the Proxmark writes fine "
+                         "(a registered gap). This source does not exist for this protocol." % p.key)
     if source == "t55.flip" and p.flip_expect is None:
         return Exclusion(p.key, source, reader, "no-expectation",
                          "`rfid write` needs the Flipper's own hex for %s, which is unknown." % p.key)
@@ -309,13 +309,13 @@ def build(protocols: list[reg.Protocol], sources: list[str], readers: list[str],
                 exclusions.append(Exclusion(
                     p.key, "-", reader, "unlicensable",
                     "%s cannot be held by a T5577 and no OEM card is owned, so no row can license "
-                    "%s for it. DESIGN.md §2.1 leaves no third option, so the pair is not planned "
+                    "%s for it. The calibration rule leaves no third option, so the pair is not planned "
                     "rather than run and reported UNGRADED." % (p.key, reader)))
                 continue
             if not consider(p, lic, reader, True):
                 # The licensing row itself is refused, so nothing else for this pair can be graded.
                 # ⛔ BUT A CELL'S OWN REFUSAL IS REPORTED IN PREFERENCE TO "no-calibration", because
-                # the two have different lifetimes. M52 is a statement about physics and will still
+                # the two have different lifetimes. The subcarrier rule is about physics and will still
                 # hold when the Chameleon has read arms; a missing licence is a fact about today's
                 # bench. Reporting the temporary reason and hiding the permanent one told the
                 # operator that registering a read command would open up five cells that the design
