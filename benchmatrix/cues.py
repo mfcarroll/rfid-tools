@@ -53,7 +53,31 @@ def _play(sound: str) -> None:
         pass
 
 
+#: The `say` process currently talking, if any. See `_say`.
+_TALKING = None
+
+
 def _say(words: str, block: bool = False) -> None:
+    """Speak, and make sure nothing else is speaking at the same time.
+
+    ⛔⛔ ONE VOICE AT A TIME, ALWAYS. Two `say` processes started within a few hundred milliseconds
+    of each other talk over one another and the operator hears neither clearly — which is worse than
+    silence, because it sounds like a working cue. `cue_done` blocks for exactly this reason, and
+    that was not enough: a prompt that plays an attention cue AND then speaks its question issues two
+    utterances that overlap, and what the operator hears is a garbled first half and a clean second.
+    Device-observed during `bench setup`.
+
+    ⇒ Rather than leave it to every caller to sequence its own audio, anything already talking is
+    stopped here. The newest utterance is always the operative instruction — if something else was
+    still speaking, it has been superseded.
+    """
+    global _TALKING
+    if _TALKING is not None and _TALKING.poll() is None:
+        try:
+            _TALKING.terminate()
+        except Exception:
+            pass
+    _TALKING = None
     if not (SPEAK and words):
         return
     argv = ["say", "-r", str(RATE), _spoken(words)]
@@ -61,7 +85,7 @@ def _say(words: str, block: bool = False) -> None:
         if block:
             subprocess.run(argv, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=25)
         else:
-            subprocess.Popen(argv, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            _TALKING = subprocess.Popen(argv, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     except Exception:
         pass
 
@@ -106,8 +130,15 @@ def ask(prompt: str, spoken: str = "", sound: str = SND_MOVE) -> None:
         pass
 
 
-def ask_choice(prompt: str, choices: str, default: str, spoken: str = "") -> str:
-    """Single-letter choice; `default` on empty or EOF."""
+def ask_choice(prompt: str, choices: str, default: str, spoken: str = "",
+               sound: str = "") -> str:
+    """Single-letter choice; `default` on empty or EOF.
+
+    ⚠ TAKES ITS OWN SOUND, so a caller that wants a chime and a question does not have to issue
+    them as two calls — which is how the two utterances came to overlap.
+    """
+    if sound:
+        _play(sound)
     _say(spoken or prompt)
     while True:
         try:
