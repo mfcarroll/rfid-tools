@@ -205,6 +205,13 @@ def _refuse(p: reg.Protocol, source: str, reader: str, bench: Bench) -> Exclusio
     if rd in ("cu1", "cu2") and p.cu_read is None:
         return Exclusion(p.key, source, reader, "no-read-arm",
                          "no Chameleon read command is registered for %s." % p.key)
+    if rd in ("cu1", "cu2") and p.cu_expect is None:
+        return Exclusion(p.key, source, reader, "no-expectation",
+                         "the Chameleon renders %s in its own wording and what a pass looks like "
+                         "has never been observed. The Proxmark's expectation is not "
+                         "interchangeable — comparing one client's output against another's "
+                         "reports a working decoder as silent. Learn it from a real tag first."
+                         % p.key)
     try:
         devices_to_measure(source, reader)
     except StationError as e:

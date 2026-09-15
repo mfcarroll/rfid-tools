@@ -297,7 +297,8 @@ def _read(op: Op, devices: Devices, session: str, pad: str, out):
     except DeviceError as e:
         cues.cue_fault("reader failed. aborting.")
         raise RunAborted("reader %s failed mid-routine: %s" % (cell.reader, e)) from e
-    return observe(cell.protocol.key, cell.source, cell.reader, text, cell.protocol.expect,
+    return observe(cell.protocol.key, cell.source, cell.reader, text,
+                   cell.protocol.expect_for(cell.reader) or cell.protocol.expect,
                    reader.decode_marker(cell.protocol), session=session, pad=pad)
 
 

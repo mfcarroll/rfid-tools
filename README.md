@@ -107,15 +107,33 @@ the one place where swapping tags beats rearranging the bench.
 ./runtests                         # 86 tests, no hardware, no network
 ```
 
-A real run needs the ports:
+Put the ports in the environment once:
 
 ```bash
-PM3=../proxmark3/pm3 CU1_PORT=/dev/tty.usbmodemC3A1656543DE1 \
-CU2_PORT=/dev/tty.usbmodemF429364E46961 ./bench run --tags 16
+export PM3=/Users/Shared/code/personal/rfid/proxmark3/pm3
+export CU1_PORT=/dev/tty.usbmodemC3A1656543DE1
+export CU2_PORT=/dev/tty.usbmodemF429364E46961
+export FLIPPER_PORT=/dev/tty.usbmodemflip_Matthew1
 ```
 
+### The first session, in order
+
+Each step is a superset of the one before, so a failure tells you which step introduced it.
+
+```bash
+./bench probe --no-flipper                          # proof of life. Touches nothing.
+./bench run -p em410x -s t55.pm3 -r rd.pm3 --no-flipper     # 1 protocol, 1 station: the plumbing
+./bench run -s t55.pm3 -r rd.pm3 --no-flipper              # THE GOLD COLUMN — all 16
+./bench run -s t55.pm3 -s t55.cu1 -r rd.pm3 -r rd.cu1 --no-flipper   # the full cycle, 60 cells
+```
+
+⭐ **The third command is the one that is worth the project on its own.** `PM3+T55` holds only the
+Proxmark and the tag, so nothing in it is crowded and **every cell is an isolated verdict** — no
+screening, no phase 2. Anything that fails there is a *bench* problem or a registry fault, and must
+be fixed before a single emulation is graded.
+
 `--max-stack` is a bench fact, not a preference: how many devices will physically stack. More
-coverage per setup, more crowding.
+coverage per setup, more crowding. `--tags N` only affects the isolation phase.
 
 ## How it is built
 

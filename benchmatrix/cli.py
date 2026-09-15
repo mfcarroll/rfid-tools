@@ -178,6 +178,28 @@ def cmd_run(a) -> int:
     return 0
 
 
+def cmd_probe(a) -> int:
+    """Ask every channel for proof of life and stop. Touches no tag, arms nothing, writes nothing.
+
+    ⭐ RUN THIS FIRST, EVERY SESSION. A dead port discovered forty reads into a routine costs the
+    whole routine; discovered here it costs nothing. It is also the one command that is safe to run
+    with anything at all on the bench, because it only asks each device to name itself.
+    """
+    devices = _devices(a)
+    ok = True
+    for dev in devices.all():
+        alive, why = dev.alive()
+        ok = ok and alive
+        print("  %s %s" % ("✓" if alive else "⛔", why))
+    if ok:
+        print("\n  every channel answered. `bench run` can measure with these.")
+    else:
+        print("\n  ⛔ at least one channel is not fit to measure with. A silent reader and a silent\n"
+              "     emitter produce identical numbers (RULES.md §5), so nothing is run until this\n"
+              "     is fixed.")
+    return 0 if ok else 2
+
+
 def cmd_learn(a) -> int:
     """Write a credential with the Proxmark, read it on the Flipper, record what it printed.
 
@@ -269,6 +291,18 @@ def build_parser() -> argparse.ArgumentParser:
     sp = sub.add_parser("scope", help="print the registry and what it can and cannot grade")
     sp.add_argument("-p", "--protocol", action="append")
     sp.set_defaults(func=cmd_scope)
+
+    sp = sub.add_parser("probe", help="ask every channel for proof of life; touch nothing else")
+    common(sp, with_plan=False)
+    sp.add_argument("--pm3", default=os.environ.get("PM3", "pm3"))
+    sp.add_argument("--cu1-port", default=os.environ.get("CU1_PORT"))
+    sp.add_argument("--cu2-port", default=os.environ.get("CU2_PORT"))
+    sp.add_argument("--flipper-port", default=os.environ.get("FLIPPER_PORT"))
+    sp.add_argument("--slot", type=int, default=8)
+    sp.add_argument("--no-cu2", action="store_true")
+    sp.add_argument("--no-flipper", action="store_true")
+    sp.add_argument("--dry-run", action="store_true")
+    sp.set_defaults(func=cmd_probe)
 
     sp = sub.add_parser("plan", help="expand a request into cells, moves and refusals; run nothing")
     common(sp)
