@@ -16,18 +16,25 @@ import sys
 from . import cues, grid, learned, plan as planning, registry as reg, runner
 from .devices import (Chameleon, DeviceError, Flipper, Pm3, obedient_operator,
                       scripted_bench)
-from .topology import CU1, CU2, Bench, READERS, SOURCES
+from .stations import CU1, CU2, FLIPPER, PM3, T5577, Bench, READERS, SOURCES
 
 RUNS = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                      "..", "runs"))
 
-DEFAULT_SOURCES = ["t55.pm3", "emu.cu1", "emu.cu2", "emu.flip"]
-DEFAULT_READERS = ["rd.pm3", "rd.flip"]
+#: ⭐ THE DEFAULT IS THE WHOLE CROSS-PRODUCT, because the station planner collapses it into a
+#: handful of arrangements. Asking for less does not save the operator much and leaves holes.
+DEFAULT_SOURCES = ["t55.pm3", "t55.cu1", "t55.cu2", "emu.cu1", "emu.cu2"]
+DEFAULT_READERS = ["rd.pm3", "rd.cu1", "rd.cu2"]
 
 
 def _bench(a) -> Bench:
-    return Bench(cu_reader=a.cu_reader, has_cu2=not a.no_cu2, has_flipper=not a.no_flipper,
-                 has_oem=frozenset(a.oem or ()), pad=a.pad)
+    has = {PM3, T5577, CU1}
+    if not a.no_cu2:
+        has.add(CU2)
+    if not a.no_flipper:
+        has.add(FLIPPER)
+    return Bench(has=frozenset(has), max_stack=a.max_stack, has_oem=frozenset(a.oem or ()),
+                 pad=a.pad, tag_count=a.tags)
 
 
 def _protocols(a, session: str):
@@ -96,17 +103,21 @@ def cmd_plan(a) -> int:
     p = planning.build(protos, a.source, a.reader, _bench(a))
     for n in notes:
         print("  %s" % n)
-    print("\n  %d cells · %d bench moves · %d refused at plan time"
-          % (len(p.cells), len(p.blocks), len(p.exclusions)))
-    print("\n  move script:")
+    print("\n  %d cells · %d stations · %d operator interventions · %d refused at plan time"
+          % (len(p.cells), len(p.blocks), p.interventions, len(p.exclusions)))
+    print("\n  station script:")
     for i, (move, block) in enumerate(p.moves(), 1):
-        print("   %2d. %-9s  %s" % (i, block.topology.name, move.text()))
-        if block.writes:
-            print("        writes: %s" % ", ".join(w.key for w in block.writes))
-        if block.cells:
-            print("        reads : %s" % ", ".join(
-                "%s/%s%s" % (c.protocol.key, c.source, "*" if c.is_calibration else "")
-                for c in block.cells))
+        print("   %2d. %-14s %s" % (i, block.station.name, move.text()))
+        kinds = {}
+        for o in block.ops:
+            kinds[o.kind] = kinds.get(o.kind, 0) + 1
+        print("        %d ops (%s) over %d protocols → %d cells"
+              % (len(block.ops), ", ".join("%d %s" % (n, k) for k, n in sorted(kinds.items())),
+                 len(block.protocols), len(block.cells)))
+        crowded = sum(1 for o in block.ops if o.kind == "read" and o.crowded)
+        if crowded:
+            print("        %d of those reads are crowded — a failure there is screened, not a "
+                  "verdict" % crowded)
     print("\n   * = calibration row. Every (protocol, reader) pair above has one; the plan is "
           "refused at build time if any does not.")
     if p.exclusions:
@@ -136,6 +147,22 @@ def cmd_run(a) -> int:
         print("\n  ⛔ ABORTED — %s\n" % e)
         print("     No grid is published from an aborted run.")
         return 2
+    # ⛔ PHASE 2 IS PART OF THE RUN, NOT AN EXTRA. Phase 1 buys its coverage by stacking, and the
+    # crowded-stack rule means the bill comes due on whatever failed. Leaving those cells UNGRADED
+    # and calling the run finished would publish the crowding as a result.
+    if result.to_isolate and not result.aborted:
+        print("\n  %d cell(s) were screened non-EXACT in a crowded stack and are not verdicts."
+              % len(result.to_isolate))
+        p2 = planning.isolate(result.to_isolate, _bench(a))
+        print("  Isolating them takes %d station(s) and %d operator intervention(s)%s."
+              % (len(p2.blocks), p2.interventions,
+                 "" if a.tags > 1 else " — more tags would cut that"))
+        if a.no_isolate:
+            print("  --no-isolate given: they stay UNGRADED and the grid says so.")
+        else:
+            r2 = runner.run(p2, _devices(a), interactive=not a.no_prompt, session=session,
+                            licences=result.licences)
+            result = grid.merge(result, r2)
     md = grid.render(result, protos)
     os.makedirs(RUNS, exist_ok=True)
     stem = os.path.join(RUNS, "run_%s" % result.session)
@@ -227,12 +254,15 @@ def build_parser() -> argparse.ArgumentParser:
                             help="repeatable; default %s" % " ".join(DEFAULT_SOURCES))
             sp.add_argument("-r", "--reader", action="append", choices=list(READERS),
                             help="repeatable; default %s" % " ".join(DEFAULT_READERS))
-            sp.add_argument("--cu-reader", default=CU1, choices=[CU1, CU2],
-                            help="which Chameleon is the reader when rd.cu is in play")
+            sp.add_argument("--max-stack", type=int, default=3,
+                            help="how many devices will physically stack (a bench fact, not a "
+                                 "preference: more coverage per setup, more crowding)")
+            sp.add_argument("--tags", type=int, default=1,
+                            help="T5577 tags available, which is what makes the isolation phase cheap")
             sp.add_argument("--oem", action="append", help="protocol an OEM card is owned for")
             sp.add_argument("--pad", default="pad0",
-                            help="pad label stamped into every licence; change it when a READER is "
-                                 "physically repositioned, which invalidates licences taken before")
+                            help="pad label stamped into every licence; change it when a reader is "
+                                 "physically repositioned, which invalidates earlier licences")
             sp.add_argument("--no-cu2", action="store_true")
             sp.add_argument("--no-flipper", action="store_true")
 
@@ -253,6 +283,9 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("--slot", type=int, default=8, help="scratch slot, so nothing curated is lost")
     sp.add_argument("--no-prompt", action="store_true",
                     help="speak the moves but do not block on Enter (for a watched run)")
+    sp.add_argument("--no-isolate", action="store_true",
+                    help="stop after phase 1; screened cells stay UNGRADED rather than being "
+                         "re-measured in isolation")
     sp.add_argument("--dry-run", action="store_true",
                     help="exercise the control logic with no hardware; every cell will be UNGRADED")
     sp.set_defaults(func=cmd_run)

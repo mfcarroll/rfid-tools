@@ -162,13 +162,34 @@ class Cell:
     outcome: Outcome
     observation: Optional[Observation]
     note: str = ""
+    #: Devices that were in the stack but took no part in this measurement. Non-empty means the
+    #: crowded-stack rule applies and a non-EXACT reading is not a verdict (RULES.md §7).
+    crowding: frozenset = frozenset()
+    #: True once an isolated re-measurement produced this cell.
+    isolated: bool = False
 
     @property
     def glyph(self) -> str:
         return GLYPH[self.outcome]
 
 
-def grade(obs: Observation, licence: Optional[Calibration], note: str = "") -> Cell:
+def screened(obs: Observation, crowding: frozenset, station: str) -> Cell:
+    """⛔ THE CROWDED-STACK RULE (RULES.md §7). A non-EXACT reading taken with uninvolved devices in
+    the stack is NOT a verdict — it might be their detuning. It reads UNGRADED and queues an
+    isolated re-measurement, which is the only thing entitled to call it SILENT or WRONG.
+
+    ⭐ A SUCCESS IS STILL A SUCCESS, which is the whole asymmetry: a parasitic coil cannot
+    manufacture a byte-exact decode of the credential we armed. So `EXACT` never comes through here.
+    """
+    return Cell(obs.protocol, obs.source, obs.reader, Outcome.UNGRADED, obs,
+                "screened %s at %s with %s also in the stack — not a verdict until isolated "
+                "(RULES.md §7)" % (obs.outcome_if_licensed.value, station,
+                                   ", ".join(sorted(crowding))),
+                crowding=frozenset(crowding))
+
+
+def grade(obs: Observation, licence: Optional[Calibration], note: str = "",
+          crowding: frozenset = frozenset()) -> Cell:
     """The ONLY route to a Cell. No licence ⇒ UNGRADED, regardless of what the reader said.
 
     ⛔⛔ A CELL THAT WOULD READ `EXACT` STILL READS `UNGRADED` WITHOUT A LICENCE. It is tempting to
@@ -180,13 +201,16 @@ def grade(obs: Observation, licence: Optional[Calibration], note: str = "") -> C
     if licence is None or not licence.licenses(obs):
         why = note or ("no calibration row for (%s, %s) in this session/pad"
                        % (obs.protocol, obs.reader))
-        return Cell(obs.protocol, obs.source, obs.reader, Outcome.UNGRADED, obs, why)
-    return Cell(obs.protocol, obs.source, obs.reader, obs.outcome_if_licensed, obs, note)
+        return Cell(obs.protocol, obs.source, obs.reader, Outcome.UNGRADED, obs, why,
+                    crowding=crowding)
+    return Cell(obs.protocol, obs.source, obs.reader, obs.outcome_if_licensed, obs, note,
+                crowding=crowding, isolated=not crowding)
 
 
-def ungraded(protocol: str, source: str, reader: str, note: str) -> Cell:
+def ungraded(protocol: str, source: str, reader: str, note: str,
+             crowding: frozenset = frozenset()) -> Cell:
     """A cell that was planned but never observed — the calibration failed, so it was not run."""
-    return Cell(protocol, source, reader, Outcome.UNGRADED, None, note)
+    return Cell(protocol, source, reader, Outcome.UNGRADED, None, note, crowding=crowding)
 
 
 # ------------------------------------------------------------------ text matching

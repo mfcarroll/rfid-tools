@@ -29,7 +29,7 @@ from dataclasses import dataclass, field
 from typing import Optional
 
 from . import registry as reg
-from .topology import T5577
+from .stations import T5577
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.normpath(os.path.join(HERE, "..", ".."))          # .../rfid
@@ -302,14 +302,14 @@ class Air:
     `Scripted.answers` entry written by the test that cares, so that every departure from "it just
     works" is stated explicitly rather than modelled vaguely.
 
-    ⭐ `on_pad` IS WHY THE IDENTITY CHECK IS TESTABLE. The check arms BOTH Chameleons on purpose, so
-    a decode names a device rather than merely proving something is there; without a notion of which
-    one is physically on the antenna, a fake bench hears both and the check can only ever report a
-    stray. `None` means "everything armed is audible", which is the contamination case.
+    ⭐ `in_stack` IS WHY THE IDENTITY CHECK IS TESTABLE. The check arms every Chameleon on purpose,
+    so a decode names a device rather than merely proving something is there; without a notion of
+    which ones are physically stacked, a fake bench hears them all and the check can only ever
+    report a stray. `None` means "everything armed is audible", which is the contamination case.
     """
 
     armed: dict = field(default_factory=dict)         # device id -> (protocol key, expected text)
-    on_pad: set | None = None                         # device ids within the reader's field
+    in_stack: set | None = None                       # device ids sharing the reader's stack
 
 
 @dataclass
@@ -338,7 +338,7 @@ class Scripted:
     def audible(self) -> list:
         """(device, protocol, expected) for every armed emitter this reader can hear."""
         return [(d, k, v) for d, (k, v) in sorted(self.air.armed.items())
-                if d != self.id and (self.air.on_pad is None or d in self.air.on_pad)]
+                if d != self.id and (self.air.in_stack is None or d in self.air.in_stack)]
 
     def read(self, p: reg.Protocol) -> str:
         heard = self.audible()
@@ -396,7 +396,7 @@ def scripted_bench(answers: dict | None = None, *, flipper: bool = True, cu2: bo
 
 
 def obedient_operator(air: Air):
-    """An operator who performs every move exactly as cued. The baseline a dry run assumes."""
-    def do(topology):
-        air.on_pad = set(topology.on_pad)
+    """An operator who builds every stack exactly as cued. The baseline a dry run assumes."""
+    def do(station):
+        air.in_stack = set(station.stack)
     return do

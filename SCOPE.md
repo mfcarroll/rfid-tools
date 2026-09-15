@@ -10,7 +10,7 @@ of this project; do not let it collapse.
 |---|---|---|
 | Flipper (Momentum) | `Momentum-Firmware/lib/lfrfid/protocols/lfrfid_protocols.c` | 26 protocols |
 | Proxmark3 | `proxmark3/client/src/cmdlf.c` — `CommandTable[]` | 29 LF tag commands (+1 commented out) |
-| ChameleonUltra (ours) | `research/indala-psk-read/pm3grade.sh` — `ORDER` | 16 arms |
+| ChameleonUltra (ours) | the 16 tier-0 arms in `benchmatrix/registry.py` | 16 arms |
 
 ## The reconciliation
 
@@ -63,7 +63,7 @@ target) and the general commands (`config`, `read`, `search`, `sim*`, `sniff`, `
 
 None. There is nothing we attempt that neither reference tool can judge — which is the one piece of
 good news in this table, because it means **every arm we have is gradeable against an independent
-judge**, and the C473 failure was therefore entirely avoidable.
+judge**, and the uncalibrated-grid failure was therefore entirely avoidable.
 
 ## Scope decision this drives
 
@@ -77,10 +77,10 @@ judge**, and the C473 failure was therefore entirely avoidable.
 | **5 — out of class** | cotag, hitag, pcf7931, ti, zx8211 | 5 | interactive chips, not broadcast protocols |
 
 **The honest headline: the target is 26, we attempt 16, and of those 16 we currently have a
-trustworthy verdict on very few** — see the ChameleonUltra project's `ASSESSMENT-BRIEF.md`.
+trustworthy verdict on very few.** That is what the matrix is for.
 
 ## First bench task
 
 Tier 0 is not "done", it is *unmeasured*. Before adding a single protocol, run the full
-SOURCE × READER matrix (`DESIGN.md`) over the 16 tier-0 arms with calibration rows enforced. Adding
-tier-1 arms on top of an unmeasured tier 0 would repeat C473 at larger scale.
+SOURCE × READER matrix (`README.md`) over the 16 tier-0 arms with calibration rows enforced. Adding
+tier-1 arms on top of an unmeasured tier 0 would repeat the calibration failure at larger scale.

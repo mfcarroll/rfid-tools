@@ -7,13 +7,13 @@ something".
 
 import unittest
 
-from tests.helpers import (answers_all_exact, make_devices, obedient_operator, pm3_exact,
-                           reg, runner, tiny_plan)
+from tests.helpers import (answers_all_exact, make_devices, obedient_operator, reg, runner,
+                           tiny_plan)
 from benchmatrix import identity
 from benchmatrix.devices import Air
 from benchmatrix.identity import NullSweep, sweeps_agree
 from benchmatrix.outcomes import Outcome
-from benchmatrix.topology import CU1, CU2
+from benchmatrix.stations import CU1, CU2
 
 
 def quiet(*a, **k):
@@ -35,11 +35,11 @@ class TheIdentityCheck(unittest.TestCase):
         plan = tiny_plan(keys=("em410x",), sources=("t55.pm3", "emu.cu1"))
         air = Air()
 
-        def careless(topology):
+        def careless(station):
             # The operator puts Chameleon 2 wherever Chameleon 1 was asked for.
-            air.on_pad = {CU2 if d == CU1 else d for d in topology.on_pad}
+            air.in_stack = {CU2 if d == CU1 else d for d in station.stack}
 
-        dev = make_devices(pm3_answers=answers_all_exact(reg.resolve(["em410x"])),
+        dev = make_devices(answers=answers_all_exact(reg.resolve(["em410x"])),
                            air=air, operator=careless)
         with self.assertRaises(runner.RunAborted) as cm:
             runner.run(plan, dev, interactive=False, session="S", out=quiet)
@@ -47,15 +47,15 @@ class TheIdentityCheck(unittest.TestCase):
 
     def test_a_second_emitter_in_the_field_is_a_different_fault(self):
         """Both answering is not the same as the wrong one answering, and is not reported as it."""
-        air = Air(on_pad={CU1, CU2})
+        from benchmatrix.stations import Bench, PM3, build_station
+        air = Air(in_stack={PM3, CU1, CU2})
         dev = make_devices(air=air)
-        from benchmatrix.topology import Bench, topology_for
-        res = identity.check(topology_for("emu.cu1", "rd.pm3", Bench()), dev.pm3,
-                             {CU1: dev.cu1, CU2: dev.cu2})
+        station = build_station({PM3, CU1}, Bench())        # CU2 is meant to be OUT of this stack
+        res = identity.check(station, dev, {CU1: dev.cu1, CU2: dev.cu2})
         self.assertFalse(res.ok)
-        self.assertEqual(res.found, CU1)
-        self.assertEqual(res.strays, (CU2,))
-        self.assertIn("TWO EMITTERS", identity.explain(res))
+        self.assertEqual(res.found, frozenset({CU1}))
+        self.assertEqual(res.strays, frozenset({CU2}))
+        self.assertIn("EXTRA EMITTER", identity.explain(res))
 
 
 class TheNullSweeps(unittest.TestCase):
@@ -77,11 +77,10 @@ class TheNullSweeps(unittest.TestCase):
         protos = reg.resolve(["em410x"])
         # A stray emitter that is never disarmed: it answers even during the sweep.
         air = Air()
-        dev = make_devices(pm3_answers={("em410x", None): pm3_exact(protos[0]),
-                                        **answers_all_exact(protos)}, air=air)
-        dev.cu1.disarm = lambda: None
+        dev = make_devices(answers=answers_all_exact(protos), air=air)
+        dev.cu1.disarm = lambda: None           # a stray emitter nothing can switch off
         dev.cu1.arm(protos[0])
-        air.on_pad = None                       # everything armed is audible
+        air.in_stack = None                     # everything armed is audible
         dev.operator = None                     # ...and no operator clears it
         with self.assertRaises(runner.RunAborted) as cm:
             runner.run(plan, dev, interactive=False, session="S", out=quiet)
@@ -91,7 +90,7 @@ class TheNullSweeps(unittest.TestCase):
         """⛔ The bug the harness found in itself: a T5577 has no idle state, so disarming the
         emitters is not enough and the closing sweep voids the block that just wrote the tag."""
         plan = tiny_plan(keys=("em410x",), sources=("t55.pm3",))
-        dev = make_devices(pm3_answers=answers_all_exact(reg.resolve(["em410x"])))
+        dev = make_devices(answers=answers_all_exact(reg.resolve(["em410x"])))
         res = runner.run(plan, dev, interactive=False, session="S", out=quiet)
         self.assertEqual(res.void_blocks, [], "the block must not void itself on its own tag")
         self.assertEqual([c.outcome for c in res.cells], [Outcome.EXACT])
@@ -105,19 +104,19 @@ class VoidingIsContagious(unittest.TestCase):
         protos = reg.resolve(["em410x"])
         plan = tiny_plan(keys=("em410x",), sources=("t55.pm3", "emu.cu1"))
         air = Air()
-        dev = make_devices(pm3_answers=answers_all_exact(protos), air=air)
+        dev = make_devices(answers=answers_all_exact(protos), air=air)
 
         # The operator leaves the tag on the pad for the CLOSING sweep of the calibration block
         # only, so that sweep disagrees with the opening one and the block voids.
         real = obedient_operator(air)
-        state = {"sweeps": 0}
+        state = {"nulls": 0}
 
-        def sloppy(topology):
-            real(topology)
-            if topology.name.endswith("_NULL"):
-                state["sweeps"] += 1
-                if state["sweeps"] == 2:        # the closing sweep of the first block
-                    air.on_pad.add("t5577")
+        def sloppy(station):
+            real(station)
+            if "T55" not in station.name:       # a null arrangement: the tag has been taken out
+                state["nulls"] += 1
+                if state["nulls"] == 2:         # the CLOSING sweep of the first station
+                    air.in_stack.add("t5577")   # ...but the operator left the tag in
 
         dev.operator = sloppy
         res = runner.run(plan, dev, interactive=False, session="S", out=quiet)
@@ -143,12 +142,12 @@ class ProvenanceIsOnTheFace(unittest.TestCase):
         from benchmatrix import grid
         protos = reg.resolve(["em410x"])
         plan = tiny_plan(keys=("em410x",), sources=("t55.pm3", "emu.cu1"))
-        res = runner.run(plan, make_devices(pm3_answers=answers_all_exact(protos)),
+        res = runner.run(plan, make_devices(answers=answers_all_exact(protos)),
                          interactive=False, session="S", out=quiet)
         self.assertNotEqual(res.provenance, "bench")
         head = grid.render(res, protos).split("legend")[0]
         self.assertIn("NOT A RESULT", head)
-        self.assertIn('"provenance"', grid.to_json(res, protos))
+        self.assertIn("dry-run", grid.to_json(res, protos))
 
 
 if __name__ == "__main__":

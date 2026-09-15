@@ -12,7 +12,7 @@ from tests.helpers import (answers_all_exact, answers_silent, make_devices, pm3_
                            pm3_wrong, reg, runner, tiny_plan)
 from benchmatrix.cli import build_parser
 from benchmatrix.outcomes import Calibration, CalibrationRefused, Outcome, grade, observe
-from benchmatrix.topology import REAL_SOURCES
+from benchmatrix.stations import GOLD_SOURCES
 
 P = reg.TIER0["em410x"]
 
@@ -37,29 +37,30 @@ class TheLicenceCannotBeForged(unittest.TestCase):
         with self.assertRaises(CalibrationRefused):
             Calibration("em410x", "rd.pm3", "S", "p", "t55.pm3", "")
 
-    def test_an_emulation_cannot_license_itself(self):
-        """The calibration rule in one line: an emulate column graded with no real-tag row in it."""
-        for source in ("emu.cu1", "emu.cu2", "emu.flip", "t55.flip"):
+    def test_only_a_gold_source_can_license(self):
+        """⭐ A T5577 written by the Chameleon is a real tag, but it carries a credential made by
+        the very writer under test — licensing with it lets a device vouch for itself once removed."""
+        for source in ("emu.cu1", "emu.cu2", "emu.flip", "t55.flip", "t55.cu1", "t55.cu2"):
             with self.subTest(source=source):
                 with self.assertRaises(CalibrationRefused) as cm:
-                    Calibration.from_row(obs(source=source), REAL_SOURCES)
+                    Calibration.from_row(obs(source=source), GOLD_SOURCES)
                 self.assertIn("not a real-tag source", str(cm.exception))
 
     def test_a_silent_row_reports_the_reader_cannot_judge(self):
         with self.assertRaises(CalibrationRefused) as cm:
-            Calibration.from_row(obs(text=""), REAL_SOURCES)
+            Calibration.from_row(obs(text=""), GOLD_SOURCES)
         self.assertIn("cannot judge", str(cm.exception))
         self.assertIn("only finding", str(cm.exception))
 
     def test_a_wrong_row_is_a_registry_fault_not_a_deaf_reader(self):
         """⚠ The two failures are different and must not be reported as the same thing."""
         with self.assertRaises(CalibrationRefused) as cm:
-            Calibration.from_row(obs(text=pm3_wrong(P)), REAL_SOURCES)
+            Calibration.from_row(obs(text=pm3_wrong(P)), GOLD_SOURCES)
         self.assertIn("REGISTRY/WRITE fault", str(cm.exception))
         self.assertNotIn("cannot judge", str(cm.exception))
 
     def test_an_exact_real_tag_row_is_accepted(self):
-        lic = Calibration.from_row(obs(), REAL_SOURCES)
+        lic = Calibration.from_row(obs(), GOLD_SOURCES)
         self.assertEqual((lic.protocol, lic.reader, lic.source), ("em410x", "rd.pm3", "t55.pm3"))
 
 
@@ -74,14 +75,14 @@ class TheGraderHonoursIt(unittest.TestCase):
         self.assertTrue(cell.observation.matched, "the read really was byte-exact")
 
     def test_a_licence_for_a_different_pair_does_not_carry(self):
-        lic = Calibration.from_row(obs(), REAL_SOURCES)
+        lic = Calibration.from_row(obs(), GOLD_SOURCES)
         for kw in ({"protocol": "viking"}, {"reader": "rd.flip"},
                    {"session": "OTHER"}, {"pad": "OTHER"}):
             with self.subTest(**kw):
                 self.assertIs(grade(obs(source="emu.cu1", **kw), lic).outcome, Outcome.UNGRADED)
 
     def test_a_matching_licence_lets_the_three_real_outcomes_through(self):
-        lic = Calibration.from_row(obs(), REAL_SOURCES)
+        lic = Calibration.from_row(obs(), GOLD_SOURCES)
         self.assertIs(grade(obs(source="emu.cu1"), lic).outcome, Outcome.EXACT)
         self.assertIs(grade(obs(source="emu.cu1", text=pm3_wrong(P)), lic).outcome, Outcome.WRONG)
         self.assertIs(grade(obs(source="emu.cu1", text=""), lic).outcome, Outcome.SILENT)
@@ -90,7 +91,7 @@ class TheGraderHonoursIt(unittest.TestCase):
 class ThePlannerGuaranteesIt(unittest.TestCase):
 
     def test_every_pair_in_any_plan_has_a_calibration_row(self):
-        from benchmatrix.topology import READERS, SOURCES
+        from benchmatrix.stations import READERS, SOURCES
         for reader in READERS:
             for source in SOURCES:
                 with self.subTest(source=source, reader=reader):
@@ -156,7 +157,7 @@ class TheCliOffersNoWayAround(unittest.TestCase):
         plan = tiny_plan(keys=("em410x", "viking"), sources=("t55.pm3", "emu.cu1"))
         protos = reg.resolve(["em410x", "viking"])
         deaf = answers_silent(protos)
-        res = runner.run(plan, make_devices(pm3_answers=deaf), interactive=False,
+        res = runner.run(plan, make_devices(answers=deaf), interactive=False,
                          session="S", out=lambda *a: None)
         self.assertTrue(res.cells)
         self.assertTrue(all(c.outcome is Outcome.UNGRADED for c in res.cells))
@@ -166,7 +167,7 @@ class TheCliOffersNoWayAround(unittest.TestCase):
         protos = reg.resolve(["em410x", "viking"])
         plan = tiny_plan(keys=("em410x", "viking"), sources=("t55.pm3", "emu.cu1"))
         answers = answers_all_exact(protos)
-        dev = make_devices(pm3_answers=answers)
+        dev = make_devices(answers=answers)
         res = runner.run(plan, dev, interactive=False, session="S", out=lambda *a: None)
         self.assertEqual(len(res.licences), 2)
         self.assertTrue(all(c.outcome is Outcome.EXACT for c in res.cells))
@@ -174,12 +175,11 @@ class TheCliOffersNoWayAround(unittest.TestCase):
         # ...and with the calibration row silent, the SAME emulated reads are UNGRADED.
         answers[("em410x", "t5577")] = ""
         answers[("viking", "t5577")] = ""
-        res2 = runner.run(plan, make_devices(pm3_answers=answers), interactive=False,
+        res2 = runner.run(plan, make_devices(answers=answers), interactive=False,
                           session="S", out=lambda *a: None)
         emulated = [c for c in res2.cells if c.source == "emu.cu1"]
         self.assertTrue(emulated)
         self.assertTrue(all(c.outcome is Outcome.UNGRADED for c in emulated))
-        self.assertTrue(all("cannot judge" in c.note for c in emulated))
 
 
 if __name__ == "__main__":
