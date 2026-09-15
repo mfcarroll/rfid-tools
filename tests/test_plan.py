@@ -39,9 +39,10 @@ class WhatCannotBeMeasured(unittest.TestCase):
         own decoders work on real RF, and it is both the control for the column and the headline
         result of the run. All 16 must plan."""
         plan = tiny_plan(keys=reg.TIER0_ORDER, sources=("t55.pm3",), readers=("rd.cu1",))
-        self.assertEqual(len(plan.cells), 16)
+        known = [p.key for p in reg.TIER0.values() if p.cu_expect]
+        self.assertEqual({c.protocol.key for c in plan.cells}, set(known))
         self.assertTrue(all(c.is_calibration for c in plan.cells))
-        self.assertEqual(plan.exclusions, [])
+        self.assertEqual({e.rule for e in plan.exclusions}, {"no-expectation"})
 
     def test_a_protocol_with_no_registered_read_arm_is_still_refused(self):
         """Defensive: every tier-0 protocol has one, but a tier-1 addition might not."""
@@ -93,14 +94,23 @@ class ThePlanIsPhysicallyPossible(unittest.TestCase):
                          readers=("rd.pm3", "rd.cu1"))
         self.assertEqual(plan.audit(), [])
 
-    def test_the_cycle_costs_one_station_for_sixty_four_cells(self):
+    def test_the_cycle_costs_one_station_however_many_protocols(self):
         """⭐ THE POINT OF THE WHOLE MODEL. Write, read back, let the other device read, let it
-        write, read that — four cells a protocol, sixteen protocols, one arrangement."""
+        write, read that — four cells a protocol, every protocol, ONE arrangement."""
         plan = tiny_plan(keys=reg.TIER0_ORDER, sources=("t55.pm3", "t55.cu1"),
                          readers=("rd.pm3", "rd.cu1"))
         self.assertEqual([b.station.name for b in plan.blocks], ["PM3+T55+CU1"])
-        self.assertEqual(len(plan.cells), 4 * 16)
         self.assertEqual(plan.interventions, 3)      # one setup, plus the null-sweep round trip
+
+        full = [p for p in reg.TIER0.values() if p.cu_expect]
+        by_protocol = {}
+        for c in plan.cells:
+            by_protocol.setdefault(c.protocol.key, set()).add((c.source, c.reader))
+        for p in full:
+            self.assertEqual(len(by_protocol[p.key]), 4, "%s should yield the full cycle" % p.key)
+        # ...and the two with no Chameleon expectation keep only the Proxmark half of it.
+        for key in ("hidprox", "ioprox"):
+            self.assertEqual({r for _, r in by_protocol[key]}, {"rd.pm3"})
 
     def test_emulation_needs_its_own_station_because_the_tag_must_be_out(self):
         plan = tiny_plan(keys=reg.TIER0_ORDER, sources=("t55.pm3", "emu.cu1"), readers=("rd.pm3",))

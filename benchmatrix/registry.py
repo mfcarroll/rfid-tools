@@ -64,6 +64,8 @@ class Protocol:
     subcarrier: bool                    # subcarrier-dependent ⇒ (emu.*, rd.cu) is refused, never "failed"
     cu_read: Optional[str] = None       # the Chameleon's own decoder — `lf <proto> read`
     cu_write: Optional[str] = None      # the Chameleon's own T5577 writer — `lf <proto> write`
+    cu_decode_marker: Optional[str] = None   # "a demod happened", in the Chameleon's own wording
+    cu_expect: Optional[str] = None     # None = not known; the rd.cu* column cannot be planned
     flip_expect: Optional[str] = None   # None = not known; the rd.flip column cannot be planned
     flip_write: bool = True      # False = the Flipper is known to refuse to write this to a T5577
     notes: str = ""
@@ -74,6 +76,22 @@ class Protocol:
     def flip_line(self) -> Optional[str]:
         """The normalised `<name> <HEX>` line a successful Flipper read must produce."""
         return None if self.flip_expect is None else "%s %s" % (self.flip_key, self.flip_expect)
+
+    def expect_for(self, reader: str) -> Optional[str]:
+        """⛔ THE EXPECTATION IS PER (PROTOCOL, READER), NOT PER PROTOCOL. Three clients decode the
+        same credential and print it three different ways — the Proxmark renders `FC: 123  CN: 4567`
+        where the Chameleon prints `HIDProx/H10301` and its own fields. Comparing one client's
+        output against another's expectation reports a working decoder as silent."""
+        if reader == "rd.flip":
+            return self.flip_line()
+        if reader in ("rd.cu1", "rd.cu2"):
+            return self.cu_expect
+        return self.expect
+
+    def marker_for(self, reader: str) -> Optional[str]:
+        if reader in ("rd.cu1", "rd.cu2"):
+            return self.cu_decode_marker
+        return self.pm3_decode_marker
 
 
 # ⛔ THE SUBCARRIER RULE (RULES.md §2): never judge an emulation with a subcarrier-dependent read
@@ -103,6 +121,8 @@ TIER0: dict[str, Protocol] = {p.key: p for p in [
        cu_emulate="lf em 410x econfig -s {slot} --id 2244668800",
        cu_read="lf em 410x read",
        cu_write="lf em 410x write --id 2244668800",
+       cu_decode_marker=r"EM410X\s*:",
+       cu_expect="2244668800",
        flip_key="EM4100", flip_expect="2244668800",
        notes="5-byte id both sides — the one protocol where every channel speaks the same bytes."),
 
@@ -120,6 +140,8 @@ TIER0: dict[str, Protocol] = {p.key: p for p in [
        cu_emulate="lf viking econfig -s {slot} --id 1a337195",
        cu_read="lf viking read",
        cu_write="lf viking write --id 1a337195",
+       cu_decode_marker=r"Viking\s*:",
+       cu_expect="1a337195",
        flip_key="Viking", flip_expect="1A337195",
        notes="VIKING_DECODED_DATA_SIZE = 4, same width as the armed id."),
 
@@ -132,6 +154,8 @@ TIER0: dict[str, Protocol] = {p.key: p for p in [
        cu_emulate="lf jablotron econfig -s {slot} --id 8899aabbcc",
        cu_read="lf jablotron read",
        cu_write="lf jablotron write --id 8899aabbcc",
+       cu_decode_marker=r"Jablotron ID\s*:",
+       cu_expect="8899aabbcc",
        flip_key="Jablotron", flip_expect="8899AABBCC",
        notes="JABLOTRON_DECODED_DATA_SIZE = 5, same width as the armed id."),
 
@@ -144,6 +168,8 @@ TIER0: dict[str, Protocol] = {p.key: p for p in [
        cu_emulate="lf pac econfig -s {slot} --cn CARD0042",
        cu_read="lf pac read",
        cu_write="lf pac write --cn CARD0042",
+       cu_decode_marker=r"PAC/Stanley - CN",
+       cu_expect="CARD0042",
        flip_key="PAC/Stanley",
        notes="The Flipper has read NOTHING from a real PAC tag the Proxmark read byte-exact. That is "
              "the calibration row this project exists to force, and it is expected to FAIL here."),
@@ -157,6 +183,8 @@ TIER0: dict[str, Protocol] = {p.key: p for p in [
        cu_emulate="lf hid prox econfig -s {slot} -f H10301 --fc 123 --cn 4567",
        cu_read="lf hid prox read",
        cu_write="lf hid prox write -f H10301 --fc 123 --cn 4567",
+       cu_decode_marker=r"HIDProx/",
+       cu_expect=None,
        flip_key="H10301",
        notes="⚠ The Flipper's H10301 and HIDProx are DIFFERENT protocols — H10301 is the 26-bit "
              "arm we emit, HIDProx is `protocol_hid_generic.c` (SCOPE.md tier 2). Do not conflate."),
@@ -170,6 +198,8 @@ TIER0: dict[str, Protocol] = {p.key: p for p in [
        cu_emulate="lf ioprox econfig -s {slot} --ver 1 --fc 83 --cn 1337",
        cu_read="lf ioprox read",
        cu_write="lf ioprox write --ver 1 --fc 83 --cn 1337",
+       cu_decode_marker=r"ioProx XSF",
+       cu_expect=None,
        flip_key="IoProxXSF",
        notes="IOPROXXSF_DECODED_DATA_SIZE = 4 (ver, fc, cn hi, cn lo) but the packing is the "
              "Flipper's, not ours — learn it, do not derive it."),
@@ -186,6 +216,8 @@ TIER0: dict[str, Protocol] = {p.key: p for p in [
        cu_emulate="lf awid econfig -s {slot} --raw 011d81711dd1181111111111",
        cu_read="lf awid read",
        cu_write="lf awid write --raw 011d81711dd1181111111111",
+       cu_decode_marker=r"AWID FSK2a",
+       cu_expect="011d81711dd1181111111111",
        flip_key="AWID",
        notes="⛔ pm3.write and cu.emulate are NOT known to produce the same credential. Expect "
              "the (t55.pm3, rd.pm3) row to read WRONG until the raw is matched to the fields."),
@@ -199,6 +231,8 @@ TIER0: dict[str, Protocol] = {p.key: p for p in [
        cu_emulate="lf indala econfig -s {slot} --id a0000000e6bd0e92",
        cu_read="lf indala read",
        cu_write="lf indala write --raw a0000000e6bd0e92",
+       cu_decode_marker=r"Indala\d*\s+PSK1",
+       cu_expect="a0000000e6bd0e92",
        flip_key="Indala26",
        notes="INDALA26_DECODED_DATA_SIZE = 4 against an 8-byte armed id — the Flipper prints a "
              "different encoding. The subcarrier rule applies: no (emu.*, rd.cu) cell."),
@@ -212,6 +246,8 @@ TIER0: dict[str, Protocol] = {p.key: p for p in [
        cu_emulate="lf keri econfig -s {slot} --id 80003039",
        cu_read="lf keri read",
        cu_write="lf keri write --id 80003039",
+       cu_decode_marker=r"Keri PSK1",
+       cu_expect="80003039",
        flip_key="Keri", flip_expect="80003039", flip_write=False,
        notes="0x80003039 = internal id 12345 with the top bit set; KERI_DECODED_DATA_SIZE = 4. "
              "⛔ Flipper cannot WRITE this to a T5577 — t55.flip is unavailable."),
@@ -225,6 +261,8 @@ TIER0: dict[str, Protocol] = {p.key: p for p in [
        cu_emulate="lf nexwatch econfig -s {slot} --cn 87654321 -m 2",
        cu_read="lf nexwatch read",
        cu_write="lf nexwatch write --cn 87654321 -m 2",
+       cu_decode_marker=r"NexWatch PSK1",
+       cu_expect="87654321",
        flip_key="Nexwatch", flip_write=False,
        notes="⚠ `clone` needs a credential flavour (--nc/--hc/--qc) that `econfig` has no "
              "argument for. If they disagree the calibration row will say so."),
@@ -238,6 +276,8 @@ TIER0: dict[str, Protocol] = {p.key: p for p in [
        cu_emulate="lf idteck econfig -s {slot} --id 4944544b55667788",
        cu_read="lf idteck read",
        cu_write="lf idteck write --id 4944544b55667788",
+       cu_decode_marker=r"IDTECK PSK1",
+       cu_expect="4944544b55667788",
        flip_key="Idteck", flip_expect="4944544B55667788", flip_write=False,
        notes="IDTECK_DECODED_DATA_SIZE = 8, same width as the armed id."),
 
@@ -250,6 +290,8 @@ TIER0: dict[str, Protocol] = {p.key: p for p in [
        cu_emulate="lf gallagher econfig -s {slot} --raw 7feaa31e76d86c6d868cc249",
        cu_read="lf gallagher read",
        cu_write="lf gallagher write --raw 7feaa31e76d86c6d868cc249",
+       cu_decode_marker=r"Gallagher ASK/Manchester",
+       cu_expect="7feaa31e76d86c6d868cc249",
        flip_key="Gallagher",
        notes="ASK on the coil, but subcarrier-dependent all the same — see SUBCARRIER_RULE."),
 
@@ -262,6 +304,8 @@ TIER0: dict[str, Protocol] = {p.key: p for p in [
        cu_emulate="lf securakey econfig -s {slot} --raw 7fcb400001adea5344300000",
        cu_read="lf securakey read",
        cu_write="lf securakey write --raw 7fcb400001adea5344300000",
+       cu_decode_marker=r"Securakey ASK/Manchester",
+       cu_expect="7fcb400001adea5344300000",
        flip_key="Radio Key",
        notes="⛔ THE FLIPPER CALLS IT `Radio Key`, WITH A SPACE. flipper.py's success pattern was "
              "one word for a whole session and scored a working emulation 0 of 6 — that number "
@@ -276,6 +320,8 @@ TIER0: dict[str, Protocol] = {p.key: p for p in [
        cu_emulate="lf noralsy econfig -s {slot} --raw bb0214ff0112402233670000",
        cu_read="lf noralsy read",
        cu_write="lf noralsy write --raw bb0214ff0112402233670000",
+       cu_decode_marker=r"Noralsy ASK/Manchester",
+       cu_expect="bb0214ff0112402233670000",
        flip_key="Noralsy",
        notes="⛔ `clone --cn` vs `econfig --raw`: not known to agree. The calibration row decides."),
 
@@ -288,6 +334,8 @@ TIER0: dict[str, Protocol] = {p.key: p for p in [
        cu_emulate="lf gproxii econfig -s {slot} --raw fac2a38c2b081af0210b12c2",
        cu_read="lf gproxii read",
        cu_write="lf gproxii write --raw fac2a38c2b081af0210b12c2",
+       cu_decode_marker=r"GProxII ASK/biphase",
+       cu_expect="fac2a38c2b081af0210b12c2",
        flip_key="GProxII", flip_expect="FAC2A38C2B081AF0210B12C2", flip_write=False,
        notes="GPROXII_DATA_SIZE = 12, same width as the armed raw. ⛔ Flipper cannot write it."),
 
@@ -300,6 +348,8 @@ TIER0: dict[str, Protocol] = {p.key: p for p in [
        cu_emulate="lf fdxb econfig -s {slot} --raw 00339a080402079f8040797788040201",
        cu_read="lf fdxb read",
        cu_write="lf fdxb write --raw 00339a080402079f8040797788040201",
+       cu_decode_marker=r"FDX-B ASK/biphase",
+       cu_expect="00339a080402079f8040797788040201",
        flip_key="FDX-B",
        notes="FDXB_DECODED_DATA_SIZE = 11 against a 16-byte armed raw — different encodings."),
 ]}
@@ -341,7 +391,7 @@ def validate(protocols: dict[str, Protocol] = TIER0) -> None:
         # ⛔ BOTH CHAMELEON ARMS ARE REQUIRED. Every tier-0 protocol has `read` and `write` in the
         # client, and a missing entry here would silently drop the one column that tests our own
         # decoders against real silicon.
-        for field_name in ("cu_read", "cu_write"):
+        for field_name in ("cu_read", "cu_write", "cu_decode_marker"):
             if not getattr(p, field_name):
                 problems.append("%s: no %s — the Chameleon has this arm and it must be tested"
                                 % (key, field_name))

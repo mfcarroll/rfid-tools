@@ -57,9 +57,13 @@ class IdentityResult:
 
 def probe_protocol(device: str, protocols: dict[str, reg.Protocol] = reg.TIER0) -> reg.Protocol:
     base = protocols[PROBE_PROTOCOL]
+    # ⚠ BOTH EXPECTATIONS ARE SET. The probe may be read by the Proxmark or by the other
+    # Chameleon, and each renders EM410X in its own wording — a probe carrying only one client's
+    # expectation would report the other as having heard nothing.
     return reg.Protocol(**{**base.__dict__,
                            "key": PROBE_KEY,
                            "expect": PROBE_ID[device],
+                           "cu_expect": PROBE_ID[device],
                            "cu_emulate": "lf em 410x econfig -s {slot} --id %s"
                                          % PROBE_ID[device].lower()})
 
@@ -186,7 +190,8 @@ def null_sweep(label: str, readers: list, protocols: list, emitters: list) -> Nu
     for reader in readers:
         for p in protocols:
             text = _strip_ansi(reader.read(p))
-            if p.expect and p.expect.lower() in text.lower():
+            want = p.expect_for(getattr(reader, "id", "rd.pm3")) or p.expect
+            if want and want.lower() in text.lower():
                 hits.add(p.key)
                 detail[p.key] = text.strip()[:200]
     return NullSweep(label=label, hits=frozenset(hits), detail=detail)
