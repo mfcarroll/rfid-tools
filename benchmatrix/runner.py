@@ -30,7 +30,7 @@ import datetime as _dt
 from dataclasses import dataclass, field
 
 from . import cues, identity
-from .devices import DeviceError
+from .devices import DeviceError, WrongDevice
 from .identity import IdentityFault, NullSweep, null_sweep, sweeps_agree
 from .outcomes import (Calibration, CalibrationRefused, Cell, Outcome, grade, observe, screened,
                        ungraded)
@@ -153,7 +153,14 @@ def run(plan: RunPlan, devices: Devices, *, interactive: bool = True,
             cues.cue_fault("the field is not clean. aborting.")
             raise RunAborted(res.aborted)
 
-        issued = _routine(report, devices, res, session, pad, out)
+        try:
+            issued = _routine(report, devices, res, session, pad, out)
+        except WrongDevice as e:
+            # ⛔ Caught at the exact action it would have corrupted. Everything measured at this
+            # station is about to be attributed to a device we can no longer vouch for.
+            res.aborted = str(e)
+            cues.cue_fault("wrong device answered. aborting.")
+            raise RunAborted(str(e)) from e
 
         report.after = _sweep("NULL AFTER", b, devices, out, interactive)
         agree, why = sweeps_agree(report.before, report.after)
