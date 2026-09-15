@@ -2,3 +2,4 @@ __pycache__/
 *.pyc
 runs/*.md
 runs/*.json
+.env

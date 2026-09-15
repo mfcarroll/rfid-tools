@@ -104,23 +104,45 @@ the one place where swapping tags beats rearranging the bench.
 ./bench scope                      # the registry, and what it can and cannot grade
 ./bench plan                       # the cells, the station script, and what is refused
 ./bench run --dry-run --no-prompt  # rehearse the whole thing with no hardware
-./runtests                         # 86 tests, no hardware, no network
+./runtests                         # 99 tests, no hardware, no network
 ```
 
-Put the ports in the environment once:
+### Setup: which device is on which port
 
 ```bash
-export PM3=/Users/Shared/code/personal/rfid/proxmark3/pm3
-export CU1_PORT=/dev/tty.usbmodemC3A1656543DE1
-export CU2_PORT=/dev/tty.usbmodemF429364E46961
-export FLIPPER_PORT=/dev/tty.usbmodemflip_Matthew1
+./bench setup
 ```
+
+The Proxmark and the Flipper name themselves in their USB product strings. **The Chameleons do
+not** — two of them enumerate as anonymous serial numbers, and nothing in that string says which is
+the one labelled 1 on the bench. Crossing them is easy, silent, and poisons a whole run: every arm
+attributed to the wrong device and the wrong firmware build.
+
+⛔ **The radio identity check cannot save you from this.** It arms `cu1` with a unique id and asks a
+reader who is there — but `cu1` means *whatever `CU1_PORT` points at*. Crossed ports make it confirm
+the lie. The two checks cover different failure modes:
+
+| check | answers | when |
+|---|---|---|
+| `bench setup` | which physical device is on which **port** | once, by eye |
+| radio identity | which physical device is in the **stack** | after every setup, automatically |
+
+So setup makes one device visibly busy with a burst of LF reads and asks you which one blinked. The
+LEDs are the out-of-band channel: every other way of asking runs through the same USB mapping we are
+trying to establish, and so cannot check it.
+
+⭐ **You do that once.** `hw chipid` is a permanent hardware identifier, so the answer is remembered
+against the silicon rather than the port. Reshuffle the USB and setup re-maps them silently; a
+device that turns out to be the wrong silicon fails proof of life with a message naming both chip
+ids. Results go to `.env`, which is gitignored and loaded automatically — an explicit environment
+variable always wins over it.
 
 ### The first session, in order
 
 Each step is a superset of the one before, so a failure tells you which step introduced it.
 
 ```bash
+./bench setup                                       # once: which Chameleon is which
 ./bench probe --no-flipper                          # proof of life. Touches nothing.
 ./bench run -p em410x -s t55.pm3 -r rd.pm3 --no-flipper     # 1 protocol, 1 station: the plumbing
 ./bench run -s t55.pm3 -r rd.pm3 --no-flipper              # THE GOLD COLUMN — all 16
@@ -148,9 +170,10 @@ benchmatrix/
   runner.py           the campaign: setups, controls, routines, voiding
   devices.py          pm3 / Flipper / Chameleon channels, and a scripted stand-in
   cues.py             spoken operator cues
+  setup.py            device discovery, chip-id identity, and `.env`
   learned.py          expectations learned from a real tag, and the self-licensing guard
   grid.py             the published grid, the exclusion list, the gap register
-tests/                86 tests, all on the scripted bench — `./runtests`
+tests/                99 tests, all on the scripted bench — `./runtests`
 ```
 
 ## The protocol registry
