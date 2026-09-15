@@ -54,6 +54,10 @@ PM3_ALIVE = ("communicating with pm3 over", "max frame size:")
 FLIP_SUCCESS = re.compile(r"^([A-Za-z][A-Za-z0-9/\- ]*?)\s+([0-9A-F]{4,})$")
 FLIP_DECODE_MARKER = r"^[A-Za-z][A-Za-z0-9/\- ]*?\s+[0-9A-F]{4,}$"
 
+#: The Chameleon's permanent hardware id, as `hw chipid` prints it. Shared with
+#: setup.py so the two cannot drift apart.
+CHIPID_RE = re.compile(r"Device chip ID[:\s]+([0-9A-Fa-f]{4,})")
+
 
 class DeviceError(Exception):
     """The instrument is not fit to measure with. Never scored — always aborts the block."""
@@ -134,6 +138,9 @@ class Chameleon:
     slot: int = 8
     timeout: int = 60
     id: str = "rd.cu"
+    #: The permanent hardware id `bench setup` recorded for this label. Checked at proof of life,
+    #: because a port can be reassigned between sessions and the silicon cannot.
+    expect_chipid: str = ""
 
     @property
     def python(self) -> str:
@@ -154,7 +161,28 @@ class Chameleon:
         if self._refused(out) or not out.strip():
             return False, "%s: no usable answer to `hw version` — %s" % (self.name,
                                                                          self._refused(out) or "silence")
-        return True, "%s: alive" % self.name
+        # ⛔⛔ THE PORT IS NOT THE DEVICE. Two Chameleons enumerate as anonymous serial numbers, and
+        # a replug can swap them. Every arm would then be attributed to the wrong device and the
+        # wrong firmware build, and the radio identity check could not catch it — that check arms
+        # "cu1", meaning whatever this port points at, so crossed ports make it confirm the lie.
+        if self.expect_chipid:
+            got = self.chipid()
+            if got is None:
+                return False, ("%s: could not read a chip id from %s to confirm it is the device "
+                               "`bench setup` recorded" % (self.name, self.port))
+            if got.upper() != self.expect_chipid.upper():
+                return False, ("⛔ %s IS NOT THE DEVICE ON %s. Setup recorded chip %s for %s; this "
+                               "port holds chip %s. The ports have been crossed or a device was "
+                               "swapped — re-run `bench setup`."
+                               % (self.name, self.port, self.expect_chipid, self.name, got))
+        return True, "%s: alive%s" % (self.name,
+                                      " (chip %s confirmed)" % self.expect_chipid
+                                      if self.expect_chipid else "")
+
+    def chipid(self) -> Optional[str]:
+        """The permanent hardware id, or None if this port will not say."""
+        m = re.search(r"Device chip ID[:\s]+([0-9A-Fa-f]{4,})", self.exec("hw chipid") or "")
+        return m.group(1).upper() if m else None
 
     def arm(self, p: reg.Protocol) -> None:
         """Type, credential, LF enable, slot change, emulator mode — all four, in that order."""

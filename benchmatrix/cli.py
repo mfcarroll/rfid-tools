@@ -13,7 +13,7 @@ import datetime as _dt
 import os
 import sys
 
-from . import cues, grid, learned, plan as planning, registry as reg, runner
+from . import cues, grid, learned, plan as planning, registry as reg, runner, setup
 from .devices import (Chameleon, DeviceError, Flipper, Pm3, obedient_operator,
                       scripted_bench)
 from .stations import CU1, CU2, FLIPPER, PM3, T5577, Bench, READERS, SOURCES
@@ -51,8 +51,12 @@ def _devices(a) -> runner.Devices:
     d.pm3 = Pm3(binary=a.pm3)
     if not a.no_flipper:
         d.flipper = Flipper(port=a.flipper_port or "")
-    d.cu1 = Chameleon(port=a.cu1_port, name=CU1, slot=a.slot) if a.cu1_port else None
-    d.cu2 = Chameleon(port=a.cu2_port, name=CU2, slot=a.slot) if (a.cu2_port and not a.no_cu2) else None
+    d.cu1 = (Chameleon(port=a.cu1_port, name=CU1, slot=a.slot,
+                       expect_chipid=os.environ.get("CU1_CHIPID", ""))
+             if a.cu1_port else None)
+    d.cu2 = (Chameleon(port=a.cu2_port, name=CU2, slot=a.slot,
+                       expect_chipid=os.environ.get("CU2_CHIPID", ""))
+             if (a.cu2_port and not a.no_cu2) else None)
     return d
 
 
@@ -178,6 +182,56 @@ def cmd_run(a) -> int:
     return 0
 
 
+def cmd_setup(a) -> int:
+    """Find the devices, establish which Chameleon is which, and write `.env`."""
+    known = setup.load_env()
+    ports = setup.serial_ports()
+    if not ports:
+        print("  ⛔ no USB serial devices found. Is anything plugged in?")
+        return 2
+    flip, pm3_ports, rest = setup.classify(ports)
+    print("\n  %d serial device(s):" % len(ports))
+    for p in ports:
+        tag = ("Flipper" if p in flip else "Proxmark" if p in pm3_ports else "unidentified")
+        print("    %-42s %s" % (p, tag))
+
+    values = dict(known)
+    values["PM3"] = setup.find_pm3(known.get("PM3"))
+    print("\n  pm3 wrapper: %s%s" % (values["PM3"],
+                                      "" if os.path.isfile(values["PM3"]) else "   ⛔ NOT FOUND"))
+    if flip:
+        values["FLIPPER_PORT"] = flip[0]
+        print("  Flipper:     %s" % flip[0])
+    else:
+        values.pop("FLIPPER_PORT", None)
+        print("  Flipper:     not connected — runs will need --no-flipper")
+
+    # ⛔ THE PROXMARK NAMES ITSELF AND THE CHAMELEONS DO NOT. Everything unidentified gets asked.
+    print("\n  identifying Chameleons (%d candidate port(s))" % len(rest))
+    found = setup.identify_chameleons(rest, known)
+    if not found:
+        print("\n  ⛔ no Chameleon was identified. Nothing written.")
+        return 2
+    for label in ("cu1", "cu2"):
+        if found.get(label):
+            values["%s_PORT" % label.upper()] = found[label]
+            values["%s_CHIPID" % label.upper()] = found[label + "_chipid"]
+        elif not any(k.startswith(label.upper()) for k in known):
+            values.pop("%s_PORT" % label.upper(), None)
+            values.pop("%s_CHIPID" % label.upper(), None)
+
+    setup.write_env(values)
+    print("\n  written %s:" % setup.ENV_PATH)
+    for k in ("PM3", "CU1_PORT", "CU1_CHIPID", "CU2_PORT", "CU2_CHIPID", "FLIPPER_PORT"):
+        if values.get(k):
+            print("    %-13s %s" % (k, values[k]))
+    print("\n  ⭐ The chip ids are the point: a port can change between sessions, the silicon "
+          "cannot.\n     `bench run` refuses to start if a port holds a device other than the one "
+          "recorded\n     here, which is the one failure the radio identity check cannot catch.")
+    print("\n  next: ./bench probe")
+    return 0
+
+
 def cmd_probe(a) -> int:
     """Ask every channel for proof of life and stop. Touches no tag, arms nothing, writes nothing.
 
@@ -292,6 +346,9 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("-p", "--protocol", action="append")
     sp.set_defaults(func=cmd_scope)
 
+    sp = sub.add_parser("setup", help="find the devices, learn which Chameleon is which, write .env")
+    sp.set_defaults(func=cmd_setup)
+
     sp = sub.add_parser("probe", help="ask every channel for proof of life; touch nothing else")
     common(sp, with_plan=False)
     sp.add_argument("--pm3", default=os.environ.get("PM3", "pm3"))
@@ -334,6 +391,9 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def main(argv=None) -> int:
+    # ⚠ `.env` FILLS THE GAPS AND NEVER OVERRIDES. An explicit `CU1_PORT=... ./bench run` must win,
+    # or the override does the opposite of what it looks like.
+    setup.apply_env()
     a = build_parser().parse_args(argv)
     if a.quiet:
         cues.silence()
