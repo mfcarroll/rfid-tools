@@ -21,14 +21,37 @@ from collections import OrderedDict
 from . import registry as reg
 from .outcomes import GLYPH, Cell, Outcome
 from .plan import Exclusion
-from .topology import READERS
+from .stations import READER_NOTE
 
-SOURCE_ORDER = ("t55.pm3", "oem", "t55.flip", "emu.flip", "emu.cu1", "emu.cu2")
-READER_ORDER = ("rd.pm3", "rd.flip", "rd.cu")
+SOURCE_ORDER = ("t55.pm3", "oem", "t55.flip", "t55.cu1", "t55.cu2",
+                "emu.flip", "emu.cu1", "emu.cu2")
+READER_ORDER = ("rd.pm3", "rd.flip", "rd.cu1", "rd.cu2")
 
 
 def _by_cell(cells: list[Cell]) -> dict:
     return {(c.protocol, c.source, c.reader): c for c in cells}
+
+
+def merge(phase1, phase2):
+    """Fold the isolation phase's verdicts into the screening phase's grid.
+
+    ⛔ AN ISOLATED VERDICT ALWAYS WINS. A screening result is not a verdict at all, so there is no
+    conflict to resolve — the phase-2 cell simply replaces the placeholder that queued it. A cell
+    phase 2 could not reach (its licence was revoked, its write refused) keeps the screening note,
+    which still says honestly that the reading exists and has not been isolated.
+    """
+    isolated = _by_cell(phase2.cells)
+    out = []
+    for c in phase1.cells:
+        repl = isolated.get((c.protocol, c.source, c.reader))
+        out.append(repl if (repl is not None and c.crowding) else c)
+    seen = {(c.protocol, c.source, c.reader) for c in out}
+    out += [c for k, c in isolated.items() if k not in seen]
+    phase1.cells = out
+    phase1.blocks = list(phase1.blocks) + list(phase2.blocks)
+    phase1.refusals.update({k: v for k, v in phase2.refusals.items()})
+    phase1.finished = phase2.finished
+    return phase1
 
 
 def render(result, protocols: list[reg.Protocol]) -> str:
@@ -57,20 +80,29 @@ def render(result, protocols: list[reg.Protocol]) -> str:
         lines.append("No grid is published from an aborted run. The rows below were measured before "
                      "the abort and are kept only so the point of failure is visible.")
     lines.append("")
-    lines.append("legend  " + "   ".join("%s %s" % (GLYPH[o], o.value) for o in Outcome))
+    lines.append("legend  " + "   ".join("%s %s" % (GLYPH[o], o.value) for o in Outcome)
+                 + "   ◌ screened in a crowded stack — not a verdict (RULES.md §7)")
+    lines.append("")
+    lines.append("stations: " + " → ".join(b.block.station.name for b in result.blocks))
     lines.append("")
 
     for rdr in readers:
-        lines.append("## reader `%s` — %s" % (rdr, READERS[rdr][1]))
+        lines.append("## reader `%s` — %s" % (rdr, READER_NOTE[rdr]))
         lines.append("")
-        hdr = "| %-*s | %s |" % (w, "protocol", " | ".join("%-8s" % s for s in sources))
-        lines.append(hdr)
+        lines.append("| %-*s | %s |" % (w, "protocol", " | ".join("%-8s" % s for s in sources)))
         lines.append("|" + "|".join(["-" * (w + 2)] + ["-" * 10] * len(sources)) + "|")
         for p in protocols:
             row = []
             for s in sources:
                 c = cells.get((p.key, s, rdr))
-                row.append("%-8s" % ("" if c is None else "%s %s" % (c.glyph, _short(c.outcome))))
+                if c is None:
+                    row.append("%-8s" % "")
+                else:
+                    mark = "%s %s" % (c.glyph, _short(c.outcome))
+                    # ◌ marks a reading that is still only a screening result.
+                    if c.crowding and c.outcome is Outcome.UNGRADED and c.observation is not None:
+                        mark = "◌ scrn"
+                    row.append("%-8s" % mark)
             lines.append("| %-*s | %s |" % (w, p.key, " | ".join(row)))
         lines.append("")
         lines.extend(_calibration_notes(result, rdr))
@@ -148,7 +180,7 @@ def _voids(result) -> list[str]:
         return []
     out = ["## void blocks", ""]
     for b in voids:
-        out.append("- **%s** — %s" % (b.block.topology.name, b.void_why))
+        out.append("- **%s** — %s" % (b.block.station.name, b.void_why))
     out.append("")
     return out
 
@@ -188,12 +220,19 @@ def gap_register(result, protocols: list[reg.Protocol]) -> list[str]:
 
 def _observed_gaps(result) -> list[tuple[str, str, str]]:
     """Gaps this run is entitled to assert. Licensed cells only, and one (protocol, reader) each."""
-    owner = {"rd.pm3": "Proxmark", "rd.flip": "Flipper", "rd.cu": "ChameleonUltra"}
+    owner = {"rd.pm3": "Proxmark", "rd.flip": "Flipper",
+             "rd.cu1": "ChameleonUltra", "rd.cu2": "ChameleonUltra"}
     emitter_owner = {"emu.cu1": "ChameleonUltra", "emu.cu2": "ChameleonUltra",
-                     "emu.flip": "Flipper", "t55.flip": "Flipper"}
+                     "emu.flip": "Flipper", "t55.flip": "Flipper",
+                     "t55.cu1": "ChameleonUltra", "t55.cu2": "ChameleonUltra"}
     gaps: list[tuple[str, str, str]] = []
     for c in result.cells:
         if c.outcome is Outcome.UNGRADED or c.observation is None:
+            continue
+        # ⛔ ONLY AN ISOLATED READING MAY BECOME A GAP. A success in a crowded stack is a success,
+        # but a gap is a claim that something does NOT work, and the crowded-stack rule says a
+        # crowded stack cannot support that claim.
+        if c.crowding and c.outcome is not Outcome.EXACT:
             continue
         if c.outcome is Outcome.SILENT and c.source in ("t55.pm3", "oem"):
             gaps.append((owner[c.reader],
@@ -242,9 +281,12 @@ def to_json(result, protocols: list[reg.Protocol]) -> str:
         "started": result.started,
         "finished": result.finished,
         "aborted": result.aborted or None,
-        "bench": {"cu_reader": result.plan.bench.cu_reader, "pad": result.plan.bench.pad},
+        "bench": {"pad": result.plan.bench.pad, "max_stack": result.plan.bench.max_stack,
+                  "tags": result.plan.bench.tag_count,
+                  "devices": sorted(result.plan.bench.has)},
         "cells": [{"protocol": c.protocol, "source": c.source, "reader": c.reader,
                    "outcome": c.outcome.value, "note": c.note,
+                   "crowding": sorted(c.crowding), "isolated": c.isolated,
                    "evidence": (c.observation.text[:400] if c.observation else None)}
                   for c in result.cells],
         "licences": [{"protocol": p, "reader": r, "source": lic.source, "pad": lic.pad,
@@ -252,8 +294,9 @@ def to_json(result, protocols: list[reg.Protocol]) -> str:
                      for (p, r), lic in sorted(result.licences.items())],
         "refusals": [{"protocol": p, "reader": r, "why": why}
                      for (p, r), why in sorted(result.refusals.items())],
-        "void_blocks": [{"topology": b.block.topology.name, "why": b.void_why}
+        "void_blocks": [{"station": b.block.station.name, "why": b.void_why}
                         for b in result.void_blocks],
         "exclusions": [{"protocol": e.protocol, "source": e.source, "reader": e.reader,
                         "rule": e.rule, "why": e.why} for e in result.plan.exclusions],
+        "stations": [b.block.station.name for b in result.blocks],
     }, indent=2)

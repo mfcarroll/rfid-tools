@@ -1,25 +1,27 @@
-"""The campaign: moves, controls, reads, and the grading that refuses to happen without a licence.
+"""The campaign: set a station up, run its routine hands-off, bracket it with controls.
 
-Run shape, per block:
+Per station:
 
-    move cue  ->  operator confirms  ->  RADIO IDENTITY CHECK  ->  null sweep BEFORE
-              ->  the block's writes and reads  ->  null sweep AFTER  ->  A/B/A comparison
+    move cue -> operator confirms -> RADIO IDENTITY CHECK -> null sweep BEFORE
+             -> the routine, with no further operator involvement
+             -> null sweep AFTER -> A/B/A comparison
 
-⛔⛔ THREE THINGS ABORT OR VOID RATHER THAN DEGRADE, AND EACH ONE COST A SESSION TO LEARN:
-  1. A DEAD INSTRUMENT ABORTS THE RUN. A silent reader and a silent emulator produce identical
-     numbers — eleven arms were once read as "the emulator is silent" when the truth was
-     "the reader was never listening", and it stood as a firmware unit until something contradicted
-     it. Proof of life is taken before anything is measured and again whenever a channel raises.
-  2. A WRONG DEVICE ABORTS THE RUN. Not "warns" — everything under that topology would be
-     attributed to the wrong Chameleon, and the null arms cannot catch it (RULES.md §4).
-  3. A DISAGREEING A/B/A VOIDS THE BLOCK AND REVOKES ANY LICENCE IT ISSUED. A licence is a claim
-     about a bench that was stable while the control was taken; if the block turns out not to have
-     been stable, the claim goes with it — including for rows in LATER blocks that it licensed.
+⛔⛔ FOUR THINGS ABORT OR VOID RATHER THAN DEGRADE:
+  1. A DEAD INSTRUMENT ABORTS THE RUN (RULES.md §5). A silent reader and a silent emitter produce
+     identical numbers.
+  2. A WRONG DEVICE ABORTS THE RUN (RULES.md §4). Everything at that station would be attributed to
+     the wrong Chameleon, and the null arms cannot catch it.
+  3. A DISAGREEING A/B/A VOIDS THE STATION and revokes any licence it issued, wherever the rows it
+     licensed were measured (RULES.md §3).
+  4. A FAILED WRITE-VERIFY SKIPS THE REST OF THAT WRITE. If the writer cannot read back what it just
+     put on the tag, the tag does not hold what the plan thinks, and every other read taken against
+     it would be filed under the wrong protocol.
 
-⚠ AND ONE THING IS DELIBERATELY NOT AN ABORT. A calibration row that comes back SILENT is a RESULT:
-"reader R cannot judge P on this bench". The run carries on to the next pair, and every emulated row
-for that pair is UNGRADED without being measured — there is no point spending bench time on reads
-nothing can license.
+⚠ AND TWO THINGS ARE DELIBERATELY NOT ABORTS:
+  • A calibration row that comes back SILENT **in an isolated pair** is a result: "this reader
+    cannot judge this protocol on this bench". The run carries on.
+  • A non-EXACT reading in a crowded stack is not a result at all. It is screened, it queues an
+    isolated re-measurement, and only that re-measurement may call it SILENT or WRONG (RULES.md §7).
 """
 
 from __future__ import annotations
@@ -27,13 +29,14 @@ from __future__ import annotations
 import datetime as _dt
 from dataclasses import dataclass, field
 
-from . import cues, identity, registry as reg
+from . import cues, identity
 from .devices import DeviceError
 from .identity import IdentityFault, NullSweep, null_sweep, sweeps_agree
-from .outcomes import (Calibration, CalibrationRefused, Cell, Outcome, grade, observe, ungraded)
-from .plan import Block, PlannedCell, RunPlan, Step
-from .topology import (CU1, CU2, FLIPPER, HUMAN, PM3, REAL_SOURCES, SOURCES,
-                       null_topology, plan_move)
+from .outcomes import (Calibration, CalibrationRefused, Cell, Outcome, grade, observe, screened,
+                       ungraded)
+from .plan import Block, Op, RunPlan
+from .stations import (CU1, CU2, FLIPPER, GOLD_SOURCES, HUMAN, PM3, READERS, T5577,
+                       null_station, plan_move)
 
 
 class RunAborted(Exception):
@@ -43,7 +46,7 @@ class RunAborted(Exception):
 @dataclass
 class BlockReport:
     block: Block
-    identity: identity.IdentityResult | None = None
+    identity: object | None = None
     before: NullSweep | None = None
     after: NullSweep | None = None
     void: bool = False
@@ -56,15 +59,14 @@ class RunResult:
     started: str
     plan: RunPlan
     cells: list[Cell] = field(default_factory=list)
-    licences: dict = field(default_factory=dict)          # (proto, reader) -> Calibration
-    refusals: dict = field(default_factory=dict)          # (proto, reader) -> str
+    licences: dict = field(default_factory=dict)
+    refusals: dict = field(default_factory=dict)
+    #: Pairs whose calibration row was screened rather than decided. Their dependent cells are still
+    #: measured — see `_routine`.
+    screened_pairs: set = field(default_factory=set)
     blocks: list[BlockReport] = field(default_factory=list)
     aborted: str = ""
     finished: str = ""
-    #: ⛔⛔ WHAT PRODUCED THESE NUMBERS. A grid from `Scripted` devices is indistinguishable from a
-    #: bench grid once it is a table of ticks — and this project exists because a grid that looked
-    #: like a result was not one. Every render and every JSON dump carries this, and a dry run says
-    #: so in its first line rather than in a footnote.
     provenance: str = "bench"
 
     @property
@@ -72,23 +74,20 @@ class RunResult:
         return [b for b in self.blocks if b.void]
 
     @property
-    def usable(self) -> bool:
-        return not self.aborted
+    def to_isolate(self) -> list[Cell]:
+        """Screened non-EXACT readings, in the order they were taken. The phase-2 work list."""
+        return [c for c in self.cells if c.crowding and c.outcome is Outcome.UNGRADED
+                and c.observation is not None]
 
 
 @dataclass
 class Devices:
-    """Whatever this run has to talk to. Readers and emitters are looked up by device id."""
-
     pm3: object | None = None
     flipper: object | None = None
     cu1: object | None = None
     cu2: object | None = None
-    #: ⭐ THE SEAM THAT MAKES A HEADLESS RUN HONEST. On a real bench the operator performs the move
-    #: and the harness has no way to do it for them, so this is None. The tests supply a callable
-    #: that rearranges the scripted bench — an operator who always does exactly what was asked —
-    #: which is what lets the identity check and the null sweeps be exercised without hardware
-    #: instead of being stubbed out, which would test nothing.
+    #: On a real bench the operator performs the move and the harness cannot; this is None. The
+    #: tests and dry runs supply a callable that rearranges the scripted bench.
     operator: object | None = None
 
     def by_dev(self, dev: str):
@@ -100,6 +99,9 @@ class Devices:
     def chameleons(self) -> dict:
         return {d: c for d, c in ((CU1, self.cu1), (CU2, self.cu2)) if c is not None}
 
+    def present(self, station) -> list:
+        return [self.by_dev(d) for d in station.stack if d not in (T5577, "oemtag")]
+
     def all(self) -> list:
         return [d for d in (self.pm3, self.flipper, self.cu1, self.cu2) if d is not None]
 
@@ -109,15 +111,20 @@ def session_id() -> str:
 
 
 def run(plan: RunPlan, devices: Devices, *, interactive: bool = True,
-        session: str | None = None, out=print) -> RunResult:
+        session: str | None = None, out=print, licences: dict | None = None) -> RunResult:
+    """⚠ `licences` CARRIES PHASE 1's CONTROLS INTO PHASE 2. The isolation phase re-measures cells
+    whose calibration already passed; making it re-earn those licences would mean re-running the
+    gold rows at yet more stations for no additional evidence. A licence that phase 1 revoked is
+    simply absent, and the cells it covered stay UNGRADED."""
     session = session or session_id()
     scripted = any(type(d).__name__ == "Scripted" for d in devices.all())
     res = RunResult(session=session, started=_dt.datetime.now().isoformat(timespec="seconds"),
                     plan=plan, provenance="dry-run (scripted devices)" if scripted else "bench")
+    if licences:
+        res.licences.update(licences)
 
-    # ---------------------------------------------------------------- proof of life, before anything
-    out("\n  run %s — %d cells, %d blocks, %d exclusions"
-        % (session, len(plan.cells), len(plan.blocks), len(plan.exclusions)))
+    out("\n  run %s phase %d — %d cells, %d stations, %d operator interventions"
+        % (session, plan.phase, len(plan.cells), len(plan.blocks), plan.interventions))
     for dev in devices.all():
         ok, why = dev.alive()
         out("    %s %s" % ("✓" if ok else "⛔", why))
@@ -126,216 +133,256 @@ def run(plan: RunPlan, devices: Devices, *, interactive: bool = True,
             cues.cue_fault("instrument not alive. aborting.")
             raise RunAborted(why)
 
-    prev_topology = None
+    prev = None
     for report in (BlockReport(b) for b in plan.blocks):
         b = report.block
         res.blocks.append(report)
-        reader = devices.by_dev(b.topology.reader_dev)
-        # ⚠ THE PAD IS PER-READER AND CONSTANT FOR THE SESSION. "Same pad, same antenna position"
-        # (RULES.md §1) is a claim about the READER not having been repositioned — the tag and
-        # the Chameleons coming and going is the experiment, not a change of pad. Start a new
-        # session id if a reader is physically moved mid-run; that is what invalidates a licence.
-        pad = "%s@%s" % (b.topology.reader_dev, plan.bench.pad)
+        pad = plan.bench.pad
+        _move(report, prev, interactive, devices, out)
+        prev = b.station
 
-        _move(report, prev_topology, interactive, out)
-        if devices.operator is not None:
-            devices.operator(b.topology)
-        prev_topology = b.topology
-
-        block_protocols = _block_protocols(b)
-        emitters = [devices.by_dev(d) for d in b.topology.on_pad if d in (CU1, CU2, FLIPPER)]
-
-        # ------------------------------------------------------------ identity, then null BEFORE
-        if any(d in (CU1, CU2) for d in b.topology.on_pad):
-            cues.cue_check("identity check")
-            try:
-                report.identity = identity.check(b.topology, reader, devices.chameleons())
-            except (IdentityFault, DeviceError) as e:
-                res.aborted = str(e)
-                cues.cue_fault("identity check failed. aborting.")
-                raise RunAborted(str(e)) from e
-            out("    %s %s" % ("✓" if report.identity.ok else "⛔", identity.explain(report.identity)))
-            if not report.identity.ok:
-                res.aborted = identity.explain(report.identity)
-                cues.cue_fault("wrong device on the pad. aborting.")
-                raise RunAborted(res.aborted)
-
-        report.before = _sweep("NULL BEFORE", reader, block_protocols, emitters, out,
-                               b.topology, devices, interactive)
+        if identity.identifiable(b.station):
+            _identity(report, devices, res, out)
+        elif any(d in (CU1, CU2) for d in b.station.stack):
+            out("    · no radio identity check here — the only Chameleon in the stack is the one "
+                "reading, and its port already says which device that is")
+        report.before = _sweep("NULL BEFORE", b, devices, out, interactive)
         if not report.before.clean:
-            res.aborted = ("ambient contamination in %s before anything was armed: %s"
-                           % (b.topology.name, ", ".join(sorted(report.before.hits))))
+            res.aborted = ("ambient contamination at %s before anything was armed: %s"
+                           % (b.station.name, ", ".join(sorted(report.before.hits))))
             cues.cue_fault("the field is not clean. aborting.")
             raise RunAborted(res.aborted)
 
-        # ------------------------------------------------------------ the block's own work
-        issued: list[tuple[str, str]] = []
-        for step in b.steps:
-            if step.kind == "write":
-                _write(step, devices, out)
-                continue
-            cell = step.cell
-            assert cell is not None
-            pair = (cell.protocol.key, cell.reader)
-            if not cell.is_calibration and pair not in res.licences:
-                why = res.refusals.get(pair, "no calibration row has passed for this pair")
-                res.cells.append(ungraded(cell.protocol.key, cell.source, cell.reader, why))
-                out("      ▒ %-10s %-9s UNGRADED — not measured: %s"
-                    % (cell.protocol.key, cell.source, why[:64]))
-                continue
-            obs = _read(cell, devices, reader, pad, session, out)
-            if obs is None:                      # the channel is dead; _read already aborted
-                continue
-            if cell.is_calibration:
-                try:
-                    lic = Calibration.from_row(obs, REAL_SOURCES)
-                except CalibrationRefused as e:
-                    res.refusals[pair] = str(e)
-                    res.cells.append(grade(obs, None, note=str(e)))
-                    out("      ▒ %-10s %-9s %s" % (cell.protocol.key, cell.source,
-                                                   "CALIBRATION REFUSED"))
-                    out("          %s" % str(e))
-                    continue
-                res.licences[pair] = lic
-                issued.append(pair)
-            graded = grade(obs, res.licences.get(pair))
-            res.cells.append(graded)
-            out("      %s %-10s %-9s %s" % (graded.glyph, cell.protocol.key, cell.source,
-                                            graded.outcome))
+        issued = _routine(report, devices, res, session, pad, out)
 
-        # ------------------------------------------------------------ null AFTER, and A/B/A
-        report.after = _sweep("NULL AFTER", reader, block_protocols, emitters, out,
-                              b.topology, devices, interactive)
+        report.after = _sweep("NULL AFTER", b, devices, out, interactive)
         agree, why = sweeps_agree(report.before, report.after)
         out("    %s %s" % ("✓" if agree else "⛔", why))
         if not agree:
             report.void, report.void_why = True, why
-            _void_block(res, report, issued, out)
+            _void(res, report, issued, out)
 
     res.finished = _dt.datetime.now().isoformat(timespec="seconds")
     return res
 
 
-# ------------------------------------------------------------------ pieces
+# ------------------------------------------------------------------ the routine
 
-def _block_protocols(b: Block) -> list[reg.Protocol]:
-    seen, out = set(), []
-    for s in b.steps:
-        if s.protocol.key not in seen:
-            seen.add(s.protocol.key)
-            out.append(s.protocol)
-    return out
+def _routine(report: BlockReport, devices: Devices, res: RunResult, session: str, pad: str,
+             out) -> list:
+    """Run one station's routine. Everything here is hands-off except a phase-2 tag swap."""
+    b = report.block
+    issued: list = []
+    tag_ok = True                       # did the last write read back?
+    current_tag = None
+    for op in b.ops:
+        if b.station.has_tag and op.tag != current_tag:
+            # ⚠ A TAG SWAP IS AN OPERATOR INTERVENTION LIKE ANY OTHER and is cued as one. It only
+            # happens in the isolation phase, where writing a batch at one station and reading it at
+            # the next is cheaper than rearranging the bench per protocol.
+            if current_tag is not None:
+                cues.ask("      swap to tag %d and press Enter: " % (op.tag + 1),
+                         spoken="swap to tag %d" % (op.tag + 1))
+            current_tag = op.tag
+        if op.kind == "write":
+            tag_ok = _write(op, devices, out)
+            continue
+        if op.kind == "arm":
+            tag_ok = _arm(op, devices, out)
+            continue
+        if op.kind == "disarm":
+            devices.by_dev(op.device).disarm()
+            continue
+        if op.kind == "place":
+            cues.ask("      place the %s OEM card and press Enter: " % op.protocol.key,
+                     spoken="place the %s card" % op.protocol.key)
+            tag_ok = True
+            continue
+
+        cell = op.cell
+        assert cell is not None
+        if not tag_ok:
+            # ⛔ RULE 4. The credential is not on the tag (or the emitter refused to arm), so this
+            # read is not about this protocol at all.
+            res.cells.append(ungraded(cell.protocol.key, cell.source, cell.reader,
+                                      "the source was not armed — nothing to read",
+                                      crowding=op.crowding))
+            out("      ▒ %-10s %-9s %-7s not measured: source not armed"
+                % (cell.protocol.key, cell.source, cell.reader))
+            continue
+        if not cell.is_calibration and cell.pair not in res.licences:
+            # ⭐ A PAIR WHOSE CALIBRATION WAS ONLY *SCREENED* IS UNDECIDED, NOT REFUSED, so its
+            # dependent cells are still measured. The reads are hands-off and cost nothing, and
+            # skipping them would mean phase 2 rescues the calibration only to find the cells it
+            # licenses were never read — which needs a third phase to fix.
+            if cell.pair not in res.screened_pairs:
+                why = res.refusals.get(cell.pair, "no calibration row has passed for this pair")
+                res.cells.append(ungraded(cell.protocol.key, cell.source, cell.reader, why,
+                                          crowding=op.crowding))
+                out("      ▒ %-10s %-9s %-7s UNGRADED: %s"
+                    % (cell.protocol.key, cell.source, cell.reader, why[:52]))
+                continue
+
+        obs = _read(op, devices, session, pad, out)
+        if obs is None:
+            continue
+
+        if cell.is_calibration:
+            if obs.outcome_if_licensed is Outcome.EXACT:
+                res.licences[cell.pair] = Calibration.from_row(obs, GOLD_SOURCES)
+                issued.append(cell.pair)
+            elif op.crowded:
+                # ⛔ A CROWDED CALIBRATION FAILURE IS NOT "THIS READER CANNOT JUDGE". It is unknown
+                # until the pair is isolated, and saying otherwise would publish the crowding as a
+                # finding about the reader.
+                res.cells.append(screened(obs, op.crowding, report.block.station.name))
+                res.screened_pairs.add(cell.pair)
+                res.refusals[cell.pair] = ("the calibration row was screened %s in a crowded stack "
+                                           "and awaits isolation"
+                                           % obs.outcome_if_licensed.value)
+                out("      ◌ %-10s %-9s %-7s screened %s — queued for isolation"
+                    % (cell.protocol.key, cell.source, cell.reader,
+                       obs.outcome_if_licensed.value))
+                continue
+            else:
+                try:
+                    Calibration.from_row(obs, GOLD_SOURCES)
+                except CalibrationRefused as e:
+                    res.refusals[cell.pair] = str(e)
+                    res.cells.append(grade(obs, None, note=str(e)))
+                    out("      ▒ %-10s %-9s %-7s CALIBRATION REFUSED"
+                        % (cell.protocol.key, cell.source, cell.reader))
+                    out("          %s" % str(e))
+                    continue
+
+        licence = res.licences.get(cell.pair)
+        if op.crowded and (obs.outcome_if_licensed is not Outcome.EXACT or licence is None):
+            graded = screened(obs, op.crowding, report.block.station.name)
+            out("      ◌ %-10s %-9s %-7s screened %s — queued for isolation"
+                % (cell.protocol.key, cell.source, cell.reader, obs.outcome_if_licensed.value))
+        else:
+            graded = grade(obs, licence, crowding=op.crowding)
+            out("      %s %-10s %-9s %-7s %s" % (graded.glyph, cell.protocol.key, cell.source,
+                                                 cell.reader, graded.outcome))
+        res.cells.append(graded)
+    return issued
 
 
-def _move(report: BlockReport, prev, interactive: bool, out) -> None:
-    move = plan_move(prev, report.block.topology)
-    out("\n  ── %s ──  %s" % (report.block.topology.name, move.text()))
-    if move.is_noop:
-        return
-    if interactive:
-        cues.ask("     press Enter when the bench is as described: ", spoken=move.spoken())
-    else:
-        cues.cue_move(move.spoken())
+def _write(op: Op, devices: Devices, out) -> bool:
+    writer = devices.by_dev(op.device)
+    try:
+        writer.write_t55(op.protocol)
+        return True
+    except DeviceError as e:
+        # A refused write is a registered or new firmware gap, not an abort. The reads that depended
+        # on it are skipped rather than filed as the readers' failures.
+        out("      ⛔ %s could not write %s — %s" % (HUMAN[op.device], op.protocol.key, e))
+        return False
 
 
-def _sweep(label, reader, protocols, emitters, out, topology, devices, interactive) -> NullSweep:
-    """⛔⛔ A PASSIVE TAG HAS NO IDLE STATE, SO A NULL SWEEP HAS TO PHYSICALLY REMOVE IT.
+def _arm(op: Op, devices: Devices, out) -> bool:
+    try:
+        devices.by_dev(op.device).arm(op.protocol)
+        return True
+    except DeviceError as e:
+        out("      ⛔ %s could not emulate %s — %s" % (HUMAN[op.device], op.protocol.key, e))
+        return False
 
-    Disarming the emitters is enough for a Chameleon or a Flipper — reader mode puts nothing on the
-    air. A T5577 is not like that: it answers the reader's field whenever it is in one, so a sweep
-    taken with the tag still on the pad reports the credential the block just wrote and declares the
-    bench contaminated. The first version of this runner did exactly that and voided its own opening
-    block, which is the correct behaviour for the sweep it actually took and the wrong sweep to have
-    taken. `topology.null_topology()` already said so; this is the runner honouring it.
 
-    ⚠ The move back is cued too. Leaving the operator holding the tag and carrying on would measure
-    the next step with an empty pad.
+def _read(op: Op, devices: Devices, session: str, pad: str, out):
+    cell = op.cell
+    reader = devices.by_dev(op.device)
+    try:
+        text = reader.read(cell.protocol)
+    except DeviceError as e:
+        cues.cue_fault("reader failed. aborting.")
+        raise RunAborted("reader %s failed mid-routine: %s" % (cell.reader, e)) from e
+    return observe(cell.protocol.key, cell.source, cell.reader, text, cell.protocol.expect,
+                   reader.decode_marker(cell.protocol), session=session, pad=pad)
+
+
+# ------------------------------------------------------------------ controls
+
+def _move(report: BlockReport, prev, interactive: bool, devices: Devices, out) -> None:
+    move = plan_move(prev, report.block.station)
+    out("\n  ══ %s ══  %s" % (report.block.station.name, move.text()))
+    if not move.is_noop:
+        if interactive:
+            cues.ask("     press Enter when the stack is as described: ", spoken=move.spoken())
+        else:
+            cues.cue_move(move.spoken())
+    if devices.operator is not None:
+        devices.operator(report.block.station)
+
+
+def _identity(report: BlockReport, devices: Devices, res: RunResult, out) -> None:
+    cues.cue_check("identity check")
+    try:
+        report.identity = identity.check(report.block.station, devices, devices.chameleons())
+    except (IdentityFault, DeviceError) as e:
+        res.aborted = str(e)
+        cues.cue_fault("identity check failed. aborting.")
+        raise RunAborted(str(e)) from e
+    ok = report.identity.ok
+    out("    %s %s" % ("✓" if ok else "⛔", identity.explain(report.identity)))
+    if not ok:
+        res.aborted = identity.explain(report.identity)
+        cues.cue_fault("wrong device in the stack. aborting.")
+        raise RunAborted(res.aborted)
+
+
+def _sweep(label: str, b: Block, devices: Devices, out, interactive: bool) -> NullSweep:
+    """⛔ A PASSIVE TAG HAS NO IDLE STATE, so a null sweep physically removes it and puts it back.
+
+    Disarming is enough for a Chameleon or a Flipper — reader mode puts nothing on the air. A T5577
+    answers any field it is in, so a sweep taken with it still in the stack reports the credential
+    the routine just wrote and declares the bench contaminated (RULES.md §3).
     """
-    null_t = null_topology(topology)
-    moved = set(null_t.on_pad) != set(topology.on_pad)
+    null = null_station(b.station)
+    moved = null.devices != b.station.devices
+    gone = [d for d in b.station.stack if d not in null.devices]
     if moved:
-        away = [d for d in topology.on_pad if d not in null_t.on_pad]
-        _reposition("%s: take %s off the pad" % (label.lower(), ", ".join(HUMAN[d] for d in away)),
-                    null_t, devices, interactive, out)
+        _reposition("%s: take %s out" % (label.lower(), ", ".join(HUMAN[d] for d in gone)),
+                    null, devices, interactive, out)
     cues.cue_check(label.lower())
-    sw = null_sweep(label, reader, protocols, emitters)
-    out("    %s %s — %d decoders asked, %s"
-        % ("✓" if sw.clean else "⛔", label, len(protocols),
+    readers = [devices.by_dev(READERS[r]) for r in b.station.readers()]
+    emitters = devices.present(b.station)
+    sw = null_sweep(label, readers, b.protocols, emitters)
+    out("    %s %s — %d reader(s) x %d decoders, %s"
+        % ("✓" if sw.clean else "⛔", label, len(readers), len(b.protocols),
            "no hits" if sw.clean else "HITS: " + ", ".join(sorted(sw.hits))))
     if moved:
-        back = [d for d in topology.on_pad if d not in null_t.on_pad]
-        _reposition("put %s back on %s" % (", ".join(HUMAN[d] for d in back),
-                                           HUMAN[topology.reader_dev]),
-                    topology, devices, interactive, out)
+        _reposition("put %s back" % ", ".join(HUMAN[d] for d in gone),
+                    b.station, devices, interactive, out)
     return sw
 
 
-def _reposition(instruction: str, topology, devices, interactive: bool, out) -> None:
+def _reposition(instruction: str, station, devices: Devices, interactive: bool, out) -> None:
     out("      ↔ %s" % instruction)
     if interactive:
         cues.ask("       press Enter when done: ", spoken=instruction)
     else:
         cues.cue_move(instruction)
     if devices.operator is not None:
-        devices.operator(topology)
+        devices.operator(station)
 
 
-def _write(step: Step, devices: Devices, out) -> None:
-    writer = devices.by_dev(PM3 if step.writer == "pm3" else FLIPPER)
-    try:
-        writer.write_t55(step.protocol)
-        out("      ✎ wrote %s to the T5577 with %s" % (step.protocol.key, step.writer))
-    except DeviceError as e:
-        # ⚠ A REFUSED WRITE IS NOT AN ABORT. It is a registered firmware gap (the gap register) or a new
-        # one; either way the rows that depend on it become UNGRADED through the ordinary path,
-        # because the tag will not hold what they expect and the calibration will say so.
-        out("      ⛔ write refused for %s — %s" % (step.protocol.key, e))
-
-
-def _read(cell: PlannedCell, devices: Devices, reader, pad: str, session: str, out):
-    """Arm the source if it is an emitter, take the read, and turn it into an Observation."""
-    src_dev = SOURCES[cell.source][0]
-    emitter = None
-    if src_dev in (CU1, CU2, FLIPPER):
-        emitter = devices.by_dev(src_dev)
-        try:
-            emitter.arm(cell.protocol)
-        except DeviceError as e:
-            out("      ⛔ %-10s %-9s could not be armed — %s" % (cell.protocol.key, cell.source, e))
-            return None
-    try:
-        text = reader.read(cell.protocol)
-    except DeviceError as e:
-        cues.cue_fault("reader failed. aborting.")
-        raise RunAborted("reader %s failed mid-block: %s" % (cell.reader, e)) from e
-    finally:
-        if emitter is not None:
-            emitter.disarm()
-    return observe(cell.protocol.key, cell.source, cell.reader, text, cell.protocol.expect,
-                   reader.decode_marker(cell.protocol), session=session, pad=pad)
-
-
-def _void_block(res: RunResult, report: BlockReport, issued, out) -> None:
-    """⛔ A VOID BLOCK TAKES ITS LICENCES WITH IT, INCLUDING ROWS IN LATER BLOCKS.
-
-    A licence is a claim that the bench was stable while the control was taken. If the block the
-    control came from turns out not to have been stable, the claim does not survive — and neither
-    does anything it licensed, wherever that was measured. Revoking only the block's own cells would
-    leave licensed rows standing on a control that has just been withdrawn.
-    """
+def _void(res: RunResult, report: BlockReport, issued, out) -> None:
+    """⛔ A VOID STATION TAKES ITS LICENCES WITH IT, including rows measured at later stations."""
     names = {c.protocol.key for c in report.block.cells}
     for i, cell in enumerate(res.cells):
         if cell.protocol in names and cell.observation is not None:
             res.cells[i] = ungraded(cell.protocol, cell.source, cell.reader,
-                                    "block %s is VOID: %s" % (report.block.topology.name,
-                                                              report.void_why))
+                                    "station %s is VOID: %s" % (report.block.station.name,
+                                                                report.void_why),
+                                    crowding=cell.crowding)
     for pair in issued:
         res.licences.pop(pair, None)
-        res.refusals[pair] = ("the calibration row was taken in block %s, which is VOID: %s"
-                              % (report.block.topology.name, report.void_why))
+        res.refusals[pair] = ("the calibration row was taken at %s, which is VOID: %s"
+                              % (report.block.station.name, report.void_why))
     for i, cell in enumerate(res.cells):
         if (cell.protocol, cell.reader) in issued and cell.outcome is not Outcome.UNGRADED:
             res.cells[i] = ungraded(cell.protocol, cell.source, cell.reader,
-                                    res.refusals[(cell.protocol, cell.reader)])
-    out("    ▒ %d cells in this block, and every row licensed by it, are now UNGRADED"
-        % len(report.block.cells))
+                                    res.refusals[(cell.protocol, cell.reader)],
+                                    crowding=cell.crowding)
+    out("    ▒ every cell at this station, and every row it licensed, is now UNGRADED")

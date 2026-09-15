@@ -7,7 +7,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from benchmatrix import cues, plan as planning, registry as reg, runner  # noqa: E402
 from benchmatrix.devices import Air, Scripted, obedient_operator          # noqa: E402
-from benchmatrix.topology import Bench                                    # noqa: E402
+from benchmatrix.stations import Bench                                    # noqa: E402
 
 cues.silence()
 
@@ -29,20 +29,27 @@ def pm3_wrong(p: reg.Protocol) -> str:
         "FC: 123  CN: 4567", "FC: 999  CN: 1")
 
 
-def make_devices(pm3_answers=None, flip_answers=None, alive=True, air=None, operator=None):
+def make_devices(answers=None, pm3_answers=None, flip_answers=None, alive=True, air=None,
+                 operator=None):
     """All four devices share one Air, so an emitter armed on one is heard by the reader.
 
-    `operator` defaults to someone who performs every move exactly as cued. Pass a callable of your
+    `answers` goes to EVERY reader, which is what a real bench looks like: a tag that will not read
+    will not read for anyone. `pm3_answers` / `flip_answers` override it for one device, which is
+    how you model a decoder gap in one reader and not the others.
+
+    `operator` defaults to someone who builds every stack exactly as cued. Pass a callable of your
     own to model an operator who does something else — which is the only way to test that the
     identity check catches it.
     """
     air = air or Air()
+    shared = dict(answers or {})
     d = runner.Devices(
-        pm3=Scripted(id="pm3", role="pm3", answers=pm3_answers or {}, alive_ok=alive, air=air),
-        flipper=Scripted(id="flipper", role="flipper", answers=flip_answers or {},
+        pm3=Scripted(id="pm3", role="pm3", answers={**shared, **(pm3_answers or {})},
+                     alive_ok=alive, air=air),
+        flipper=Scripted(id="flipper", role="flipper", answers={**shared, **(flip_answers or {})},
                          alive_ok=alive, air=air),
-        cu1=Scripted(id="cu1", role="cu1", air=air),
-        cu2=Scripted(id="cu2", role="cu2", air=air),
+        cu1=Scripted(id="cu1", role="cu1", answers=dict(shared), air=air),
+        cu2=Scripted(id="cu2", role="cu2", answers=dict(shared), air=air),
     )
     d.air = air
     d.operator = operator or obedient_operator(air)
@@ -72,3 +79,7 @@ def answers_silent(protocols, emitters=EMITTERS) -> dict:
 def tiny_plan(keys=("em410x", "viking"), sources=("t55.pm3", "emu.cu1"), readers=("rd.pm3",),
               bench=None) -> planning.RunPlan:
     return planning.build(reg.resolve(list(keys)), list(sources), list(readers), bench or Bench())
+
+
+def quiet(*a, **k):
+    """Swallow runner output in tests."""
