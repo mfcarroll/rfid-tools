@@ -182,25 +182,45 @@ def _restore(devices: Devices, out) -> None:
 
 def _measure(plan: RunPlan, devices: Devices, res: RunResult, interactive: bool, session: str,
              out) -> None:
+    """Walk the stations, bracketing each routine with its controls.
+
+    ⭐⭐ THE ORDER IS BUILT AROUND THE SWEEP, NOT AROUND THE STACK. A null sweep has to be taken with
+    no passive tag in the field, so the tag is the LAST thing to go on and the FIRST thing to come
+    off. Building the whole station and then immediately asking for the tag back out — which is what
+    an earlier version did — is three instructions where one will do, and the middle one contradicts
+    the one before it. An operator who is told to undo what they were just told to do stops trusting
+    the cues, and the cues are the only thing keeping the bench and the plan in step.
+
+    So each station is: arrange it empty, take the controls, add the tag, work, take the tag out,
+    close the controls. The tag never goes on before it is wanted.
+    """
     prev = None
     for report in (BlockReport(b) for b in plan.blocks):
         b = report.block
         res.blocks.append(report)
         pad = plan.bench.pad
-        _move(report, prev, interactive, devices, out)
-        prev = b.station
+        empty = null_station(b.station)
 
-        if identity.identifiable(b.station):
-            _identity(report, devices, res, out)
-        elif any(d in (CU1, CU2) for d in b.station.stack):
+        out("\n  ══ %s ══  %s" % (b.station.name, b.station.describe()))
+        _goto(prev, empty, interactive, devices, out)
+        prev = empty
+
+        if identity.identifiable(empty):
+            _identity(report, devices, res, out, empty)
+        elif any(d in (CU1, CU2) for d in empty.stack):
             out("    · no radio identity check here — the only Chameleon in the stack is the one "
                 "reading, and its port already says which device that is")
-        report.before = _sweep("NULL BEFORE", b, devices, out, interactive)
+
+        report.before = _sweep("NULL BEFORE", empty, b, devices, out)
         if not report.before.clean:
             res.aborted = ("ambient contamination at %s before anything was armed: %s"
                            % (b.station.name, ", ".join(sorted(report.before.hits))))
             cues.cue_fault("the field is not clean. aborting.")
             raise RunAborted(res.aborted, res)
+
+        if empty != b.station:
+            _goto(prev, b.station, interactive, devices, out)
+            prev = b.station
 
         try:
             issued = _routine(report, devices, res, session, pad, out)
@@ -211,7 +231,11 @@ def _measure(plan: RunPlan, devices: Devices, res: RunResult, interactive: bool,
             cues.cue_fault("wrong device answered. aborting.")
             raise RunAborted(str(e), res) from e
 
-        report.after = _sweep("NULL AFTER", b, devices, out, interactive)
+        if empty != b.station:
+            _goto(prev, empty, interactive, devices, out)
+            prev = empty
+
+        report.after = _sweep("NULL AFTER", empty, b, devices, out)
         agree, why = sweeps_agree(report.before, report.after)
         out("    %s %s" % ("✓" if agree else "⛔", why))
         if not agree:
@@ -357,22 +381,24 @@ def _read(op: Op, devices: Devices, session: str, pad: str, out):
 
 # ------------------------------------------------------------------ controls
 
-def _move(report: BlockReport, prev, interactive: bool, devices: Devices, out) -> None:
-    move = plan_move(prev, report.block.station)
-    out("\n  ══ %s ══  %s" % (report.block.station.name, move.text()))
-    if not move.is_noop:
-        if interactive:
-            cues.ask("     press Enter when the stack is as described: ", spoken=move.spoken())
-        else:
-            cues.cue_move(move.spoken())
+def _goto(frm, to, interactive: bool, devices: Devices, out) -> None:
+    """One operator instruction, computed from the difference between two stacks."""
+    move = plan_move(frm, to)
+    if move.is_noop:
+        return
+    out("     %s" % move.text())
+    if interactive:
+        cues.ask("       press Enter when the stack is as described: ", spoken=move.spoken())
+    else:
+        cues.cue_move(move.spoken())
     if devices.operator is not None:
-        devices.operator(report.block.station)
+        devices.operator(to)
 
 
-def _identity(report: BlockReport, devices: Devices, res: RunResult, out) -> None:
+def _identity(report: BlockReport, devices: Devices, res: RunResult, out, station) -> None:
     cues.cue_check("identity check")
     try:
-        report.identity = identity.check(report.block.station, devices, devices.chameleons())
+        report.identity = identity.check(station, devices, devices.chameleons())
     except (IdentityFault, DeviceError) as e:
         res.aborted = str(e)
         cues.cue_fault("identity check failed. aborting.")
@@ -385,40 +411,21 @@ def _identity(report: BlockReport, devices: Devices, res: RunResult, out) -> Non
         raise RunAborted(res.aborted, res)
 
 
-def _sweep(label: str, b: Block, devices: Devices, out, interactive: bool) -> NullSweep:
-    """⛔ A PASSIVE TAG HAS NO IDLE STATE, so a null sweep physically removes it and puts it back.
+def _sweep(label: str, empty, b: Block, devices: Devices, out) -> NullSweep:
+    """Every decoder in the station, asked by every reader in it, with nothing emitting.
 
-    Disarming is enough for a Chameleon or a Flipper — reader mode puts nothing on the air. A T5577
-    answers any field it is in, so a sweep taken with it still in the stack reports the credential
-    the routine just wrote and declares the bench contaminated (RULES.md §3).
+    ⚠ THE STACK IS ALREADY IN ITS NULL ARRANGEMENT when this is called — the caller moved it there,
+    because that move is an ordinary bench instruction and not a detour taken in the middle of one.
+    All this does is make sure the active devices are idle and then ask.
     """
-    null = null_station(b.station)
-    moved = null.devices != b.station.devices
-    gone = [d for d in b.station.stack if d not in null.devices]
-    if moved:
-        _reposition("%s: take %s out" % (label.lower(), ", ".join(HUMAN[d] for d in gone)),
-                    null, devices, interactive, out)
-    cues.cue_check(label.lower())
-    readers = [devices.by_dev(READERS[r]) for r in b.station.readers()]
-    emitters = devices.present(b.station)
+    cues.cue_check(label)
+    readers = [devices.by_dev(READERS[r]) for r in empty.readers()]
+    emitters = devices.present(empty)
     sw = null_sweep(label, readers, b.protocols, emitters)
     out("    %s %s — %d reader(s) x %d decoders, %s"
         % ("✓" if sw.clean else "⛔", label, len(readers), len(b.protocols),
            "no hits" if sw.clean else "HITS: " + ", ".join(sorted(sw.hits))))
-    if moved:
-        _reposition("put %s back" % ", ".join(HUMAN[d] for d in gone),
-                    b.station, devices, interactive, out)
     return sw
-
-
-def _reposition(instruction: str, station, devices: Devices, interactive: bool, out) -> None:
-    out("      ↔ %s" % instruction)
-    if interactive:
-        cues.ask("       press Enter when done: ", spoken=instruction)
-    else:
-        cues.cue_move(instruction)
-    if devices.operator is not None:
-        devices.operator(station)
 
 
 def _void(res: RunResult, report: BlockReport, issued, out) -> None:

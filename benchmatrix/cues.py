@@ -116,9 +116,16 @@ def cue_move(words: str) -> None:
     _say(words)
 
 
-def cue_check(words: str) -> None:
+def cue_check(label: str = "") -> None:
+    """A chime, and no speech.
+
+    ⛔ ONLY A PHYSICAL INSTRUCTION IS SPOKEN. A null sweep and an identity check ask the operator for
+    nothing — they are the harness working — so saying "null before" out loud is noise that trains
+    the operator to ignore the voice, which is precisely the channel a move cue depends on. The
+    chime stays: it marks the boundary between the automated stretch and the next thing that will
+    need hands. `label` is for the caller's own logging and is not read aloud.
+    """
     _play(SND_CHECK)
-    _say(words)
 
 
 def cue_fault(words: str) -> None:

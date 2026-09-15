@@ -104,7 +104,7 @@ the one place where swapping tags beats rearranging the bench.
 ./bench scope                      # the registry, and what it can and cannot grade
 ./bench plan                       # the cells, the station script, and what is refused
 ./bench run --dry-run --no-prompt  # rehearse the whole thing with no hardware
-./runtests                         # 114 tests, no hardware, no network
+./runtests                         # 120 tests, no hardware, no network
 ```
 
 ### Setup: which device is on which port
@@ -186,7 +186,7 @@ benchmatrix/
   setup.py            device discovery, chip-id identity, and `.env`
   learned.py          expectations learned from a real tag, and the self-licensing guard
   grid.py             the published grid, the exclusion list, the gap register
-tests/                114 tests, all on the scripted bench — `./runtests`
+tests/                120 tests, all on the scripted bench — `./runtests`
 ```
 
 ## The protocol registry
