@@ -152,3 +152,67 @@ class ProvenanceIsOnTheFace(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class InterruptingIsNormal(unittest.TestCase):
+    """⛔ Stopping a run is a normal thing to do — hands full, something wrong on the bench, a cue
+    that turned out to be for the wrong station. None of that deserves a traceback, and none of it
+    may leave a device emulating."""
+
+    def _plan(self):
+        return tiny_plan(keys=("em410x", "viking"), sources=("t55.pm3", "emu.cu1"))
+
+    def test_ctrl_c_becomes_an_abort_not_a_crash(self):
+        dev = make_devices(answers=answers_all_exact(reg.resolve(["em410x", "viking"])))
+        calls = {"n": 0}
+
+        def interrupt(station):
+            calls["n"] += 1
+            if calls["n"] >= 3:
+                raise KeyboardInterrupt
+        dev.operator = interrupt
+        with self.assertRaises(runner.RunAborted) as cm:
+            runner.run(self._plan(), dev, interactive=False, session="S", out=quiet)
+        self.assertIn("interrupted by the operator", str(cm.exception))
+
+    def test_the_partial_readings_come_back_with_the_abort(self):
+        """Losing forty completed readings because the forty-first could not be trusted helps
+        nobody — but what comes back must never look like a grid."""
+        dev = make_devices(answers=answers_all_exact(reg.resolve(["em410x", "viking"])))
+        calls = {"n": 0}
+
+        def interrupt(station):
+            calls["n"] += 1
+            if calls["n"] >= 4:
+                raise KeyboardInterrupt
+        dev.operator = interrupt
+        try:
+            runner.run(self._plan(), dev, interactive=False, session="S", out=quiet)
+            self.fail("should have aborted")
+        except runner.RunAborted as e:
+            self.assertIsNotNone(e.result)
+            self.assertTrue(e.result.cells)
+            self.assertTrue(e.result.aborted)
+
+    def test_the_bench_is_left_idle_whatever_went_wrong(self):
+        """⛔ A device left emulating contaminates whatever runs next, and the operator cannot see
+        it — the giveaway is a null sweep failing at the start of a session for no visible reason."""
+        dev = make_devices(answers=answers_all_exact(reg.resolve(["em410x", "viking"])))
+        dev.cu1.arm(reg.TIER0["em410x"])
+        self.assertIn("cu1", dev.air.armed)
+
+        def interrupt(station):
+            raise KeyboardInterrupt
+        dev.operator = interrupt
+        with self.assertRaises(runner.RunAborted):
+            runner.run(self._plan(), dev, interactive=False, session="S", out=quiet)
+        self.assertNotIn("cu1", dev.air.armed, "nothing may be left emulating after an abort")
+
+    def test_a_faulted_run_also_leaves_the_bench_idle(self):
+        """The cleanup is in a `finally`, so it happens for every exit, not just Ctrl-C."""
+        dev = make_devices(alive=False)
+        dev.cu1.alive_ok = False
+        dev.cu2.arm(reg.TIER0["em410x"])
+        with self.assertRaises(runner.RunAborted):
+            runner.run(self._plan(), dev, interactive=False, session="S", out=quiet)
+        self.assertEqual(dev.air.armed, {})

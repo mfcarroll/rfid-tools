@@ -156,6 +156,14 @@ def cmd_run(a) -> int:
     except runner.RunAborted as e:
         print("\n  ⛔ ABORTED — %s\n" % e)
         print("     No grid is published from an aborted run.")
+        # ⚠ THE PARTIAL RECORD IS STILL WRITTEN, under a name that cannot be mistaken for a grid.
+        # Losing forty completed readings because the forty-first could not be trusted helps nobody,
+        # and the operator needs to see how far the session got before deciding what to redo.
+        if e.result is not None and e.result.cells:
+            stem = _write(e.result, protos, suffix="_ABORTED")
+            print("     %d reading(s) taken before the abort are filed at %s.md" 
+                  % (len(e.result.cells), stem))
+        cues.cue_done("run aborted.", ok=False)
         return 2
     # ⛔ PHASE 2 IS PART OF THE RUN, NOT AN EXTRA. Phase 1 buys its coverage by stacking, and the
     # crowded-stack rule means the bill comes due on whatever failed. Leaving those cells UNGRADED
@@ -174,12 +182,7 @@ def cmd_run(a) -> int:
                             licences=result.licences)
             result = grid.merge(result, r2)
     md = grid.render(result, protos)
-    os.makedirs(RUNS, exist_ok=True)
-    stem = os.path.join(RUNS, "run_%s" % result.session)
-    with open(stem + ".md", "w", encoding="utf-8") as fh:
-        fh.write(md + "\n")
-    with open(stem + ".json", "w", encoding="utf-8") as fh:
-        fh.write(grid.to_json(result, protos) + "\n")
+    stem = _write(result, protos)
     print("\n" + md)
     print("\n  written: %s.md  %s.json" % (stem, stem))
     graded = sum(1 for c in result.cells if c.outcome.value != "UNGRADED")
@@ -260,6 +263,17 @@ def cmd_probe(a) -> int:
     return 0 if ok else 2
 
 
+def _write(result, protos, suffix: str = "") -> str:
+    """File a run's markdown and JSON. Returns the path stem."""
+    os.makedirs(RUNS, exist_ok=True)
+    stem = os.path.join(RUNS, "run_%s%s" % (result.session, suffix))
+    with open(stem + ".md", "w", encoding="utf-8") as fh:
+        fh.write(grid.render(result, protos) + "\n")
+    with open(stem + ".json", "w", encoding="utf-8") as fh:
+        fh.write(grid.to_json(result, protos) + "\n")
+    return stem
+
+
 def cmd_learn(a) -> int:
     """Write a credential with the Proxmark, read it on the Flipper, record what it printed.
 
@@ -283,7 +297,7 @@ def cmd_learn(a) -> int:
             print("  · %-10s already known (%s)" % (p.key, p.flip_expect))
             continue
         cues.ask("\n  put the T5577 on the Proxmark, then press Enter (%s): " % p.key,
-                 spoken="put the T5577 tag on the Proxmark")
+                 spoken="put the tag on the Proxmark")
         out = pm3.write_t55(p)
         if "error" in out.lower():
             print("    ⛔ write refused — %s" % out.strip()[-160:])
@@ -408,7 +422,18 @@ def main(argv=None) -> int:
             setattr(a, attr, list(default))
     try:
         return a.func(a)
+    except KeyboardInterrupt:
+        # ⛔ STOPPING A RUN IS A NORMAL THING TO DO. Hands full, something wrong on the bench, a cue
+        # that turned out to be for the wrong station — none of that deserves a traceback, and the
+        # devices have already been put back to idle by the runner's own cleanup.
+        cues.hush()
+        print("\n\n  ⛔ interrupted. Every device has been put back into reader mode, so the bench "
+              "is idle.\n     Nothing is emulating and no grid was published.\n", file=sys.stderr)
+        return 130
     except (reg.RegistryError, ValueError, AssertionError) as e:
+        print("\n  ⛔ %s\n" % e, file=sys.stderr)
+        return 2
+    except DeviceError as e:
         print("\n  ⛔ %s\n" % e, file=sys.stderr)
         return 2
 
