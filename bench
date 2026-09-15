@@ -1,0 +1,6 @@
+#!/usr/bin/env python3
+"""rfid-tools bench matrix — see DESIGN.md."""
+import os, sys
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from benchmatrix.cli import main
+raise SystemExit(main())

@@ -1,0 +1,5 @@
+#!/bin/sh
+# Every test runs on scripted devices — no hardware, no sound, no network.
+set -e
+cd "$(dirname "$0")"
+exec python3 -m unittest discover -s tests -t . "$@"

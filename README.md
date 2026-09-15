@@ -55,7 +55,65 @@ refuse.
 - Not a replacement for that project's notes. It records *what the bench observed*, not *what we
   concluded about a design*.
 
+## How it is built
+
+```
+bench                 the CLI — scope | plan | run | learn
+benchmatrix/
+  outcomes.py         the four outcomes, and the Calibration licence they need
+  registry.py         the 16 tier-0 protocols, with each value's provenance marked
+  topology.py         sources, readers, arrangements, and the computed move cues
+  plan.py             cells, plan-time refusals, and the injected calibration rows
+  identity.py         the radio-identity check and the A/B/A null sweeps
+  runner.py           the campaign: moves, controls, reads, voiding
+  devices.py          pm3 / Flipper / Chameleon channels, and a scripted stand-in
+  cues.py             spoken operator cues, ported from t5577_campaign.py
+  learned.py          expectations learned from a real tag, and the self-licensing guard
+  grid.py             the published grid, the exclusion list, the gap register
+tests/                66 tests, all on the scripted bench — `./runtests`
+```
+
+The calibration rule is enforced by construction rather than by checking. `grade()` cannot be
+called without a `Calibration`, and a `Calibration` cannot be built except by
+`Calibration.from_row()`, which takes an observation and refuses it unless it is a byte-exact read
+of a **real tag** for **that protocol**, on **that reader**, in **that session**, on **that pad**.
+There is no bypass argument anywhere in the package, and a test walks the argument parser to prove
+no flag has quietly acquired one.
+
+## Using it
+
+```bash
+./bench scope                      # the registry, and what it can and cannot grade
+./bench plan                       # the cells, the move script, and what is refused
+./bench run --dry-run --no-prompt  # rehearse the whole thing with no hardware
+./runtests                         # 66 tests, no hardware, no network
+```
+
+A real run needs the ports:
+
+```bash
+PM3=../proxmark3/pm3 CU1_PORT=/dev/tty.usbmodemC3A1656543DE1 \
+CU2_PORT=/dev/tty.usbmodemF429364E46961 ./bench run
+```
+
 ## Status
 
-Write-up only. Nothing implemented yet. See `DESIGN.md` for the build order and `SCOPE.md` for the
-first task's answer (drafted from source, **not yet verified on the bench**).
+**The instrument is built; the bench run has not happened.** `DESIGN.md` §6 steps 2 and 3 —
+the protocol registry and the campaign runner — are complete and tested. Steps 1, 4 and 5 need
+hardware and are the next thing to do.
+
+Three things are deliberately *not* known yet, and the harness refuses to guess at any of them:
+
+- **Ten of sixteen protocols have no Flipper expectation.** The Flipper's decoded hex is a
+  different encoding from the credential the Chameleon is armed with, and deriving it from each
+  protocol's encoder would be guessing at something the bench can be asked. Those ten have no
+  `rd.flip` column at all until `bench learn` fills them in from a Proxmark-written tag — and a
+  value learned in one session cannot license a calibration row in that same session, because a
+  control compared against itself cannot fail.
+- **`rd.cu` has no column.** The Chameleon's read arms are the thing under test in the owning
+  project, not a judge; no read command is registered here, so the whole column is refused with a
+  reason rather than left blank.
+- **Several `pm3.write` commands are not known to produce the credential the emulation arms.**
+  Where `clone` takes decoded fields and `econfig` takes `--raw`, they may differ. This needs no
+  special handling: it surfaces as a calibration row that decodes *something other than* `expect`,
+  which is reported as a **registry fault** and not as a deaf reader.
