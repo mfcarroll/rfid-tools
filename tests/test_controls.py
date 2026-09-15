@@ -216,3 +216,78 @@ class InterruptingIsNormal(unittest.TestCase):
         with self.assertRaises(runner.RunAborted):
             runner.run(self._plan(), dev, interactive=False, session="S", out=quiet)
         self.assertEqual(dev.air.armed, {})
+
+
+class TheOperatorIsNeverToldToUndoTheLastInstruction(unittest.TestCase):
+    """⛔ An operator told to undo what they were just told to do stops trusting the cues, and the
+    cues are the only thing keeping the bench and the plan in step."""
+
+    def _instructions(self, keys=("em410x",), sources=("t55.pm3",), readers=("rd.pm3",)):
+        said = []
+        plan = tiny_plan(keys=keys, sources=sources, readers=readers)
+        dev = make_devices(answers=answers_all_exact(reg.resolve(list(keys)))) 
+        runner.run(plan, dev, interactive=False, session="S",
+                   out=lambda m="": said.append(str(m)))
+        return [m.strip() for m in said if "⇒" in m]
+
+    def test_the_tag_goes_on_after_the_null_sweep_not_before_it(self):
+        said = []
+        plan = tiny_plan(keys=("em410x",), sources=("t55.pm3",), readers=("rd.pm3",))
+        dev = make_devices(answers=answers_all_exact(reg.resolve(["em410x"])))
+        runner.run(plan, dev, interactive=False, session="S",
+                   out=lambda m="": said.append(str(m)))
+        joined = "\n".join(str(m) for m in said)
+        add_tag = joined.index("Add the T5577 tag")
+        before = joined.index("NULL BEFORE")
+        self.assertLess(before, add_tag,
+                        "the sweep must be taken before the tag is ever asked for")
+
+    def test_no_instruction_undoes_the_one_before_it(self):
+        """⚠ ADJACENCY IN THE MOVE LIST IS NOT THE TEST — "add the tag" and "take the tag out" are
+        always consecutive moves, with the entire routine between them. What must never happen is
+        the two arriving with NOTHING done in between, which is what the operator saw."""
+        said = []
+        plan = tiny_plan(keys=("em410x",), sources=("t55.pm3",), readers=("rd.pm3",))
+        dev = make_devices(answers=answers_all_exact(reg.resolve(["em410x"])))
+        runner.run(plan, dev, interactive=False, session="S",
+                   out=lambda m="": said.append(str(m).strip()))
+        add = next(i for i, m in enumerate(said) if m.startswith("Add the T5577"))
+        drop = next(i for i, m in enumerate(said) if m.startswith("Take the T5577"))
+        between = [m for m in said[add + 1:drop] if m]
+        self.assertTrue(between, "the tag goes on and straight back off with nothing measured")
+        self.assertTrue(any("EXACT" in m for m in between),
+                        "what happens while the tag is on should be the measurements: %r" % between)
+
+    def test_a_tag_station_costs_three_instructions_and_no_more(self):
+        """Arrange it empty, add the tag, take the tag out. The estimate the plan prints."""
+        self.assertEqual(len(self._instructions()), 3)
+
+    def test_an_emulation_station_costs_one(self):
+        moves = self._instructions(sources=("emu.cu1",), readers=("rd.pm3",))
+        adds = [m for m in moves if "T5577" not in m]
+        self.assertTrue(adds)
+
+    def test_a_proxmark_in_the_stack_does_not_break_the_null_sweep(self):
+        """`null_sweep` disarms everything in the stack and must not have to know which of those
+        can emit — so every channel answers `disarm()`, the Proxmark's as a no-op."""
+        from benchmatrix.devices import Pm3
+        Pm3().disarm()
+        self.assertEqual(len(self._instructions()), 3)
+
+
+class OnlyPhysicalInstructionsAreSpoken(unittest.TestCase):
+
+    def test_a_null_sweep_chimes_but_does_not_talk(self):
+        """⛔ Saying "null before" out loud is noise that trains the operator to ignore the voice,
+        which is precisely the channel a move cue depends on."""
+        import benchmatrix.cues as c
+        spoken, played = [], []
+        say, play = c._say, c._play
+        c._say, c._play = (lambda w, block=False: spoken.append(w)), played.append
+        try:
+            c.cue_check("null before")
+            c.cue_move("take the tag out")
+        finally:
+            c._say, c._play = say, play
+        self.assertEqual(spoken, ["take the tag out"])
+        self.assertEqual(len(played), 2, "both still chime")

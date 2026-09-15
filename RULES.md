@@ -57,11 +57,14 @@ not to have been stable, the claim does not survive it.
 
 Two things the sweep must get right:
 
-- **Active emitters stay on the pad**, in reader mode. A null taken with the pad cleared measures a
-  different bench from the one the arms were measured on.
-- **A passive tag has no idle state** and must be physically removed, or — where a tag is
-  deliberately present — the sweep becomes a *known-field* check: the field must contain exactly
-  what we know is in it. Silence where a known tag should answer is itself a finding.
+- **Active emitters stay in the stack**, in reader mode. A null taken with the stack pulled apart
+  measures a different bench from the one the arms were measured on.
+- **A passive tag has no idle state** and must be physically removed. So the tag is the *last* thing
+  to go into a stack and the *first* thing to come out: arrange the station empty, take the sweep,
+  add the tag, work, remove the tag, close the sweep. Building the whole station and then asking for
+  the tag straight back out is three instructions where one will do, and the middle one contradicts
+  the one before it — an operator told to undo what they were just told to do stops trusting the
+  cues, and the cues are the only thing keeping the bench and the plan in step.
 
 ## 4. The identity rule
 
@@ -86,6 +89,10 @@ So every Chameleon command is issued together with `hw chipid` and its answer ch
 reply is used. A cable moved mid-session is caught at the exact action it would have corrupted, and
 a port that no longer holds the expected device is simply re-resolved: the label is bound to the
 silicon, never to the cable.
+
+**Only a physical instruction is spoken.** A sweep or an identity check asks the operator for
+nothing, so it chimes and says nothing. Narrating the harness's own housekeeping trains the operator
+to ignore the voice, which is exactly the channel a move cue depends on.
 
 **And a run that stops early still leaves the bench idle.** Every exit — a fault, a refused
 calibration, Ctrl-C — puts each device back into reader mode before returning. A device left

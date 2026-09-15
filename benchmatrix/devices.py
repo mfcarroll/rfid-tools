@@ -123,6 +123,15 @@ class Pm3:
         """Write the gold reference onto a real T5577."""
         return self.exec(p.pm3_write, timeout=max(self.timeout, 120))
 
+    def disarm(self) -> None:
+        """A no-op, and deliberately present.
+
+        ⚠ EVERY CHANNEL ANSWERS `disarm()` whether or not it can emit, because the null sweep calls
+        it on everything in the stack and must not have to know which devices those are. The
+        Proxmark client exits after each `-c` invocation, so this harness cannot leave it
+        simulating; if that ever changes, this is where stopping it belongs.
+        """
+
     def decode_marker(self, p: reg.Protocol) -> str:
         return p.pm3_decode_marker
 
