@@ -1,17 +1,17 @@
 """The campaign: moves, controls, reads, and the grading that refuses to happen without a licence.
 
-Run shape, per block (DESIGN.md §3):
+Run shape, per block:
 
     move cue  ->  operator confirms  ->  RADIO IDENTITY CHECK  ->  null sweep BEFORE
               ->  the block's writes and reads  ->  null sweep AFTER  ->  A/B/A comparison
 
 ⛔⛔ THREE THINGS ABORT OR VOID RATHER THAN DEGRADE, AND EACH ONE COST A SESSION TO LEARN:
   1. A DEAD INSTRUMENT ABORTS THE RUN. A silent reader and a silent emulator produce identical
-     numbers (C373) — eleven arms were once read as "the emulator is silent" when the truth was
+     numbers — eleven arms were once read as "the emulator is silent" when the truth was
      "the reader was never listening", and it stood as a firmware unit until something contradicted
      it. Proof of life is taken before anything is measured and again whenever a channel raises.
   2. A WRONG DEVICE ABORTS THE RUN. Not "warns" — everything under that topology would be
-     attributed to the wrong Chameleon, and the null arms cannot catch it (C461).
+     attributed to the wrong Chameleon, and the null arms cannot catch it (RULES.md §4).
   3. A DISAGREEING A/B/A VOIDS THE BLOCK AND REVOKES ANY LICENCE IT ISSUED. A licence is a claim
      about a bench that was stable while the control was taken; if the block turns out not to have
      been stable, the claim goes with it — including for rows in LATER blocks that it licensed.
@@ -132,7 +132,7 @@ def run(plan: RunPlan, devices: Devices, *, interactive: bool = True,
         res.blocks.append(report)
         reader = devices.by_dev(b.topology.reader_dev)
         # ⚠ THE PAD IS PER-READER AND CONSTANT FOR THE SESSION. "Same pad, same antenna position"
-        # (DESIGN.md §2.2) is a claim about the READER not having been repositioned — the tag and
+        # (RULES.md §1) is a claim about the READER not having been repositioned — the tag and
         # the Chameleons coming and going is the experiment, not a change of pad. Start a new
         # session id if a reader is physically moved mid-run; that is what invalidates a licence.
         pad = "%s@%s" % (b.topology.reader_dev, plan.bench.pad)
@@ -286,7 +286,7 @@ def _write(step: Step, devices: Devices, out) -> None:
         writer.write_t55(step.protocol)
         out("      ✎ wrote %s to the T5577 with %s" % (step.protocol.key, step.writer))
     except DeviceError as e:
-        # ⚠ A REFUSED WRITE IS NOT AN ABORT. It is a registered firmware gap (DESIGN.md §4) or a new
+        # ⚠ A REFUSED WRITE IS NOT AN ABORT. It is a registered firmware gap (the gap register) or a new
         # one; either way the rows that depend on it become UNGRADED through the ordinary path,
         # because the tag will not hold what they expect and the calibration will say so.
         out("      ⛔ write refused for %s — %s" % (step.protocol.key, e))

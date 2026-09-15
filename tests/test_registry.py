@@ -16,7 +16,7 @@ class ItValidates(unittest.TestCase):
         self.assertEqual(set(reg.TIER0), set(reg.TIER0_ORDER))
 
     def test_a_missing_decode_marker_is_a_hard_error(self):
-        """⛔ Without one, WRONG and SILENT are indistinguishable — the merge DESIGN.md §1 forbids."""
+        """⛔ Without one, WRONG and SILENT are indistinguishable — the merge RULES.md §1 forbids."""
         broken = dict(reg.TIER0)
         broken["pac"] = reg.Protocol(**{**reg.TIER0["pac"].__dict__, "pm3_decode_marker": ""})
         with self.assertRaises(reg.RegistryError) as cm:

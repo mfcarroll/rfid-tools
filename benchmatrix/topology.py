@@ -1,4 +1,4 @@
-"""Sources, readers, bench topologies, and the spoken move vocabulary (DESIGN.md §3).
+"""Sources, readers, bench topologies, and the spoken move vocabulary.
 
 ⭐ THE RUN PLAN DECLARES TOPOLOGIES, NOT MOVES. A full tier-0 matrix is eleven physical
 rearrangements; asking the operator to hold that in their head is how the wrong Chameleon ends up
@@ -35,7 +35,7 @@ HUMAN = {
 #: What `say` should pronounce. The terminal text can carry punctuation the voice should not.
 SPOKEN = dict(HUMAN, cu1="Chameleon one", cu2="Chameleon two")
 
-# ------------------------------------------------------------------ sources (DESIGN.md §1)
+# ------------------------------------------------------------------ sources (RULES.md §1)
 SOURCES = {
     "t55.pm3":  (T5577,   "real T5577, written by the Proxmark — the gold reference"),
     "t55.flip": (T5577,   "real T5577, written by the Flipper"),
@@ -45,14 +45,14 @@ SOURCES = {
     "oem":      (OEMTAG,  "a genuine OEM credential"),
 }
 
-#: ⛔ The only sources that can license a reader (DESIGN.md §2.1). An emulation never licenses
-#: anything, including itself — that is the C473 failure in one line.
+#: ⛔ The only sources that can license a reader (RULES.md §1). An emulation never licenses
+#: anything, including itself — that is the calibration rule in one line (RULES.md §1).
 REAL_SOURCES = frozenset({"t55.pm3", "oem"})
 
-#: Sources that are a Chameleon emulating. M52 refuses these against `rd.cu`.
+#: Sources that are a Chameleon emulating. The subcarrier rule refuses these against `rd.cu`.
 EMULATED_SOURCES = frozenset({"emu.flip", "emu.cu1", "emu.cu2"})
 
-# ------------------------------------------------------------------ readers (DESIGN.md §1)
+# ------------------------------------------------------------------ readers (RULES.md §1)
 READERS = {
     "rd.pm3":  (PM3,     "Proxmark3"),
     "rd.flip": (FLIPPER, "Flipper"),
@@ -87,8 +87,8 @@ class Bench:
     """Which physical devices this bench has, and which Chameleon is the designated reader.
 
     ⚠ `cu_reader` MATTERS AND IS NOT COSMETIC. `rd.cu` grades an arm on one Chameleon while the
-    other may be the source; the two builds differ (861 vs 875) and C472 had to establish which was
-    which BY RADIO after a verbal mix-up. Name it here, and let `identity.py` prove it.
+    other may be the source; the two builds differ, and which was which has had to be established BY
+    RADIO after a verbal mix-up. Name it here, and let `identity.py` prove it (RULES.md §4).
     """
 
     cu_reader: str = CU1
@@ -107,7 +107,7 @@ class Bench:
 
 
 def _name(reader_dev: str, on_pad: tuple[str, ...]) -> str:
-    """PM3_CU2, FLIP_T55, CU1_CU2 — the spellings DESIGN.md §3 uses."""
+    """PM3_CU2, FLIP_T55, CU1_CU2 — the spellings RULES.md §3 uses."""
     short = {PM3: "PM3", FLIPPER: "FLIP", CU1: "CU1", CU2: "CU2", T5577: "T55", OEMTAG: "OEM"}
     tail = "_".join(short[d] for d in on_pad) if on_pad else "ALONE"
     return "%s_%s" % (short[reader_dev], tail)

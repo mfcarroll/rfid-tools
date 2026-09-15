@@ -5,11 +5,11 @@
 bench can be asked for directly: write the credential to a T5577 with the Proxmark, put the tag on
 the Flipper, and record what it says. That is a measurement, not an assumption.
 
-⛔⛔ AND WHY IT IS DANGEROUS, WHICH IS THE WHOLE REASON THIS IS A SEPARATE FILE. If the expectation
+⛔⛔ THE SELF-LICENSING RULE (RULES.md §8), WHICH IS THE WHOLE REASON THIS IS A SEPARATE FILE. If the expectation
 is learned from the same read that is supposed to license the reader, the calibration row CANNOT
 FAIL — it is being compared against itself. That is not a weaker control, it is a control that has
 been quietly inverted into a tautology, and it would be invisible in the grid: every licence green,
-every licence worthless. It is the same shape as C473 with one more step of indirection.
+every licence worthless. It is the calibration rule defeated with one more step of indirection.
 
 ⇒ A LEARNED EXPECTATION CANNOT LICENSE ANYTHING IN THE SESSION THAT LEARNED IT. The session id is
 stamped into the record and `check_independence()` refuses the pair. Learn in one sitting, grade in

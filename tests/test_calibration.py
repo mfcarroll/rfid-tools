@@ -38,7 +38,7 @@ class TheLicenceCannotBeForged(unittest.TestCase):
             Calibration("em410x", "rd.pm3", "S", "p", "t55.pm3", "")
 
     def test_an_emulation_cannot_license_itself(self):
-        """C473 in one line: the emulate column was graded with no real-tag row anywhere in it."""
+        """The calibration rule in one line: an emulate column graded with no real-tag row in it."""
         for source in ("emu.cu1", "emu.cu2", "emu.flip", "t55.flip"):
             with self.subTest(source=source):
                 with self.assertRaises(CalibrationRefused) as cm:
@@ -115,7 +115,7 @@ class ThePlannerGuaranteesIt(unittest.TestCase):
 class TheCliOffersNoWayAround(unittest.TestCase):
 
     def test_no_flag_disables_calibration(self):
-        """DESIGN.md §2: `--no-calibration` must not exist as a flag.
+        """RULES.md §1: `--no-calibration` must not exist as a flag.
 
         ⚠ CHECKED AGAINST THE PARSER'S ACTIONS, NOT ITS HELP TEXT. The epilog says the words "there
         is no --no-calibration" on purpose, and a substring search over the help would both match

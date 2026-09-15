@@ -1,8 +1,8 @@
 """The controls that bracket every block: identity, null sweeps, A/B/A, and what voiding costs.
 
-These are the parts that cost sessions to learn on the bench — C461 (wrong device), C328/M35
-(A/B/A), C373 (a dead reader scoring as a silent emulator). Each is tested for the behaviour the
-notes say it must have, not merely for "it returns something".
+The identity rule, the A/B/A rule and the liveness rule (RULES.md §§3-5). Each cost a bench session
+to learn, and each is tested for the behaviour the rule demands, not merely for "it returns
+something".
 """
 
 import unittest
@@ -31,7 +31,7 @@ class TheIdentityCheck(unittest.TestCase):
                             identity.probe_protocol(CU2).expect)
 
     def test_the_wrong_chameleon_aborts_the_run(self):
-        """C461: the null arms cannot catch a SWAPPED device — the wrong one is just as silent."""
+        """The null arms cannot catch a SWAPPED device — the wrong one is just as silent."""
         plan = tiny_plan(keys=("em410x",), sources=("t55.pm3", "emu.cu1"))
         air = Air()
 
@@ -129,7 +129,7 @@ class VoidingIsContagious(unittest.TestCase):
 class TheInstrumentMustBeAlive(unittest.TestCase):
 
     def test_a_dead_device_aborts_before_a_single_cell(self):
-        """C373: a silent reader and a silent emulator produce IDENTICAL numbers."""
+        """A silent reader and a silent emulator produce IDENTICAL numbers."""
         plan = tiny_plan(keys=("em410x",), sources=("t55.pm3",))
         with self.assertRaises(runner.RunAborted):
             runner.run(plan, make_devices(alive=False), interactive=False, session="S", out=quiet)

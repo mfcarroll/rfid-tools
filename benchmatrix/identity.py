@@ -1,14 +1,15 @@
 """Radio-identity check and null sweeps — the two controls that bracket every block.
 
-⛔⛔ EVERY MOVE IS FOLLOWED BY A CHECK, NOT A QUESTION (DESIGN.md §3). The operator's word is the
-PLAN; the radio is the RECORD. C472 had to establish which Chameleon was on the pad by arming
-distinct EM410X ids after a verbal mix-up, and the operator asked for exactly this afterwards:
-"that's why I'm confirming the exact setup each time."
+⛔⛔ THE IDENTITY RULE (RULES.md §4): every move is followed by a check, not a question. The
+operator's word is the
+PLAN; the radio is the RECORD. Which Chameleon was on the pad has had to be established by arming
+distinct EM410X ids after a verbal mix-up — the operator's standing request is to confirm the exact
+setup every time.
 
 ⛔ AND IT IS THE ONE CHECK THE NULL ARMS CANNOT DO FOR YOU. A null sweep catches a STRAY emitter;
 it cannot catch a SWAPPED one, because the wrong Chameleon is just as silent as the right one when
-both are in reader mode. That is the C461 trap, and a wrong-device run produces an unfalsifiable
-null — every arm scored against a device that was never listening.
+both are in reader mode. A wrong-device run produces an unfalsifiable null — every arm scored
+against a device that was never listening.
 """
 
 from __future__ import annotations
@@ -25,7 +26,7 @@ from .topology import CU1, CU2, HUMAN, Topology
 PROBE_ID = {CU1: "C1C1C1C1C1", CU2: "C2C2C2C2C2"}
 
 #: EM410X is the probe protocol: it is the one arm every reader in the matrix decodes, and the one
-#: the Chameleon is known to emit to both the pm3 (C466) and the Flipper.
+#: the Chameleon is known to emit to both the Proxmark and the Flipper.
 PROBE_PROTOCOL = "em410x"
 
 
@@ -46,7 +47,7 @@ class IdentityResult:
 
 
 #: ⛔ THE PROBE IS NOT THE `em410x` ARM. It borrows EM410X's read command because that is the one
-#: protocol every reader in the matrix is known to decode from a Chameleon (C466), but it carries
+#: protocol every reader in the matrix is known to decode from a Chameleon, but it carries
 #: its own key so that a probe read can never be filed as an `em410x` result and an `em410x` script
 #: can never intercept a probe. Two different questions that happen to use the same command.
 PROBE_KEY = "__probe__"
@@ -108,8 +109,8 @@ def explain(res: IdentityResult) -> str:
     if res.ok:
         return "identity confirmed by radio: %s is on the pad" % HUMAN[res.expected]
     if res.strays and res.found is None:
-        return ("⛔ WRONG DEVICE. The plan says %s; the radio says %s. This is the C461 trap — the "
-                "null arms cannot catch it, because the wrong Chameleon is exactly as silent as the "
+        return ("⛔ WRONG DEVICE. The plan says %s; the radio says %s. The null arms cannot "
+                "catch this, because the wrong Chameleon is exactly as silent as the "
                 "right one. Everything measured under this topology would be attributed to the "
                 "wrong device."
                 % (HUMAN[res.expected], " and ".join(HUMAN[d] for d in res.strays)))
@@ -123,7 +124,7 @@ def explain(res: IdentityResult) -> str:
             % HUMAN[res.expected])
 
 
-# ------------------------------------------------------------------ null sweeps (M35 A/B/A)
+# ------------------------------------------------------- null sweeps — the A/B/A rule (RULES.md §3)
 
 @dataclass(frozen=True)
 class NullSweep:
@@ -154,7 +155,7 @@ def null_sweep(label: str, reader, protocols: list[reg.Protocol], emitters: list
 
 
 def sweeps_agree(before: NullSweep, after: NullSweep) -> tuple[bool, str]:
-    """⛔ A/B/A, AND A DIFFERENCE VOIDS THE RUN RATHER THAN DEGRADING IT (DESIGN.md §3).
+    """⛔ THE A/B/A RULE (RULES.md §3): a difference VOIDS the block rather than degrading it.
 
     Against anything intermittent, A/B is not an experiment. A closing sweep that differs from the
     opening one says the bench changed underneath the block — and there is no way afterwards to

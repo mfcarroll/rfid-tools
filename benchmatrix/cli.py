@@ -1,10 +1,9 @@
 """`bench` — plan, run, learn, scope.
 
-⛔ THERE IS NO `--no-calibration`, NO `--force`, AND NO `--assume`. DESIGN.md §2: "It must be
-impossible to obtain a scored grid without the calibration rows having passed; `--no-calibration`
-must not exist as a flag." An option to skip the control is the same defect with a friendlier name,
-so the argument parser below does not have one and `Calibration` cannot be constructed without a
-passing row even if someone added one.
+⛔ THERE IS NO `--no-calibration`, NO `--force`, AND NO `--assume`. It must be impossible to obtain
+a scored grid without the calibration rows having passed (RULES.md §1). An option to skip the
+control is the same defect with a friendlier name, so the argument parser below does not have one,
+and `Calibration` cannot be constructed without a passing row even if someone added one.
 """
 
 from __future__ import annotations
@@ -73,17 +72,18 @@ def cmd_scope(a) -> int:
     reg.validate()
     protos = reg.resolve(a.protocol)
     print("\n  tier-0 registry — %d protocols\n" % len(protos))
-    print("  %-11s %-5s %-4s %-12s %-14s %s" % ("protocol", "fam", "M52", "cu type", "flipper key",
+    print("  %-11s %-5s %-4s %-12s %-14s %s" % ("protocol", "fam", "sub", "cu type", "flipper key",
                                                 "flipper hex"))
     print("  " + "-" * 74)
     for p in protos:
         print("  %-11s %-5s %-4s %-12s %-14s %s"
-              % (p.key, p.family, "✋" if p.m52 else "", p.cu_type, p.flip_key,
+              % (p.key, p.family, "✋" if p.subcarrier else "", p.cu_type, p.flip_key,
                  p.flip_expect or "— not known, `bench learn` it"))
     known = sum(1 for p in protos if p.flip_expect)
     print("\n  %d/%d have a Flipper expectation; the other %d cannot have an `rd.flip` column."
           % (known, len(protos), len(protos) - known))
-    print("  %d refuse `(emu.*, rd.cu)` under M52." % sum(1 for p in protos if p.m52))
+    print("  %d refuse `(emu.*, rd.cu)` under the subcarrier rule."
+          % sum(1 for p in protos if p.subcarrier))
     print("  %d cannot be written to a T5577 by the Flipper (registered gap)."
           % sum(1 for p in protos if not p.flip_write))
     return 0
@@ -213,7 +213,7 @@ def build_parser() -> argparse.ArgumentParser:
     ap = argparse.ArgumentParser(
         prog="bench",
         description="SOURCE x READER x PROTOCOL bench matrix with calibration enforced.",
-        epilog="There is no --no-calibration. See DESIGN.md §2.")
+        epilog="There is no --no-calibration. See RULES.md §1.")
     ap.add_argument("--quiet", action="store_true", help="no sound, no speech")
     sub = ap.add_subparsers(dest="cmd", required=True)
 

@@ -4,14 +4,14 @@ Channels are UNCHANGED IN KIND from `t5577_campaign.py` — `pm3_exec`/`pm3_prob
 a subprocess for the Flipper, `cu.py` for the Chameleon. What is added is arming (the campaign only
 ever read) and, on every channel, a `alive()` proof of life.
 
-⛔⛔ PROOF OF LIFE IS NOT OPTIONAL AND IT IS NOT A BLOCKLIST. Every failure marker in `PM3_FAIL`
-below was added AFTER a failure got through — offline mode 2026-09-01, wrapper errors, the
-client/firmware version mismatch that cost a whole bench session on 2026-09-08. The structural fix
+⛔⛔ THE LIVENESS RULE (RULES.md §5). Every failure marker in `PM3_FAIL` below was added AFTER a
+failure got through it — offline mode, wrapper errors, a client/firmware version mismatch that cost
+a whole bench session. The structural fix
 is to require EVIDENCE THE DEVICE ANSWERED rather than to enumerate the ways it did not, which is
 why `alive()` checks both. `Using UART port ...` is NOT such evidence: it appears identically in a
 working session and in the version-mismatch failure.
 
-⛔⛔ AND ON THE FLIPPER IT IS THE DIFFERENCE BETWEEN A RESULT AND A VOID SESSION (C373/C374). Eleven
+⛔⛔ AND ON THE FLIPPER IT IS THE DIFFERENCE BETWEEN A RESULT AND A VOID SESSION. Eleven
 arms once read `psk -  ask -` with a clean null either side, and the truth was that the `rfid`
 plugin had refused to load — a silent reader and a silent emulator produce IDENTICAL numbers. Every
 Flipper read here goes through `flipper.py`, which returns non-zero when the instrument is dead,
@@ -240,7 +240,7 @@ class Flipper:
     def read(self, p: reg.Protocol) -> str:
         """Return the NORMALISED decode lines, not the raw log.
 
-        ⭐ NORMALISING HERE IS WHAT KEEPS THE M28 TRAP SHUT. `observe()` does a substring match, and
+        ⭐ NORMALISING HERE IS WHAT KEEPS THE NAME-MATCH RULE (RULES.md §6). `observe()` does a substring match, and
         a substring match against the raw log would hit the usage banner and the "Available
         protocols:" listing — the exact trap that once turned 5 attempts into 10 reported successes.
         What comes back from here is only lines that matched the anchored `^name HEX$` pattern, so
@@ -250,7 +250,7 @@ class Flipper:
         if rc != 0 or "the Flipper REJECTED" in out:
             raise DeviceError(
                 "flipper: the reader is not running — nothing measured against it would mean "
-                "anything. A silent reader and a silent emulator produce IDENTICAL numbers (C373).")
+                "anything. A silent reader and a silent emulator produce IDENTICAL numbers.")
         hits = [m.group(0) for line in out.splitlines()
                 for m in [FLIP_SUCCESS.match(line.strip())] if m]
         return "\n".join(hits)
@@ -267,12 +267,12 @@ class Flipper:
     def write_t55(self, p: reg.Protocol) -> str:
         """`t55.flip` — `rfid write <key_type> <key_data>`.
 
-        ⛔ FOUR OF THE SIXTEEN ARE KNOWN NOT TO WRITE (DESIGN.md §4): keri, nexwatch, idteck and
+        ⛔ FOUR OF THE SIXTEEN ARE KNOWN NOT TO WRITE (see the gap register): keri, nexwatch, idteck and
         gproxii go onto a T5577 from the pm3 and not from the Flipper. That is a REGISTERED GAP, so
         it is refused here by name rather than discovered again as a puzzling row.
         """
         if not p.flip_write:
-            raise DeviceError("flipper: cannot write %s to a T5577 — registered gap, DESIGN.md §4"
+            raise DeviceError("flipper: cannot write %s to a T5577 — registered gap, the gap register"
                               % p.key)
         if p.flip_expect is None:
             raise DeviceError("flipper: no known data encoding for %s. Run `bench learn` first."

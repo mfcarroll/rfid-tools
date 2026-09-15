@@ -1,5 +1,5 @@
 """The protocol registry — one entry per protocol, holding everything needed to test it from
-every side (DESIGN.md §5).
+every side (RULES.md §2).
 
 ⭐ PORTED FROM `pm3grade.sh` + `emugrade.sh`, WHICH ARE THE ONLY PARTS OF THOSE SCRIPTS WORTH
 KEEPING. The econfig signatures and the byte-exact expectations in them were each paid for on the
@@ -18,9 +18,9 @@ strings are carried across verbatim.
      decoded byte string is a different encoding from the credential the Chameleon is armed with,
      and deriving it from the protocol's .c would be guessing at an answer the bench can simply be
      asked for. ⇒ `None` means the (P, rd.flip) column CANNOT BE PLANNED. It is not defaulted, not
-     approximated, and not matched on the protocol name alone — that last one is the M28 trap
-     `flipper.py` exists to document, where a name-substring count reported 10 successes out of 5
-     attempts. Use `bench learn` to fill them in from a real tag; see `learned.py`.
+     approximated, and not matched on the protocol name alone — that last one breaks the name-match
+     rule (RULES.md §6), which exists because a name-substring count once reported 10 successes out
+     of 5 attempts. Use `bench learn` to fill them in from a real tag; see `learned.py`.
 
 ⚠ CLASS 2 IS WHY `pm3.write` IS NOT ASSUMED CORRECT EITHER. Several clone commands take decoded
 fields where the econfig arm takes `--raw`, so the written credential and the armed one can differ
@@ -34,17 +34,21 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Optional
 
-#: Modulation family. Recorded truthfully; see `m52` for the rule that DESIGN.md §5 attaches to it.
+#: Modulation family. Recorded truthfully; see `m52` for the rule that RULES.md §2 attaches to it.
 FAMILIES = ("ask", "fsk", "psk")
 
 
 @dataclass(frozen=True)
 class Protocol:
-    """⚠ `cu_read` IS `None` FOR ALL SIXTEEN AND THAT IS NOT AN OVERSIGHT. `rd.cu` is "the arm under
-    test, when it has one" (DESIGN.md §1), and the Chameleon read arms live in the owning firmware
-    project, not here. Until a read command is registered per protocol, plan.py refuses the whole
-    `rd.cu` column rather than emit cells a channel would raise on — a column that cannot be
-    measured is an exclusion with a reason, not an empty grid."""
+    """One protocol, described from every side a bench can approach it from.
+
+    ⭐⭐ THE CHAMELEON IS A READER AND A WRITER, NOT ONLY AN EMITTER, and `cu_read` is the most
+    important field in this table. An emulation is a waveform driven onto a coil; only a real tag's
+    silicon produces genuine load modulation. So `(t55.*, rd.cu)` — the Chameleon decoding a real
+    T5577 — is the ONLY measurement that says whether its decoders work on real RF, and no amount
+    of emulation testing substitutes for it. It is simultaneously the control that licenses the
+    `rd.cu` column and the headline result of the run.
+    """
 
     key: str
     tier: int
@@ -57,8 +61,9 @@ class Protocol:
     flip_key: str                # `.name` in lfrfid_protocols.c
     family: str                  # ask | fsk | psk — the modulation actually on the coil
     t55_capable: bool
-    m52: bool                    # subcarrier-dependent ⇒ (emu.*, rd.cu) is refused, never "failed"
-    cu_read: Optional[str] = None       # the Chameleon's own read arm, when it has one
+    subcarrier: bool                    # subcarrier-dependent ⇒ (emu.*, rd.cu) is refused, never "failed"
+    cu_read: Optional[str] = None       # the Chameleon's own decoder — `lf <proto> read`
+    cu_write: Optional[str] = None      # the Chameleon's own T5577 writer — `lf <proto> write`
     flip_expect: Optional[str] = None   # None = not known; the rd.flip column cannot be planned
     flip_write: bool = True      # False = the Flipper is known to refuse to write this to a T5577
     notes: str = ""
@@ -71,19 +76,20 @@ class Protocol:
         return None if self.flip_expect is None else "%s %s" % (self.flip_key, self.flip_expect)
 
 
-# ⛔ M52 (DESIGN.md §5): never test a SAADC-family read arm against an emulation. The set is named
+# ⛔ THE SUBCARRIER RULE (RULES.md §2): never judge an emulation with a subcarrier-dependent read
+# arm. The set is named
 # EXPLICITLY rather than derived from `family`, because the two do not agree and the difference is
 # load-bearing: gallagher, securakey, noralsy and gproxii are ASK on the coil (emugrade.sh MOD
-# table, measured) but are listed in DESIGN.md §5 as needing a subcarrier phase-locked to the
+# table, measured) but are listed in RULES.md §2 as needing a subcarrier phase-locked to the
 # reader's carrier, which only a real tag has. Deriving the rule from `family` would silently
 # re-admit four cells the design refuses; deriving `family` from the rule would falsify the
 # modulation record. So both are stored, and the disagreement is visible here instead of resolved
 # by whichever one got read first.
-M52_SUBCARRIER = frozenset({"indala", "gallagher", "securakey", "noralsy", "gproxii"})
+SUBCARRIER_RULE = frozenset({"indala", "gallagher", "securakey", "noralsy", "gproxii"})
 
 
 def _p(**kw) -> Protocol:
-    kw.setdefault("m52", kw["key"] in M52_SUBCARRIER)
+    kw.setdefault("subcarrier", kw["key"] in SUBCARRIER_RULE)
     return Protocol(**kw)
 
 
@@ -95,6 +101,8 @@ TIER0: dict[str, Protocol] = {p.key: p for p in [
        expect="2244668800",
        cu_type="EM410X",
        cu_emulate="lf em 410x econfig -s {slot} --id 2244668800",
+       cu_read="lf em 410x read",
+       cu_write="lf em 410x write --id 2244668800",
        flip_key="EM4100", flip_expect="2244668800",
        notes="5-byte id both sides — the one protocol where every channel speaks the same bytes."),
 
@@ -110,6 +118,8 @@ TIER0: dict[str, Protocol] = {p.key: p for p in [
        expect="1A337195",
        cu_type="Viking",
        cu_emulate="lf viking econfig -s {slot} --id 1a337195",
+       cu_read="lf viking read",
+       cu_write="lf viking write --id 1a337195",
        flip_key="Viking", flip_expect="1A337195",
        notes="VIKING_DECODED_DATA_SIZE = 4, same width as the armed id."),
 
@@ -120,6 +130,8 @@ TIER0: dict[str, Protocol] = {p.key: p for p in [
        expect="8899AABBCC",
        cu_type="Jablotron",
        cu_emulate="lf jablotron econfig -s {slot} --id 8899aabbcc",
+       cu_read="lf jablotron read",
+       cu_write="lf jablotron write --id 8899aabbcc",
        flip_key="Jablotron", flip_expect="8899AABBCC",
        notes="JABLOTRON_DECODED_DATA_SIZE = 5, same width as the armed id."),
 
@@ -130,8 +142,10 @@ TIER0: dict[str, Protocol] = {p.key: p for p in [
        expect="CARD0042",
        cu_type="PAC",
        cu_emulate="lf pac econfig -s {slot} --cn CARD0042",
+       cu_read="lf pac read",
+       cu_write="lf pac write --cn CARD0042",
        flip_key="PAC/Stanley",
-       notes="C465: the Flipper read NOTHING from a real PAC tag the pm3 read byte-exact. That is "
+       notes="The Flipper has read NOTHING from a real PAC tag the Proxmark read byte-exact. That is "
              "the calibration row this project exists to force, and it is expected to FAIL here."),
 
     _p(key="hidprox", tier=0, family="fsk", t55_capable=True,
@@ -141,6 +155,8 @@ TIER0: dict[str, Protocol] = {p.key: p for p in [
        expect="FC: 123  CN: 4567",
        cu_type="HIDProx",
        cu_emulate="lf hid prox econfig -s {slot} -f H10301 --fc 123 --cn 4567",
+       cu_read="lf hid prox read",
+       cu_write="lf hid prox write -f H10301 --fc 123 --cn 4567",
        flip_key="H10301",
        notes="⚠ The Flipper's H10301 and HIDProx are DIFFERENT protocols — H10301 is the 26-bit "
              "arm we emit, HIDProx is `protocol_hid_generic.c` (SCOPE.md tier 2). Do not conflate."),
@@ -152,6 +168,8 @@ TIER0: dict[str, Protocol] = {p.key: p for p in [
        expect="XSF(01)53:01337",
        cu_type="ioProx",
        cu_emulate="lf ioprox econfig -s {slot} --ver 1 --fc 83 --cn 1337",
+       cu_read="lf ioprox read",
+       cu_write="lf ioprox write --ver 1 --fc 83 --cn 1337",
        flip_key="IoProxXSF",
        notes="IOPROXXSF_DECODED_DATA_SIZE = 4 (ver, fc, cn hi, cn lo) but the packing is the "
              "Flipper's, not ours — learn it, do not derive it."),
@@ -166,6 +184,8 @@ TIER0: dict[str, Protocol] = {p.key: p for p in [
        expect="011d81711dd1181111111111",
        cu_type="AWID",
        cu_emulate="lf awid econfig -s {slot} --raw 011d81711dd1181111111111",
+       cu_read="lf awid read",
+       cu_write="lf awid write --raw 011d81711dd1181111111111",
        flip_key="AWID",
        notes="⛔ pm3.write and cu.emulate are NOT known to produce the same credential. Expect "
              "the (t55.pm3, rd.pm3) row to read WRONG until the raw is matched to the fields."),
@@ -177,9 +197,11 @@ TIER0: dict[str, Protocol] = {p.key: p for p in [
        expect="a0000000e6bd0e92",
        cu_type="Indala",
        cu_emulate="lf indala econfig -s {slot} --id a0000000e6bd0e92",
+       cu_read="lf indala read",
+       cu_write="lf indala write --raw a0000000e6bd0e92",
        flip_key="Indala26",
        notes="INDALA26_DECODED_DATA_SIZE = 4 against an 8-byte armed id — the Flipper prints a "
-             "different encoding. M52 applies: no (emu.*, rd.cu) cell."),
+             "different encoding. The subcarrier rule applies: no (emu.*, rd.cu) cell."),
 
     _p(key="keri", tier=0, family="psk", t55_capable=True,
        pm3_write="lf keri clone -t i --cn 12345",
@@ -188,9 +210,11 @@ TIER0: dict[str, Protocol] = {p.key: p for p in [
        expect="80003039",
        cu_type="Keri",
        cu_emulate="lf keri econfig -s {slot} --id 80003039",
+       cu_read="lf keri read",
+       cu_write="lf keri write --id 80003039",
        flip_key="Keri", flip_expect="80003039", flip_write=False,
        notes="0x80003039 = internal id 12345 with the top bit set; KERI_DECODED_DATA_SIZE = 4. "
-             "⛔ Flipper cannot WRITE this to a T5577 (DESIGN.md §4) — t55.flip is unavailable."),
+             "⛔ Flipper cannot WRITE this to a T5577 — t55.flip is unavailable."),
 
     _p(key="nexwatch", tier=0, family="psk", t55_capable=True,
        pm3_write="lf nexwatch clone --cn 87654321 -m 2 --nc",
@@ -199,6 +223,8 @@ TIER0: dict[str, Protocol] = {p.key: p for p in [
        expect="87654321",
        cu_type="NexWatch",
        cu_emulate="lf nexwatch econfig -s {slot} --cn 87654321 -m 2",
+       cu_read="lf nexwatch read",
+       cu_write="lf nexwatch write --cn 87654321 -m 2",
        flip_key="Nexwatch", flip_write=False,
        notes="⚠ `clone` needs a credential flavour (--nc/--hc/--qc) that `econfig` has no "
              "argument for. If they disagree the calibration row will say so."),
@@ -210,6 +236,8 @@ TIER0: dict[str, Protocol] = {p.key: p for p in [
        expect="4944544B55667788",
        cu_type="IDTECK",
        cu_emulate="lf idteck econfig -s {slot} --id 4944544b55667788",
+       cu_read="lf idteck read",
+       cu_write="lf idteck write --id 4944544b55667788",
        flip_key="Idteck", flip_expect="4944544B55667788", flip_write=False,
        notes="IDTECK_DECODED_DATA_SIZE = 8, same width as the armed id."),
 
@@ -220,8 +248,10 @@ TIER0: dict[str, Protocol] = {p.key: p for p in [
        expect="7feaa31e76d86c6d868cc249",
        cu_type="Gallagher",
        cu_emulate="lf gallagher econfig -s {slot} --raw 7feaa31e76d86c6d868cc249",
+       cu_read="lf gallagher read",
+       cu_write="lf gallagher write --raw 7feaa31e76d86c6d868cc249",
        flip_key="Gallagher",
-       notes="ASK on the coil, but M52 lists it as subcarrier-dependent — see M52_SUBCARRIER."),
+       notes="ASK on the coil, but subcarrier-dependent all the same — see SUBCARRIER_RULE."),
 
     _p(key="securakey", tier=0, family="ask", t55_capable=True,
        pm3_write="lf securakey clone --raw 7fcb400001adea5344300000",
@@ -230,6 +260,8 @@ TIER0: dict[str, Protocol] = {p.key: p for p in [
        expect="7fcb400001adea5344300000",
        cu_type="Securakey",
        cu_emulate="lf securakey econfig -s {slot} --raw 7fcb400001adea5344300000",
+       cu_read="lf securakey read",
+       cu_write="lf securakey write --raw 7fcb400001adea5344300000",
        flip_key="Radio Key",
        notes="⛔ THE FLIPPER CALLS IT `Radio Key`, WITH A SPACE. flipper.py's success pattern was "
              "one word for a whole session and scored a working emulation 0 of 6 — that number "
@@ -242,6 +274,8 @@ TIER0: dict[str, Protocol] = {p.key: p for p in [
        expect="bb0214ff0112402233670000",
        cu_type="Noralsy",
        cu_emulate="lf noralsy econfig -s {slot} --raw bb0214ff0112402233670000",
+       cu_read="lf noralsy read",
+       cu_write="lf noralsy write --raw bb0214ff0112402233670000",
        flip_key="Noralsy",
        notes="⛔ `clone --cn` vs `econfig --raw`: not known to agree. The calibration row decides."),
 
@@ -252,6 +286,8 @@ TIER0: dict[str, Protocol] = {p.key: p for p in [
        expect="fac2a38c2b081af0210b12c2",
        cu_type="GProxII",
        cu_emulate="lf gproxii econfig -s {slot} --raw fac2a38c2b081af0210b12c2",
+       cu_read="lf gproxii read",
+       cu_write="lf gproxii write --raw fac2a38c2b081af0210b12c2",
        flip_key="GProxII", flip_expect="FAC2A38C2B081AF0210B12C2", flip_write=False,
        notes="GPROXII_DATA_SIZE = 12, same width as the armed raw. ⛔ Flipper cannot write it."),
 
@@ -262,6 +298,8 @@ TIER0: dict[str, Protocol] = {p.key: p for p in [
        expect="00339a080402079f8040797788040201",
        cu_type="FDXB",
        cu_emulate="lf fdxb econfig -s {slot} --raw 00339a080402079f8040797788040201",
+       cu_read="lf fdxb read",
+       cu_write="lf fdxb write --raw 00339a080402079f8040797788040201",
        flip_key="FDX-B",
        notes="FDXB_DECODED_DATA_SIZE = 11 against a 16-byte armed raw — different encodings."),
 ]}
@@ -282,7 +320,7 @@ def validate(protocols: dict[str, Protocol] = TIER0) -> None:
 
     ⛔ A MISSING `pm3_decode_marker` IS A HARD ERROR, NOT A DEFAULT. Without it the harness cannot
     tell WRONG from SILENT, and the only way to carry on would be to call every non-match SILENT —
-    which is exactly the merge DESIGN.md §1 forbids. Refusing here is cheaper than discovering it
+    which is exactly the merge RULES.md §1 forbids. Refusing here is cheaper than discovering it
     in a grid.
     """
     problems = []
@@ -293,13 +331,20 @@ def validate(protocols: dict[str, Protocol] = TIER0) -> None:
             problems.append("%s: family %r not in %s" % (key, p.family, FAMILIES))
         if not p.pm3_decode_marker:
             problems.append("%s: no pm3_decode_marker — WRONG and SILENT would be "
-                            "indistinguishable, which DESIGN.md §1 forbids" % key)
+                            "indistinguishable, which the four outcomes forbid" % key)
         if not p.expect:
             problems.append("%s: no byte-exact expectation" % key)
         if "{slot}" not in p.cu_emulate:
             problems.append("%s: cu_emulate has no {slot} placeholder" % key)
-        if p.m52 != (key in M52_SUBCARRIER):
-            problems.append("%s: m52 flag disagrees with M52_SUBCARRIER" % key)
+        if p.subcarrier != (key in SUBCARRIER_RULE):
+            problems.append("%s: m52 flag disagrees with SUBCARRIER_RULE" % key)
+        # ⛔ BOTH CHAMELEON ARMS ARE REQUIRED. Every tier-0 protocol has `read` and `write` in the
+        # client, and a missing entry here would silently drop the one column that tests our own
+        # decoders against real silicon.
+        for field_name in ("cu_read", "cu_write"):
+            if not getattr(p, field_name):
+                problems.append("%s: no %s — the Chameleon has this arm and it must be tested"
+                                % (key, field_name))
     missing = set(TIER0_ORDER) - set(protocols)
     if protocols is TIER0 and missing:
         problems.append("tier 0 is incomplete, missing: %s" % ", ".join(sorted(missing)))
