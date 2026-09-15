@@ -44,8 +44,10 @@ HUMAN = {
     T5577: "the T5577 tag",
     OEMTAG: "the OEM card",
 }
-#: What `say` should pronounce. The printed text can carry digits the voice should not.
-SPOKEN = dict(HUMAN, cu1="Chameleon one", cu2="Chameleon two")
+#: What `say` should pronounce. The printed text is precise; the voice is short. A part number read
+#: out digit by digit is noise the operator learns to talk over, which defeats the point of a cue.
+SPOKEN = dict(HUMAN, cu1="Chameleon one", cu2="Chameleon two",
+              t5577="the tag", oemtag="the O E M card")
 
 #: Bottom to top. The Proxmark is the bench anchor, a tag sits in the middle, the rest go on top.
 STACK_ORDER = (PM3, FLIPPER, T5577, OEMTAG, CU1, CU2)

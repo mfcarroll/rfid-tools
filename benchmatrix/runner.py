@@ -40,7 +40,16 @@ from .stations import (CU1, CU2, FLIPPER, GOLD_SOURCES, HUMAN, PM3, READERS, T55
 
 
 class RunAborted(Exception):
-    """The run stopped because it could no longer measure anything. Never produces a grid."""
+    """The run stopped because it could no longer measure anything. Never produces a grid.
+
+    ⚠ IT CARRIES WHAT WAS MEASURED. Losing forty completed readings because the forty-first could
+    not be trusted helps nobody — the caller can file them, clearly marked, so the operator can see
+    how far the session got. What it must never do is produce something that looks like a grid.
+    """
+
+    def __init__(self, why: str, result=None):
+        super().__init__(why)
+        self.result = result
 
 
 @dataclass
@@ -125,14 +134,54 @@ def run(plan: RunPlan, devices: Devices, *, interactive: bool = True,
 
     out("\n  run %s phase %d — %d cells, %d stations, %d operator interventions"
         % (session, plan.phase, len(plan.cells), len(plan.blocks), plan.interventions))
-    for dev in devices.all():
-        ok, why = dev.alive()
-        out("    %s %s" % ("✓" if ok else "⛔", why))
-        if not ok:
-            res.aborted = why
-            cues.cue_fault("instrument not alive. aborting.")
-            raise RunAborted(why)
+    try:
+        # ⛔ PROOF OF LIFE IS INSIDE THE `finally` TOO. A device can be armed before the run starts —
+        # a previous session that ended badly, an `econfig` run by hand — and aborting here without
+        # putting it back would leave the bench emulating, with nothing on screen to say so.
+        for dev in devices.all():
+            ok, why = dev.alive()
+            out("    %s %s" % ("✓" if ok else "⛔", why))
+            if not ok:
+                res.aborted = why
+                cues.cue_fault("instrument not alive. aborting.")
+                raise RunAborted(why, res)
+        _measure(plan, devices, res, interactive, session, out)
+    except KeyboardInterrupt:
+        # ⛔ Ctrl-C IS AN ABORT LIKE ANY OTHER, not a crash. The operator stopping a run is a normal
+        # thing to do — mid-station, hands full, something wrong on the bench — and it must leave a
+        # clean message and a safe bench rather than a traceback.
+        where = res.blocks[-1].block.station.name if res.blocks else "startup"
+        res.aborted = ("interrupted by the operator at %s, after %d cell(s)"
+                       % (where, len(res.cells)))
+        cues.hush()
+        raise RunAborted(res.aborted, res) from None
+    except RunAborted as e:
+        e.result = res
+        raise
+    finally:
+        _restore(devices, out)
+    res.finished = _dt.datetime.now().isoformat(timespec="seconds")
+    return res
 
+
+def _restore(devices: Devices, out) -> None:
+    """Leave the bench idle: nothing emulating, every Chameleon back in reader mode.
+
+    ⛔ A DEVICE LEFT EMULATING IS A CONTAMINATED BENCH FOR WHATEVER RUNS NEXT, and the operator has
+    no way to see it — the giveaway is a null sweep failing at the start of a session for no visible
+    reason. Runs abort; this is the one thing that must happen anyway, so it is in a `finally` and it
+    swallows its own errors rather than masking the fault that got us here.
+    """
+    for dev in devices.all():
+        try:
+            dev.disarm()
+        except Exception:                                  # noqa: BLE001 — never mask the real fault
+            pass
+    cues.hush()
+
+
+def _measure(plan: RunPlan, devices: Devices, res: RunResult, interactive: bool, session: str,
+             out) -> None:
     prev = None
     for report in (BlockReport(b) for b in plan.blocks):
         b = report.block
@@ -151,7 +200,7 @@ def run(plan: RunPlan, devices: Devices, *, interactive: bool = True,
             res.aborted = ("ambient contamination at %s before anything was armed: %s"
                            % (b.station.name, ", ".join(sorted(report.before.hits))))
             cues.cue_fault("the field is not clean. aborting.")
-            raise RunAborted(res.aborted)
+            raise RunAborted(res.aborted, res)
 
         try:
             issued = _routine(report, devices, res, session, pad, out)
@@ -160,7 +209,7 @@ def run(plan: RunPlan, devices: Devices, *, interactive: bool = True,
             # station is about to be attributed to a device we can no longer vouch for.
             res.aborted = str(e)
             cues.cue_fault("wrong device answered. aborting.")
-            raise RunAborted(str(e)) from e
+            raise RunAborted(str(e), res) from e
 
         report.after = _sweep("NULL AFTER", b, devices, out, interactive)
         agree, why = sweeps_agree(report.before, report.after)
@@ -168,9 +217,6 @@ def run(plan: RunPlan, devices: Devices, *, interactive: bool = True,
         if not agree:
             report.void, report.void_why = True, why
             _void(res, report, issued, out)
-
-    res.finished = _dt.datetime.now().isoformat(timespec="seconds")
-    return res
 
 
 # ------------------------------------------------------------------ the routine
@@ -330,13 +376,13 @@ def _identity(report: BlockReport, devices: Devices, res: RunResult, out) -> Non
     except (IdentityFault, DeviceError) as e:
         res.aborted = str(e)
         cues.cue_fault("identity check failed. aborting.")
-        raise RunAborted(str(e)) from e
+        raise RunAborted(str(e), res) from e
     ok = report.identity.ok
     out("    %s %s" % ("✓" if ok else "⛔", identity.explain(report.identity)))
     if not ok:
         res.aborted = identity.explain(report.identity)
         cues.cue_fault("wrong device in the stack. aborting.")
-        raise RunAborted(res.aborted)
+        raise RunAborted(res.aborted, res)
 
 
 def _sweep(label: str, b: Block, devices: Devices, out, interactive: bool) -> NullSweep:

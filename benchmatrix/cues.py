@@ -34,10 +34,31 @@ SND_DONE_PART = "Sosumi"
 SND_DONE_FAIL = "Basso"
 
 
+#: ⛔ WHAT THE PRINTED TEXT SAYS AND WHAT THE VOICE SHOULD SAY ARE NOT THE SAME STRING. `say` reads
+#: "T5577" as "T five thousand five hundred seventy seven" — wrong, and long enough that the
+#: operator has stopped listening before the instruction arrives. A part number is precise on screen
+#: and noise in the ear, so the voice gets the plain word.
+#:
+#: ⚠ APPLIED HERE RATHER THAN AT THE CALL SITES, because a cue's wording is assembled in several
+#: places: the move planner has a spoken vocabulary of its own, but the null-sweep repositioning
+#: prompts build their text from the printed names. One rewrite at the point of speaking covers all
+#: of them, whatever a caller does.
+_SAY_SUBS = (
+    (r"([0-9.]+)\s*mm\b", r"\1 millimetres"),
+    (r"\bT5577\s+tag\b", "tag"),        # "the T5577 tag" -> "the tag", not "the tag tag"
+    (r"\bT5577\b", "tag"),
+    (r"\bT55\b", "tag"),
+    (r"\bpm3\b", "P M 3"),
+    (r"\bOEM\b", "O E M"),
+    (r"\bcu1\b", "Chameleon one"),
+    (r"\bcu2\b", "Chameleon two"),
+)
+
+
 def _spoken(s: str) -> str:
-    """Expand units so `say` reads them as words rather than letters."""
-    s = re.sub(r"([0-9.]+)\s*mm\b", r"\1 millimetres", s)
-    s = re.sub(r"\bpm3\b", "P M 3", s, flags=re.IGNORECASE)
+    """Rewrite a printed cue into something a voice can read aloud."""
+    for pattern, repl in _SAY_SUBS:
+        s = re.sub(pattern, repl, s, flags=re.IGNORECASE)
     return s
 
 
@@ -150,6 +171,18 @@ def ask_choice(prompt: str, choices: str, default: str, spoken: str = "",
         if r[0] in choices:
             return r[0]
         print("  (enter one of: %s)" % ", ".join(choices))
+
+
+def hush() -> None:
+    """Stop any in-flight speech. Called when a run ends early — a cue that is still describing a
+    bench move the operator has just abandoned is worse than silence."""
+    global _TALKING
+    if _TALKING is not None and _TALKING.poll() is None:
+        try:
+            _TALKING.terminate()
+        except Exception:
+            pass
+    _TALKING = None
 
 
 def silence() -> None:

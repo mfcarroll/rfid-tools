@@ -104,7 +104,7 @@ the one place where swapping tags beats rearranging the bench.
 ./bench scope                      # the registry, and what it can and cannot grade
 ./bench plan                       # the cells, the station script, and what is refused
 ./bench run --dry-run --no-prompt  # rehearse the whole thing with no hardware
-./runtests                         # 110 tests, no hardware, no network
+./runtests                         # 114 tests, no hardware, no network
 ```
 
 ### Setup: which device is on which port
@@ -167,6 +167,9 @@ be fixed before a single emulation is graded.
 `--max-stack` is a bench fact, not a preference: how many devices will physically stack. More
 coverage per setup, more crowding. `--tags N` only affects the isolation phase.
 
+**Ctrl-C is safe at any point.** The run stops, every device goes back to reader mode, and the
+readings taken so far are filed as `run_<session>_ABORTED.md` — clearly marked, never as a grid.
+
 ## How it is built
 
 ```
@@ -183,7 +186,7 @@ benchmatrix/
   setup.py            device discovery, chip-id identity, and `.env`
   learned.py          expectations learned from a real tag, and the self-licensing guard
   grid.py             the published grid, the exclusion list, the gap register
-tests/                110 tests, all on the scripted bench — `./runtests`
+tests/                114 tests, all on the scripted bench — `./runtests`
 ```
 
 ## The protocol registry

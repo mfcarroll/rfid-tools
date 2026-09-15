@@ -87,6 +87,11 @@ reply is used. A cable moved mid-session is caught at the exact action it would 
 a port that no longer holds the expected device is simply re-resolved: the label is bound to the
 silicon, never to the cable.
 
+**And a run that stops early still leaves the bench idle.** Every exit — a fault, a refused
+calibration, Ctrl-C — puts each device back into reader mode before returning. A device left
+emulating contaminates whatever runs next, and the operator cannot see it: the only symptom is a
+null sweep failing at the start of the following session for no visible reason.
+
 ## 5. The liveness rule
 
 > **Prove the instrument answered before measuring anything with it.**
