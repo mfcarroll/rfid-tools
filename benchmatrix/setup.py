@@ -6,18 +6,27 @@ says which is the one labelled 1 on the bench. Getting them crossed is easy, sil
 whole run — every arm attributed to the wrong device and the wrong firmware build.
 
 ⛔ AND THE RADIO IDENTITY CHECK CANNOT SAVE YOU FROM IT. That check arms `cu1` with a unique id and
-asks a reader who is there — but "cu1" means *whatever `CU1_PORT` points at*. If the ports are
-crossed, it confirms the lie. The two checks cover different failure modes:
+asks a reader who is there — but "cu1" means *whatever port we sent the command to*. If the ports
+are crossed, it confirms the lie. The two checks answer different questions:
 
-    setup  → which physical device is on which port
-    radio  → which physical device is in the stack
+    chip id  → is this the device the command was addressed to?   (every action, automatic)
+    radio    → is that device the one in the stack?                (every setup, automatic)
 
 Neither substitutes for the other, and the second is only as good as the first.
 
-⭐ SO IDENTITY IS ESTABLISHED ONCE, BY EYE, AND REMEMBERED BY CHIP ID. `hw chipid` returns a
-permanent hardware identifier. The operator does the blink dance once; after that the mapping holds
-however the ports are reshuffled, because it is keyed on the silicon and not on the enumeration
-order. A device whose chip id is already known is assigned with no questions asked.
+⭐⭐ THE PORT IS NOT THE IDENTITY, AND IS NOT TREATED AS ONE. `hw chipid` returns a permanent
+hardware identifier, so that is what a label is bound to. The operator says which device is which
+ONCE, by eye, while it blinks; after that:
+
+  • the port recorded in `.env` is a CACHE, tried first for speed;
+  • if it holds the wrong device, or nothing, the bus is rescanned and the label follows its
+    silicon — moving a cable or using a different hub costs a couple of seconds and nothing else;
+  • and every Chameleon command carries `hw chipid` with it, so a device swapped MID-RUN is caught
+    at the exact action it would have corrupted rather than at the next startup.
+
+That last point is why this is not merely a convenience. A check taken once at startup leaves the
+rest of the session unguarded, and the failure it guards against is silent: the wrong Chameleon
+answers confidently, with no error and no wrong exit code.
 """
 
 from __future__ import annotations
@@ -134,6 +143,57 @@ def find_pm3(existing: str | None = None) -> str:
         if os.path.isfile(cand) and os.access(cand, os.X_OK):
             return cand
     return DEFAULT_PM3
+
+
+def resolve_chameleons(known: dict, cli: str = DEFAULT_CU_PY, out=print,
+                       write_back: bool = True) -> dict:
+    """label -> port, resolved by CHIP ID. The port in `.env` is a cache, not the identity.
+
+    ⭐⭐ THIS IS WHY A REPLUG IS A NON-EVENT. The identity of a Chameleon is its silicon; the port is
+    just where it happens to be reachable this session. So the cached port is tried first for speed,
+    and if it holds the wrong device — or nothing — the bus is rescanned and the label is bound to
+    wherever that chip id actually is. Moving a cable, using a different hub, or plugging the two in
+    the other order costs a couple of seconds and nothing else.
+
+    ⚠ A LABEL WITH NO RECORDED CHIP ID CANNOT BE RESOLVED, only guessed at, so it falls back to the
+    cached port and the caller is told that nothing is checking it. `bench setup` fixes that.
+    """
+    ports = serial_ports()
+    _, _, candidates = classify(ports)
+    found: dict[str, str] = {}
+    scanned: dict[str, str] = {}
+
+    def chip_of(port: str) -> str | None:
+        if port not in scanned:
+            scanned[port] = chip_id(port, cli)
+        return scanned[port]
+
+    changed = False
+    for label in ("cu1", "cu2"):
+        want = known.get("%s_CHIPID" % label.upper())
+        hint = known.get("%s_PORT" % label.upper())
+        if not want:
+            if hint:
+                found[label] = hint
+            continue
+        if hint and chip_of(hint) == want:
+            found[label] = hint
+            continue
+        match = next((p for p in candidates if chip_of(p) == want), None)
+        if match is None:
+            out("    ⛔ %s (chip %s) is not on the bus" % (label.upper(), want))
+            continue
+        out("    ↻ %s moved to %s — re-resolved by chip id" % (label.upper(), match))
+        found[label] = match
+        changed = True
+
+    if changed and write_back:
+        # Keep the cache warm so the next session takes the fast path.
+        values = dict(known)
+        for label, port in found.items():
+            values["%s_PORT" % label.upper()] = port
+        write_env(values)
+    return found
 
 
 # ------------------------------------------------------------------ the interactive part

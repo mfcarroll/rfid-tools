@@ -104,7 +104,7 @@ the one place where swapping tags beats rearranging the bench.
 ./bench scope                      # the registry, and what it can and cannot grade
 ./bench plan                       # the cells, the station script, and what is refused
 ./bench run --dry-run --no-prompt  # rehearse the whole thing with no hardware
-./runtests                         # 99 tests, no hardware, no network
+./runtests                         # 106 tests, no hardware, no network
 ```
 
 ### Setup: which device is on which port
@@ -119,23 +119,33 @@ the one labelled 1 on the bench. Crossing them is easy, silent, and poisons a wh
 attributed to the wrong device and the wrong firmware build.
 
 ⛔ **The radio identity check cannot save you from this.** It arms `cu1` with a unique id and asks a
-reader who is there — but `cu1` means *whatever `CU1_PORT` points at*. Crossed ports make it confirm
-the lie. The two checks cover different failure modes:
+reader who is there — but `cu1` means *whatever port the command went to*. Crossed ports make it
+confirm the lie. Three questions, three answers:
 
-| check | answers | when |
+| question | answered by | when |
 |---|---|---|
-| `bench setup` | which physical device is on which **port** | once, by eye |
-| radio identity | which physical device is in the **stack** | after every setup, automatically |
+| which device is **this**? | you, by eye, while it blinks | once, ever |
+| is this the device the command was **addressed to**? | `hw chipid`, riding along with the command | **every action** |
+| is that device the one in the **stack**? | the radio identity probe | every setup |
 
-So setup makes one device visibly busy with a burst of LF reads and asks you which one blinked. The
-LEDs are the out-of-band channel: every other way of asking runs through the same USB mapping we are
+Setup makes one device visibly busy with a burst of LF reads and asks which one blinked. The LEDs
+are the out-of-band channel: every other way of asking runs through the same USB mapping we are
 trying to establish, and so cannot check it.
 
-⭐ **You do that once.** `hw chipid` is a permanent hardware identifier, so the answer is remembered
-against the silicon rather than the port. Reshuffle the USB and setup re-maps them silently; a
-device that turns out to be the wrong silicon fails proof of life with a message naming both chip
-ids. Results go to `.env`, which is gitignored and loaded automatically — an explicit environment
-variable always wins over it.
+⭐ **After that the port stops mattering.** A label is bound to its chip id, not its cable:
+
+- the port in `.env` is a **cache**, tried first for speed;
+- if it holds the wrong device, or nothing, the bus is rescanned and the label follows its silicon.
+  Replug, use a different hub, plug them in the other order — it costs a couple of seconds;
+- and every Chameleon command carries `hw chipid` with it, so a device swapped **mid-run** is caught
+  at the exact action it would have corrupted, not at the next startup.
+
+That last point is the one that matters. `cu.py` runs a list of commands in one session with one
+connect, so the check costs an extra command on an already-open link rather than another process —
+which is what makes it affordable on every action. And the failure it guards against is silent by
+construction: the wrong Chameleon answers confidently, with no error and no wrong exit code.
+
+`.env` is gitignored and loaded automatically; an explicit environment variable always wins over it.
 
 ### The first session, in order
 
@@ -173,7 +183,7 @@ benchmatrix/
   setup.py            device discovery, chip-id identity, and `.env`
   learned.py          expectations learned from a real tag, and the self-licensing guard
   grid.py             the published grid, the exclusion list, the gap register
-tests/                99 tests, all on the scripted bench — `./runtests`
+tests/                106 tests, all on the scripted bench — `./runtests`
 ```
 
 ## The protocol registry

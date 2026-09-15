@@ -57,10 +57,23 @@ FLIP_DECODE_MARKER = r"^[A-Za-z][A-Za-z0-9/\- ]*?\s+[0-9A-F]{4,}$"
 #: The Chameleon's permanent hardware id, as `hw chipid` prints it. Shared with
 #: setup.py so the two cannot drift apart.
 CHIPID_RE = re.compile(r"Device chip ID[:\s]+([0-9A-Fa-f]{4,})")
+#: The whole line, so it can be stripped before the output is matched for a decode.
+CHIPID_LINE_RE = re.compile(r"^.*Device chip ID[:\s]+[0-9A-Fa-f]{4,}.*$\n?", re.M)
 
 
 class DeviceError(Exception):
     """The instrument is not fit to measure with. Never scored — always aborts the block."""
+
+
+class WrongDevice(DeviceError):
+    """A command reached a device other than the one it was addressed to.
+
+    ⛔⛔ THE WORST FAILURE THIS BENCH HAS. It is silent by construction: the wrong Chameleon answers
+    confidently, with no error and no wrong exit code, and every arm gets attributed to the wrong
+    device and the wrong firmware build. `cu.py` carries its own scar from exactly this — a
+    correctly flashed device was graded through its neighbour twice, and the flashing tool was
+    blamed. Hence the check on EVERY action rather than once at startup.
+    """
 
 
 def _run(argv: list[str], timeout: int) -> str:
@@ -148,8 +161,38 @@ class Chameleon:
         cand = os.path.join(os.path.dirname(os.path.abspath(self.cli)), ".venv", "bin", "python")
         return cand if os.path.exists(cand) else "python3"
 
-    def exec(self, *cmds: str, timeout: Optional[int] = None) -> str:
-        return _run([self.python, self.cli, "-p", self.port, *cmds], timeout or self.timeout)
+    def exec(self, *cmds: str, timeout: Optional[int] = None, verify: bool = True) -> str:
+        """Run commands on this device, proving on the way that it IS this device.
+
+        ⭐⭐ THE IDENTITY CHECK RIDES ALONG WITH THE WORK, AND THAT IS WHY IT CAN BE ON EVERY ACTION.
+        `cu.py` runs a list of commands in ONE session with one connect, so prepending `hw chipid`
+        costs an extra command on an already-open link, not another process. Checking once at
+        startup would leave the rest of the run unguarded against a replug; checking here means a
+        swapped cable is caught at the exact action it would have corrupted, and named.
+
+        ⚠ THE CHIP ID LINE IS STRIPPED FROM WHAT IS RETURNED. It must never reach the decode
+        matcher: a hex identifier sitting in front of a reader's output is exactly the kind of thing
+        a byte-exact search can trip over.
+        """
+        check = bool(self.expect_chipid) and verify
+        argv = [self.python, self.cli, "-p", self.port]
+        argv += (["hw chipid"] if check else []) + list(cmds)
+        out = _run(argv, timeout or self.timeout)
+        if not check:
+            return out
+        m = CHIPID_RE.search(out or "")
+        if m is None:
+            raise WrongDevice(
+                "%s: %s did not answer `hw chipid`, so there is no proof this is the device the "
+                "command was addressed to. Nothing measured through it would mean anything."
+                % (self.name, self.port))
+        if m.group(1).upper() != self.expect_chipid.upper():
+            raise WrongDevice(
+                "⛔ %s IS NOT THE DEVICE ON %s. %s is chip %s; this port holds chip %s. A cable has "
+                "been moved since the port was resolved. Re-run `bench setup` (or just re-run the "
+                "command — ports are re-resolved by chip id at startup)."
+                % (self.name, self.port, self.name, self.expect_chipid, m.group(1).upper()))
+        return CHIPID_LINE_RE.sub("", out)
 
     @staticmethod
     def _refused(out: str) -> str:
@@ -157,31 +200,31 @@ class Chameleon:
         return m.group(0).strip()[:110] if m else ""
 
     def alive(self) -> tuple[bool, str]:
-        out = self.exec("hw version")
+        try:
+            out = self.exec("hw version")
+        except WrongDevice as e:
+            return False, str(e)
         if self._refused(out) or not out.strip():
             return False, "%s: no usable answer to `hw version` — %s" % (self.name,
                                                                          self._refused(out) or "silence")
-        # ⛔⛔ THE PORT IS NOT THE DEVICE. Two Chameleons enumerate as anonymous serial numbers, and
-        # a replug can swap them. Every arm would then be attributed to the wrong device and the
-        # wrong firmware build, and the radio identity check could not catch it — that check arms
-        # "cu1", meaning whatever this port points at, so crossed ports make it confirm the lie.
-        if self.expect_chipid:
-            got = self.chipid()
-            if got is None:
-                return False, ("%s: could not read a chip id from %s to confirm it is the device "
-                               "`bench setup` recorded" % (self.name, self.port))
-            if got.upper() != self.expect_chipid.upper():
-                return False, ("⛔ %s IS NOT THE DEVICE ON %s. Setup recorded chip %s for %s; this "
-                               "port holds chip %s. The ports have been crossed or a device was "
-                               "swapped — re-run `bench setup`."
-                               % (self.name, self.port, self.expect_chipid, self.name, got))
-        return True, "%s: alive%s" % (self.name,
-                                      " (chip %s confirmed)" % self.expect_chipid
-                                      if self.expect_chipid else "")
+        # ⚠ NOTHING EXTRA IS CHECKED HERE. `exec` above already proved this is the right
+        # device, and it proves it again on every subsequent action — a single startup check would
+        # leave the rest of the run unguarded against a cable being moved mid-session.
+        return True, "%s: alive%s" % (
+            self.name,
+            " (chip %s, re-proved on every action)" % self.expect_chipid if self.expect_chipid
+            else " — ⚠ no chip id recorded, so nothing checks that commands reach this device "
+                 "rather than the other one. Run `bench setup`.")
 
     def chipid(self) -> Optional[str]:
-        """The permanent hardware id, or None if this port will not say."""
-        m = re.search(r"Device chip ID[:\s]+([0-9A-Fa-f]{4,})", self.exec("hw chipid") or "")
+        """The permanent hardware id, or None if this port will not say.
+
+        ⛔ `verify=False` IS THE BOOTSTRAP AND IS NOT OPTIONAL. You cannot check identity with the
+        command that discovers it: verifying would prepend a second `hw chipid` and then strip the
+        answer out of the reply, so the probe would always return None and every port would look
+        like it was not a Chameleon.
+        """
+        m = CHIPID_RE.search(self.exec("hw chipid", verify=False) or "")
         return m.group(1).upper() if m else None
 
     def arm(self, p: reg.Protocol) -> None:

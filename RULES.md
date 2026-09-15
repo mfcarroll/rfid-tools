@@ -65,7 +65,8 @@ Two things the sweep must get right:
 
 ## 4. The identity rule
 
-> **Every move is followed by a radio-identity check, not a question.**
+> **Every move is followed by a radio-identity check, not a question — and every command to a
+> Chameleon proves, on the way, that it reached the device it was addressed to.**
 
 The operator's word is the plan; the radio is the record. Each Chameleon is armed with a
 device-unique EM410X id and the reader is asked who is actually there.
@@ -78,6 +79,13 @@ was never listening.
 The probe carries its own protocol key. It borrows the EM410X read command because that is the one
 arm every reader decodes from a Chameleon, but a probe read must never be filed as an `em410x`
 result, nor an `em410x` script intercept a probe.
+
+**Two layers, because the radio check rests on the other one.** It arms `cu1` and asks who is
+there — but `cu1` means whatever port the command went to, so crossed ports make it confirm the lie.
+So every Chameleon command is issued together with `hw chipid` and its answer checked before the
+reply is used. A cable moved mid-session is caught at the exact action it would have corrupted, and
+a port that no longer holds the expected device is simply re-resolved: the label is bound to the
+silicon, never to the cable.
 
 ## 5. The liveness rule
 

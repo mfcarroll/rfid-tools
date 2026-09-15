@@ -51,12 +51,18 @@ def _devices(a) -> runner.Devices:
     d.pm3 = Pm3(binary=a.pm3)
     if not a.no_flipper:
         d.flipper = Flipper(port=a.flipper_port or "")
-    d.cu1 = (Chameleon(port=a.cu1_port, name=CU1, slot=a.slot,
-                       expect_chipid=os.environ.get("CU1_CHIPID", ""))
-             if a.cu1_port else None)
-    d.cu2 = (Chameleon(port=a.cu2_port, name=CU2, slot=a.slot,
-                       expect_chipid=os.environ.get("CU2_CHIPID", ""))
-             if (a.cu2_port and not a.no_cu2) else None)
+    # ⭐ PORTS ARE RESOLVED BY CHIP ID, NOT READ OUT OF A FILE. The cached port is a hint; if a cable
+    # has moved since it was written, the bus is rescanned and the label follows its silicon.
+    known = {k: v for k, v in os.environ.items() if k.startswith(("CU1_", "CU2_"))}
+    for label, flag in (("cu1", a.cu1_port), ("cu2", a.cu2_port)):
+        if flag:
+            known["%s_PORT" % label.upper()] = flag
+    resolved = setup.resolve_chameleons(known) if any(k.endswith("_CHIPID") for k in known) else {}
+    for label, name, skip in (("cu1", CU1, False), ("cu2", CU2, a.no_cu2)):
+        port = resolved.get(label) or known.get("%s_PORT" % label.upper())
+        if port and not skip:
+            setattr(d, label, Chameleon(port=port, name=name, slot=a.slot,
+                                        expect_chipid=known.get("%s_CHIPID" % label.upper(), "")))
     return d
 
 
