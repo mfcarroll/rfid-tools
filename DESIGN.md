@@ -132,15 +132,30 @@ for those protocols rather than record them as failures.
 
 ## 6. Build order
 
-1. `SCOPE.md` verification — confirm on the bench that each Tier-0 protocol has a working
+1. ⏳ `SCOPE.md` verification — confirm on the bench that each Tier-0 protocol has a working
    `(t55.pm3, rd.pm3)` calibration. Anything that fails here is a *bench* problem, and must be fixed
    before any emulation is graded. **This alone is worth the project**, and it is the run C473 should
    have been.
-2. Protocol registry for the 16 Tier-0 arms, ported from `pm3grade.sh` + `emugrade.sh`.
-3. Campaign runner: topology cues, radio-identity check, null sweeps, `UNGRADED` enforcement.
-4. Full Tier-0 matrix. Publish the grid.
-5. Gap register populated from (4), with captures attached.
-6. Tier 1 (3 variant protocols), then Tier 2 (5 new ones).
+   ⇒ `./bench run -s t55.pm3 -r rd.pm3` is exactly this run and nothing else.
+2. ✅ Protocol registry for the 16 Tier-0 arms, ported from `pm3grade.sh` + `emugrade.sh`.
+   `benchmatrix/registry.py`. Three trust classes are kept apart and marked: run on the bench, read
+   out of source, and not known at all. Ten Flipper expectations are in the third class and are
+   `None` rather than approximated.
+3. ✅ Campaign runner: topology cues, radio-identity check, null sweeps, `UNGRADED` enforcement.
+   `benchmatrix/{topology,plan,identity,runner}.py`, 66 tests in `tests/`.
+   Two things the write-up did not anticipate, both found by building it:
+   • **The write is a step, not a detail of the read.** One T5577 and sixteen credentials means a
+     `t55.pm3` row on any reader but the Proxmark costs two bench moves per protocol. Folding the
+     write into the read would have read the *previous* protocol's credential and filed it as
+     `SILENT` — a wrong cell with a plausible cause.
+   • **A passive tag has no idle state**, so a null sweep has to physically remove it. The first
+     runner left the tag on the pad, heard the credential it had just written, and voided its own
+     opening block. §3's null sweep is now a cued two-move round trip.
+4. ⏳ Full Tier-0 matrix. Publish the grid.
+5. ⏳ Gap register populated from (4), with captures attached. The register renders already, with
+   the six known rows carried from §4 below; a row this harness produces is stamped with its run id
+   so it is never confused with one taken on trust.
+6. ⏳ Tier 1 (3 variant protocols), then Tier 2 (5 new ones).
 
 ## 7. Relationship to the Chameleon project
 
