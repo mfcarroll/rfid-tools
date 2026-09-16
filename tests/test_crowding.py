@@ -16,10 +16,13 @@ from benchmatrix.stations import Bench
 
 
 def crowded_run(answers, keys=("em410x", "keri"), sources=("t55.pm3",),
-                readers=("rd.pm3", "rd.cu1"), bench=None, cu1_answers=None):
+                readers=("rd.pm3", "rd.cu1"), bench=None, cu1_answers=None, cross=True):
+    """⚠ `cross=True` BY DEFAULT HERE. These fixtures are about what happens to a cell measured in a
+    crowded stack, and the most interesting one — the Chameleon reading its own write — has the
+    Proxmark on neither side, which a default plan refuses as covered by the two reference cells."""
     bench = bench or Bench(tag_count=1)
     protos = reg.resolve(list(keys))
-    plan = planning.build(protos, list(sources), list(readers), bench)
+    plan = planning.build(protos, list(sources), list(readers), bench, cross=cross)
     res = runner.run(plan, make_devices(answers=answers, cu1_answers=cu1_answers),
                      interactive=False, session="S", out=quiet)
     return plan, res, bench, protos
@@ -183,7 +186,10 @@ class AnUnlicensedReadingIsNotAPlaceholder(unittest.TestCase):
         own tag still reads back byte-exact, in a crowded stack.
         """
         protos = reg.resolve(["fdxb"])
-        plan = planning.build(protos, ["t55.pm3", "t55.cu1"], ["rd.pm3", "rd.cu1"], Bench())
+  # ⚠ `cross=True`: this fixture is ABOUT a cell with the Proxmark on neither side, which
+        # a default plan now refuses as covered by the two reference cells.
+        plan = planning.build(protos, ["t55.pm3", "t55.cu1"], ["rd.pm3", "rd.cu1"],
+                              Bench(), cross=True)
         dev = make_devices()
         dev.pm3.write_works = False
         res = runner.run(plan, dev, interactive=False, session="S", out=quiet)

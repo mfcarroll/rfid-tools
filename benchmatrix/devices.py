@@ -534,7 +534,7 @@ class Flipper:
             return True, "flipper: alive — rebooted, %d bytes largest block" % block
         return True, "flipper: alive — %d bytes largest block" % block
 
-    def _recover(self, e: "flipper.FlipperError", doing: str) -> None:
+    def _recover(self, e, doing: str) -> None:
         """Reboot and let the caller try once more, or refuse for good.
 
         ⛔⛔ THE PLUGIN DIES MID-SESSION AND PROOF OF LIFE CANNOT SEE IT COMING. `alive()` checks the
@@ -601,11 +601,19 @@ class Flipper:
         if p.flip_expect is None:
             raise DeviceError("flipper: no known data encoding for %s. Run `bench learn -r rd.flip`."
                               % p.key)
-        with self._session() as f:
-            try:
-                return "\n".join(f.write_tag(p.flip_key, p.flip_expect))
-            except flipper.FlipperError as e:
-                raise DeviceError("flipper: write refused for %s — %s" % (p.key, e)) from e
+        # ⛔ THE SAME REBOOT THE READ PATH GETS. Fragmentation does not care which command asks for
+        # the plugin: a run got `failed to load external command` on `rfid write` at station 6,
+        # having reported 117,528 bytes at proof of life. Recovery was written for `read` alone, so
+        # the write lost its cells to a fault the harness already knew how to clear.
+        for attempt in (1, 2):
+            with self._session() as f:
+                try:
+                    return "\n".join(f.write_tag(p.flip_key, p.flip_expect))
+                except flipper.FlipperError as e:
+                    if attempt == 2:
+                        raise DeviceError("flipper: write refused for %s, and still refused after a "
+                                          "reboot — %s" % (p.key, e)) from e
+                    self._recover(e, "writing %s" % p.key)
 
     def arm(self, p: reg.Protocol) -> None:
         """`emu.flip` — the Flipper emulating, an independent second opinion on our own emulator.
@@ -616,15 +624,20 @@ class Flipper:
         if p.flip_expect is None:
             raise DeviceError("flipper: no known data encoding for %s — `rfid emulate` needs the "
                               "Flipper's own hex. Run `bench learn -r rd.flip` first." % p.key)
-        self._armed = self._session()
-        try:
-            # ⛔ START, AND LEAVE IT RUNNING. This used to call `emulate(seconds=0)`, which starts
-            # and then stops in its own `finally` — so every reader that followed was listening to
-            # a Flipper that had already stopped.
-            self._armed.start_emulating(p.flip_key, p.flip_expect)
-        except flipper.FlipperError as e:
-            self.disarm()
-            raise DeviceError("flipper: refused to emulate %s — %s" % (p.key, e)) from e
+        for attempt in (1, 2):
+            self._armed = self._session()
+            try:
+                # ⛔ START, AND LEAVE IT RUNNING. This used to call `emulate(seconds=0)`, which
+                # starts and then stops in its own `finally` — so every reader that followed was
+                # listening to a Flipper that had already stopped.
+                self._armed.start_emulating(p.flip_key, p.flip_expect)
+                return
+            except flipper.FlipperError as e:
+                self.disarm()
+                if attempt == 2:
+                    raise DeviceError("flipper: refused to emulate %s, and still refused after a "
+                                      "reboot — %s" % (p.key, e)) from e
+                self._recover(e, "emulating %s" % p.key)
 
     def disarm(self) -> None:
         """⚠ ETX FIRST, THEN CLOSE. Closing the port does not stop a running CLI command — the

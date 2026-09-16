@@ -184,7 +184,7 @@ def cmd_plan(a) -> int:
     reg.validate()
     session = a.session or runner.session_id()
     protos, notes = _protocols(a, session)
-    p = planning.build(protos, a.source, a.reader, _bench(a))
+    p = planning.build(protos, a.source, a.reader, _bench(a), cross=getattr(a, "cross", False))
     for n in notes:
         print("  %s" % n)
     print("\n  %d cells · %d stations · %d operator interventions · %d refused at plan time"
@@ -223,7 +223,7 @@ def cmd_run(a) -> int:
     protos, notes = _protocols(a, session)
     for n in notes:
         print("  %s" % n)
-    p = planning.build(protos, a.source, a.reader, _bench(a))
+    p = planning.build(protos, a.source, a.reader, _bench(a), cross=getattr(a, "cross", False))
     devices = _devices(a)
     try:
         result = runner.run(p, devices, interactive=not a.no_prompt, session=session)
@@ -823,6 +823,14 @@ def build_parser() -> argparse.ArgumentParser:
             sp.add_argument("--max-stack", type=int, default=3,
                             help="how many devices will physically stack (a bench fact, not a "
                                  "preference: more coverage per setup, more crowding)")
+            sp.add_argument("--cross", action="store_true",
+                            help="also measure tag cells with the Proxmark on NEITHER side "
+                                 "(t55.flip → rd.cu1 and friends). ⚠ Normally redundant: a T5577's "
+                                 "state after a write is digital, so nothing of the writer survives "
+                                 "into what the tag transmits, and (t55.X → rd.pm3) plus "
+                                 "(t55.pm3 → rd.Y) already answer it. Worth it when one of THOSE "
+                                 "fails — a second reader is how a bad writer is told from a bad "
+                                 "reader. Costs 9 extra operator interventions on a full sweep")
             sp.add_argument("--tags", type=int, default=1,
                             help="T5577 tags available, which is what makes the isolation phase cheap")
             sp.add_argument("--oem", action="append", help="protocol an OEM card is owned for")

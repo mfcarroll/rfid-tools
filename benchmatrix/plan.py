@@ -220,7 +220,38 @@ def licensing_source(p: reg.Protocol, bench: Bench) -> str | None:
     return "oem" if p.key in bench.has_oem else None
 
 
-def _refuse(p: reg.Protocol, source: str, reader: str, bench: Bench) -> Exclusion | None:
+def _covered_by_reference(source: str, reader: str) -> Exclusion:
+    """⭐⭐ A TAG IS A DIGITAL INTERMEDIARY, AND THAT MAKES MOST OF THE TAG GRID REDUNDANT.
+
+    A T5577's state after a write is a set of configuration and data BLOCKS. The tag then transmits
+    from those blocks; nothing of the writer survives into the emission. So for any writer X and any
+    reader Y, `t55.X -> rd.Y` asks a question already answered by two cells that use the reference
+    instrument on one side:
+
+        t55.X   -> rd.pm3   does X write the blocks correctly?
+        t55.pm3 -> rd.Y     does Y read those blocks correctly?
+
+    ⛔ THIS WOULD NOT HOLD FOR AN EMULATION AND IS NOT APPLIED TO ONE. An emulated waveform IS the
+    emitter's analogue output — timing, shape, subcarrier — so `emu.X -> rd.Y` is a genuine pairwise
+    question for every X and Y, and the operator says so: device-to-device emulation "is more
+    dependent on their relative emulation-read characteristics and provides a useful data point".
+
+    ⚠ AND THE COVER IS ONLY GOOD WHILE BOTH COVERING CELLS PASS. If `t55.flip -> rd.pm3` fails, then
+    asking a second reader IS worth it — that is how you tell a bad writer from a bad reader. That
+    is a diagnostic to run deliberately (`--cross`), not a cell to pay for on every sweep: the three
+    stations these cells require cost nine operator interventions to answer nothing new.
+    """
+    return Exclusion(
+        "", source, reader, "covered",
+        "a T5577's state after a write is digital — configuration and data blocks — so nothing of "
+        "the writer survives into what the tag transmits. This cell is answered by (%s → rd.pm3), "
+        "which says whether that writer writes correctly, and (t55.pm3 → %s), which says whether "
+        "that reader reads correctly. Re-run with --cross if either of those FAILS: a second reader "
+        "is how a bad writer is told from a bad reader." % (source, reader))
+
+
+def _refuse(p: reg.Protocol, source: str, reader: str, bench: Bench,
+            cross: bool = False) -> Exclusion | None:
     """Every reason a cell must not be planned."""
     emitter, writer = SOURCES[source]
     rd = READERS[reader]
@@ -279,6 +310,11 @@ def _refuse(p: reg.Protocol, source: str, reader: str, bench: Bench) -> Exclusio
     except StationError as e:
         return Exclusion(p.key, source, reader, "self-judging", str(e))
 
+    # ⭐ THE REFERENCE INSTRUMENT HAS TO BE ON ONE SIDE OF A TAG CELL. See `_covered_by_reference`.
+    if not cross and source in TAG_SOURCES and source not in GOLD_SOURCES and reader != "rd.pm3":
+        got = _covered_by_reference(source, reader)
+        return Exclusion(p.key, got.source, got.reader, got.rule, got.why)
+
     for dev in devices_to_produce(source, reader):
         if not bench.available(dev):
             return Exclusion(p.key, source, reader, "no-device",
@@ -309,12 +345,13 @@ def _refuse(p: reg.Protocol, source: str, reader: str, bench: Bench) -> Exclusio
     return None
 
 
-def _cells(protocols, sources, readers, bench) -> tuple[list[PlannedCell], list[Exclusion]]:
+def _cells(protocols, sources, readers, bench,
+           cross: bool = False) -> tuple[list[PlannedCell], list[Exclusion]]:
     wanted: dict[tuple[str, str, str], PlannedCell] = {}
     exclusions: list[Exclusion] = []
 
     def consider(p, source, reader, is_cal) -> bool:
-        why = _refuse(p, source, reader, bench)
+        why = _refuse(p, source, reader, bench, cross)
         if why is not None:
             exclusions.append(why)
             return False
@@ -348,7 +385,7 @@ def _cells(protocols, sources, readers, bench) -> tuple[list[PlannedCell], list[
                 continue
             if not consider(p, lic, reader, True):
                 for src in requested:
-                    own = _refuse(p, src, reader, bench)
+                    own = _refuse(p, src, reader, bench, cross)
                     exclusions.append(own or Exclusion(
                         p.key, src, reader, "no-calibration",
                         "the licensing row (%s, %s) is itself refused, so this cell could only ever "
@@ -576,7 +613,7 @@ def _rank(key: str) -> int:
 # ------------------------------------------------------------------ the entry point
 
 def build(protocols: list[reg.Protocol], sources: list[str], readers: list[str],
-          bench: Bench, phase: int = 1) -> RunPlan:
+          bench: Bench, phase: int = 1, cross: bool = False) -> RunPlan:
     for s in sources:
         if s not in SOURCES:
             raise ValueError("unknown source %r (known: %s)" % (s, ", ".join(SOURCES)))
@@ -584,7 +621,7 @@ def build(protocols: list[reg.Protocol], sources: list[str], readers: list[str],
         if r not in READERS:
             raise ValueError("unknown reader %r (known: %s)" % (r, ", ".join(READERS)))
 
-    cells, exclusions = _cells(protocols, sources, readers, bench)
+    cells, exclusions = _cells(protocols, sources, readers, bench, cross)
     blocks: list[Block] = []
     if cells:
         for station in order_stations(choose_stations(cells, bench), cells):
