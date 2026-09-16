@@ -508,3 +508,56 @@ class TheRecordKeepsTheTranscriptNotTheAnswer(_ScriptedLearningBench):
         self.assertIn("Card number", rec.evidence, "lines the value itself does not contain")
         self.assertGreater(len(rec.evidence), len(rec.value) * 2,
                            "evidence that is just the answer again is not evidence")
+
+
+class AnIntermittentReadBackIsRetriedAndSaidOutLoud(_ScriptedLearningBench):
+    """⛔⛔ NOT A FIX, AND IT MUST NOT LOOK LIKE ONE. The Proxmark's read-back of its own write
+    failed for seven protocols in one session and two in the next, and nothing reproduces it: the
+    same three commands in a shell pass 9/9 back to back, the same protocol through this same loop
+    passes alone, and passes again with the preceding protocol's 76-second Flipper read in between.
+    The operator ruled out the stack by hand. It is intermittent and it is ours.
+
+    ⇒ One retry, because losing a protocol to a one-off costs a bench session. PRINTED, because
+    "it took two tries" is data about an intermittency nobody can reproduce — and because the cost
+    of a silent retry is that the intermittency stops being visible at all.
+    """
+
+    def _pm3_that_misses_once(self):
+        real, state = self.dev.pm3.read, {"n": 0}
+
+        def flaky(p):
+            state["n"] += 1
+            return "" if state["n"] == 1 else real(p)
+        self.dev.pm3.read = flaky
+        return state
+
+    def _learn(self, *argv):
+        import contextlib
+        import io
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            cli.cmd_learn(cli.build_parser().parse_args(
+                ["learn", "--no-prompt", "-r", "rd.flip", "--learned", self.path,
+                 "--session", "S1", *argv]))
+        return buf.getvalue(), learned.load(self.path)
+
+    def test_a_single_miss_does_not_lose_the_protocol(self):
+        self.dev.flipper.answers[("viking", "t5577")] = "Viking AABBCCDD\n"
+        state = self._pm3_that_misses_once()
+        out, recs = self._learn("-p", "viking")
+        self.assertGreaterEqual(state["n"], 2, "it must actually ask a second time")
+        self.assertIn(("viking", "rd.flip"), recs)
+
+    def test_but_the_run_says_it_took_two(self):
+        self.dev.flipper.answers[("viking", "t5577")] = "Viking AABBCCDD\n"
+        self._pm3_that_misses_once()
+        out, _ = self._learn("-p", "viking")
+        self.assertIn("on the second read", out)
+        self.assertIn("Not a clean result", out)
+
+    def test_and_a_read_back_that_keeps_failing_still_fails(self):
+        """⚠ The retry must not become a way of eventually agreeing with itself."""
+        self.dev.pm3.read = lambda p: ""
+        out, recs = self._learn("-p", "viking")
+        self.assertEqual(recs, {})
+        self.assertIn("cannot read back what it just wrote", out)
