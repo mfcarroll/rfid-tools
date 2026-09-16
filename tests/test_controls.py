@@ -683,3 +683,50 @@ class TheInterpretationOfASilenceFollowsTheCorpus(unittest.TestCase):
         for c in res.cells:
             self.assertIn("No reader present has been shown to decode", c.note)
             self.assertNotIn("licensed retrospectively", c.note)
+
+
+class AFailedGoldRowMustNotSilenceTheOtherSources(unittest.TestCase):
+    """⛔⛔ THE READS THAT WOULD INTERPRET A GOLD ROW WERE BEING SKIPPED FOR WANT OF THE LICENCE THAT
+    GOLD ROW WOULD HAVE ISSUED. Circular, and it would have made the run designed to settle fdxb
+    collect nothing: the Proxmark's tag reads silent, so the Chameleon-written tag — the only thing
+    that could show either reader can see the protocol at all — was never read."""
+
+    def _run(self):
+        from benchmatrix import plan as planning
+        protos = reg.resolve(["fdxb"])
+        p = reg.ALL["fdxb"]
+        ans = {("fdxb", e): "[+] FDX-B / ISO 11784/5 Animal Tag ID Found\n  Raw ID Hex: %s" % p.expect
+               for e in ("t5577", "cu1", "cu2", "flipper")}
+        plan = planning.build(protos, ["t55.pm3", "t55.cu1"], ["rd.pm3", "rd.cu1"], Bench())
+        dev = make_devices(answers=ans)
+        dev.pm3.write_works = False      # the Proxmark's fdxb write does not land
+        return runner.run(plan, dev, interactive=False, session="S", out=quiet)
+
+    def test_the_other_source_is_still_measured(self):
+        res = self._run()
+        cu_written = [c for c in res.cells if c.source == "t55.cu1"]
+        self.assertEqual(len(cu_written), 2, "both readers must still be asked")
+        for c in cu_written:
+            self.assertIn("read EXACT", c.note, "the reading is taken and recorded")
+
+    def test_and_that_reading_settles_the_gold_row(self):
+        """⭐ The whole point. Both readers are shown to decode fdxb, so the Proxmark's silence
+        about its OWN tag becomes a statement about that tag."""
+        res = self._run()
+        for c in [c for c in res.cells if c.source == "t55.pm3"]:
+            self.assertIn("not on it", c.note)
+            self.assertIn("licensed retrospectively", c.note)
+
+    def test_an_unlicensed_reading_is_not_blamed_on_crowding(self):
+        """⚠ Isolation would not fix it. What is missing is a gold row, and no rearrangement of the
+        bench supplies one — sending the operator to redo a fine measurement wastes the session."""
+        res = self._run()
+        for c in [c for c in res.cells if c.source == "t55.cu1"]:
+            self.assertIn("has no licence", c.note)
+            self.assertNotIn("queued for isolation", c.note)
+
+    def test_nothing_is_scored_without_a_gold_row(self):
+        """The readings are informative and still unlicensed. Both at once."""
+        res = self._run()
+        self.assertTrue(all(c.outcome is Outcome.UNGRADED for c in res.cells))
+        self.assertEqual(res.licences, {})

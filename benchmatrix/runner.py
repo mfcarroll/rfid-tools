@@ -117,9 +117,12 @@ class RunResult:
     #: (protocol, reader) pairs whose decode marker did not fire on a byte-exact read. The cell is
     #: still correct; the REGISTRY is not, and would misreport a wrong decode as silence.
     bad_markers: dict = field(default_factory=dict)
-    #: Pairs whose calibration row was screened rather than decided. Their dependent cells are still
-    #: measured — see `_routine`.
-    screened_pairs: set = field(default_factory=set)
+    #: Pairs whose calibration row was UNDECIDED rather than refused — screened in a crowded stack,
+    #: or a silence nothing present could attribute. ⛔ THEIR DEPENDENT CELLS ARE STILL MEASURED, and
+    #: that is the whole point: when a gold row cannot be interpreted, the reads from another SOURCE
+    #: are exactly what would interpret it. Skipping them for want of a licence throws away the
+    #: evidence that would have supplied one.
+    undecided_pairs: set = field(default_factory=set)
     blocks: list[BlockReport] = field(default_factory=list)
     aborted: str = ""
     finished: str = ""
@@ -582,6 +585,9 @@ def _settle(pending: list, state, tag_state: TagState, report: BlockReport, devi
     for op, obs in graded:
         c = op.cell
         res.cells.append(ungraded(c.protocol.key, c.source, c.reader, why, crowding=op.crowding))
+        # ⛔ UNDECIDED, NOT REFUSED. A gold row nobody could interpret must not stop the other
+        # sources being read — those reads are the only thing that could interpret it.
+        res.undecided_pairs.add((c.protocol.key, c.reader))
         if not proven:
             # Revisited at the end of the run: another source may yet license this reader.
             res.unattributed.append((len(res.cells) - 1, c.protocol.key, c.reader, state))
@@ -593,7 +599,7 @@ def _grade_one(op: Op, obs, report: BlockReport, res: RunResult, out, issued: li
     if not cell.is_calibration and cell.pair not in res.licences:
         # ⭐ A PAIR WHOSE CALIBRATION WAS ONLY *SCREENED* IS UNDECIDED, NOT REFUSED, so its dependent
         # cells are still graded from the reading already taken.
-        if cell.pair not in res.screened_pairs:
+        if cell.pair not in res.undecided_pairs:
             why = res.refusals.get(cell.pair, "no calibration row has passed for this pair")
             res.cells.append(ungraded(cell.protocol.key, cell.source, cell.reader, why,
                                       crowding=op.crowding))
@@ -609,7 +615,7 @@ def _grade_one(op: Op, obs, report: BlockReport, res: RunResult, out, issued: li
             # ⛔ A CROWDED CALIBRATION FAILURE IS NOT "THIS READER CANNOT JUDGE". It is unknown until
             # the pair is isolated, and saying otherwise publishes the crowding as a finding.
             res.cells.append(screened(obs, op.crowding, report.block.station.name))
-            res.screened_pairs.add(cell.pair)
+            res.undecided_pairs.add(cell.pair)
             res.refusals[cell.pair] = ("the calibration row was screened %s in a crowded stack and "
                                        "awaits isolation" % obs.outcome_if_licensed.value)
             out("      %s %-10s %-9s %-7s screened %s — queued for isolation"
@@ -635,7 +641,20 @@ def _grade_one(op: Op, obs, report: BlockReport, res: RunResult, out, issued: li
                 return
 
     licence = res.licences.get(cell.pair)
-    if op.crowded and (obs.outcome_if_licensed is not Outcome.EXACT or licence is None):
+    if licence is None:
+        # ⛔ UNLICENSED IS NOT THE SAME AS CROWDED, AND ISOLATION WOULD NOT FIX IT. Saying "screened,
+        # queued for isolation" here sends the operator to redo a measurement that was fine: what is
+        # missing is a gold row for this pair, and no amount of rearranging the bench supplies one.
+        # ⭐ The reading is still recorded, and still counts toward what this reader has been shown
+        # to decode — which is what may yet license the gold row itself (RULES.md §10).
+        what = obs.outcome_if_licensed.value
+        graded = grade(obs, None, crowding=op.crowding, note=(
+            "read %s, but (%s, %s) has no licence: the gold row for this protocol did not pass, so "
+            "nothing here can be scored. The reading is kept — a byte-exact one is evidence this "
+            "reader can see the protocol at all." % (what, cell.protocol.key, cell.reader)))
+        out("      %s %-10s %-9s %-7s read %s — recorded, but unlicensed"
+            % (ui.mark("skip"), cell.protocol.key, cell.source, cell.reader, what))
+    elif op.crowded and obs.outcome_if_licensed is not Outcome.EXACT:
         graded = screened(obs, op.crowding, report.block.station.name)
         out("      %s %-10s %-9s %-7s screened %s — queued for isolation"
             % (ui.mark("screen"), cell.protocol.key, cell.source, cell.reader,
