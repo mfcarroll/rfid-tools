@@ -132,6 +132,20 @@ success. A silence or a wrong decode might be the crowding.
 So a non-`EXACT` result in a crowded stack is **not a verdict**. It is a screening result that
 queues an isolated re-measurement, and only that re-measurement can produce `SILENT` or `WRONG`.
 
+**"Taken in a crowded stack" is not the same question as "is this a placeholder".** The rule is
+about the *reading*, and three places in the harness asked instead about the *stack* — the phase-2
+work list, the phase-2 merge, and the grid's screening glyph. Every reading taken in a crowded stack
+answers yes to that, including a byte-exact one and including one that is unscorable only because
+no gold row has passed yet. On 2026-09-15 a byte-exact Chameleon read of a Chameleon-written tag —
+the one piece of evidence in that run that the Chameleon could see the protocol at all — was sent
+back to the bench for isolation, re-measured behind a parking write that did not take, and
+overwritten with a non-result. The published grid then went on citing the reading it had deleted.
+
+⇒ **A reading that is not a placeholder is evidence, and phase 2 has nothing to say about it.** An
+isolated verdict replaces a screening result; it does not replace a measurement. And a cell that is
+merely unlicensed is not re-measured at all — what it is missing is a gold row, and no rearrangement
+of the bench supplies one.
+
 **One energised device per stack at a time.** The concern is passive detuning, not competing
 carriers, so co-located devices are fine as long as the harness sequences them.
 
@@ -308,7 +322,7 @@ own.
 | 4. identity | C461, C472 |
 | 5. liveness | C373/C374, C377, C466, D61 |
 | 6. name-match | M28 |
-| 7. crowded stack | operator bench practice |
+| 7. crowded stack | operator bench practice; sharpened 2026-09-15 when it cost an EXACT reading |
 | 8. self-licensing | found while building this harness |
 | 9. write-state | found while building this harness |
 | 10. verification | operator, after the first bench run |

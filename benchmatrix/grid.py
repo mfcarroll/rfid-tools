@@ -35,16 +35,23 @@ def _by_cell(cells: list[Cell]) -> dict:
 def merge(phase1, phase2):
     """Fold the isolation phase's verdicts into the screening phase's grid.
 
-    ⛔ AN ISOLATED VERDICT ALWAYS WINS. A screening result is not a verdict at all, so there is no
-    conflict to resolve — the phase-2 cell simply replaces the placeholder that queued it. A cell
-    phase 2 could not reach (its licence was revoked, its write refused) keeps the screening note,
-    which still says honestly that the reading exists and has not been isolated.
+    ⛔ AN ISOLATED VERDICT ALWAYS WINS *OVER A PLACEHOLDER*. A screening result is not a verdict at
+    all, so there is no conflict to resolve — the phase-2 cell simply replaces the placeholder that
+    queued it. A cell phase 2 could not reach (its licence was revoked, its write refused) keeps the
+    screening note, which still says honestly that the reading exists and has not been isolated.
+
+    ⛔⛔ AND THAT PREMISE ONLY HOLDS FOR A PLACEHOLDER. This keyed off `crowding`, which is true of
+    every reading taken in a crowded stack including the licensed and the merely unlicensed ones —
+    so a real observation could be replaced by a worse one. It was: an EXACT fdxb read was
+    overwritten by a non-result taken behind a failed park, and the published record went on to cite
+    the reading it had just deleted. A cell that is not `provisional` is evidence, and evidence is
+    not replaced — phase 2 has nothing to say about it.
     """
     isolated = _by_cell(phase2.cells)
     out = []
     for c in phase1.cells:
         repl = isolated.get((c.protocol, c.source, c.reader))
-        out.append(repl if (repl is not None and c.crowding) else c)
+        out.append(repl if (repl is not None and c.provisional) else c)
     seen = {(c.protocol, c.source, c.reader) for c in out}
     out += [c for k, c in isolated.items() if k not in seen]
     phase1.cells = out
@@ -104,8 +111,11 @@ def render(result, protocols: list[reg.Protocol]) -> str:
                     row.append("%-8s" % ("– refsd" if (p.key, s, rdr) in refused else ""))
                 else:
                     mark = "%s %s" % (c.glyph, _short(c.outcome))
-                    # ◌ marks a reading that is still only a screening result.
-                    if c.crowding and c.outcome is Outcome.UNGRADED and c.observation is not None:
+                    # ◌ marks a reading that is still only a screening result. ⛔ NOT every UNGRADED
+                    # reading from a crowded stack: an unlicensed one is a finished measurement
+                    # waiting on a gold row, and painting it ◌ tells the operator to go and
+                    # rearrange a bench that would not change it.
+                    if c.provisional:
                         mark = "◌ scrn"
                     row.append("%-8s" % mark)
             lines.append("| %-*s | %s |" % (w, p.key, " | ".join(row)))
@@ -332,12 +342,20 @@ def _open_questions(result) -> list[str]:
            "still outstanding, and the reason each one is outstanding.", ""]
     # ⚠ NOT `split(".")`. Every reader id has a dot in it, so grouping on the first sentence cut
     # "(viking, rd.pm3): the calibration row DECODED..." down to "(viking, rd".
-    by_note: dict[str, list[Cell]] = {}
+    # ⛔ THE TRUNCATION IS A GROUPING KEY, NOT THE TEXT. Using one string for both published
+    # "the write was issued and nothing decoded anything at all. No reader present has been shown
+    # to decode fdxb at all this session, so this cannot be told apart from" — cut exactly where
+    # the sentence was about to say what to do next. The whole reason a cell is outstanding IS this
+    # section's content; there is nothing here worth saving 200 characters on.
+    by_note: dict[str, tuple[str, list[Cell]]] = {}
     for c in ungraded:
-        by_note.setdefault(" ".join(c.note.split())[:160], []).append(c)
-    for note, group in sorted(by_note.items(), key=lambda kv: -len(kv[1])):
+        full = " ".join(c.note.split())
+        by_note.setdefault(full[:160], (full, []))[1].append(c)
+    for _, (note, group) in sorted(by_note.items(), key=lambda kv: -len(kv[1][1])):
         out.append("- **%d cell%s** — %s" % (len(group), "" if len(group) == 1 else "s", note))
-        out.append("  · " + "; ".join(sorted({"%s/%s" % (c.protocol, c.reader) for c in group})[:10]))
+        ids = sorted({"%s/%s" % (c.protocol, c.reader) for c in group})
+        out.append("  · " + "; ".join(ids[:10])
+                   + (" (and %d more)" % (len(ids) - 10) if len(ids) > 10 else ""))
     out.append("")
     return out
 
@@ -358,6 +376,10 @@ def to_json(result, protocols: list[reg.Protocol]) -> str:
         "cells": [{"protocol": c.protocol, "source": c.source, "reader": c.reader,
                    "outcome": c.outcome.value, "note": c.note,
                    "crowding": sorted(c.crowding), "isolated": c.isolated,
+                   # ⭐ SAYS WHICH ROWS ARE PLACEHOLDERS. Without it a reader of the JSON cannot
+                   # tell a screening result awaiting isolation from a finished measurement that
+                   # has no gold row yet, which are opposite kinds of outstanding work.
+                   "provisional": c.provisional,
                    "decoded": (list(c.observation.summary) if c.observation else None),
                    "evidence": (c.observation.text[-1200:] if c.observation else None)}
                   for c in result.cells],

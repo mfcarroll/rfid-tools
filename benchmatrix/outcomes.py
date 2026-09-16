@@ -182,6 +182,33 @@ class Cell:
     def glyph(self) -> str:
         return GLYPH[self.outcome]
 
+    @property
+    def provisional(self) -> bool:
+        """Is this reading a PLACEHOLDER — one the crowded-stack rule says is not a verdict yet?
+
+        ⛔⛔ `crowding` ALONE IS NOT THE TEST, AND USING IT AS ONE COST A WHOLE ISOLATION PHASE.
+        `crowding` is a fact about the stack; this is a judgement about the reading. Three call
+        sites asked the first and meant the second: the phase-2 work list, the phase-2 merge, and
+        the grid's ◌ glyph. Every reading taken in a crowded stack answers yes to `crowding`,
+        INCLUDING a byte-exact one, and including one that is UNGRADED only for want of a gold row.
+
+        ⇒ So it is derived from the observation rather than stored, because a stored flag can
+        disagree with the reading it describes. The crowded-stack rule in one line: a crowded
+        stack can invalidate a FAILURE, because a bystander coil can detune a tag into silence —
+        it cannot invalidate a SUCCESS, because no bystander manufactures a byte-exact decode of
+        the credential we armed (RULES.md §7).
+
+        ⚠ AND NOTE `outcome_if_licensed`, NOT `outcome`. A cell with no licence reads UNGRADED
+        whatever the reader said, so asking `outcome` here would call every unlicensed reading a
+        failure. On 2026-09-15 that sent a byte-exact `t55.cu1 -> rd.cu1` fdxb read — the only
+        evidence in that run that the Chameleon can see fdxb at all — back to the bench, where it
+        was re-measured behind a failed park and overwritten with a non-result. The published
+        record then went on citing the reading it had just deleted.
+        """
+        if self.observation is None or self.isolated or not self.crowding:
+            return False
+        return self.observation.outcome_if_licensed is not Outcome.EXACT
+
 
 def screened(obs: Observation, crowding: frozenset, station: str) -> Cell:
     """⛔ THE CROWDED-STACK RULE (RULES.md §7). A non-EXACT reading taken with uninvolved devices in
