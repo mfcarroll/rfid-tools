@@ -17,6 +17,7 @@ generated from `Move.spoken()` and nothing has to be parsed back out of a string
 
 from __future__ import annotations
 
+import os
 import re
 import subprocess
 import sys
@@ -150,37 +151,82 @@ def cue_done(words: str, ok: bool = True, partial: bool = False) -> None:
     _say(words, block=True)
 
 
-#: The terminal as it was before any child process ran. See `_sane`.
-_TTY = None
 try:
     import termios
-    if sys.stdin.isatty():
-        _TTY = termios.tcgetattr(sys.stdin)
-except Exception:                                          # noqa: BLE001 - not a tty, or no termios
+except ImportError:                                        # pragma: no cover - not POSIX
     termios = None
 
 
 def _sane() -> None:
-    """⛔⛔ PUT THE TERMINAL BACK BEFORE ASKING FOR A KEYPRESS. The Proxmark client initialises
-    readline, and a child that inherits a tty on stdin can leave it out of canonical mode — at which
-    point Enter arrives as a literal ^M, the prompt never returns, and the operator's only way out
-    of a run is Ctrl-C. Device-observed at the first station of a real run.
+    """Put the terminal into a state `input()` can work in. SETS the flags; does not restore a copy.
 
-    ⚠ Every subprocess in this package is now launched with `stdin=DEVNULL`, which is the actual
-    fix. This is the guard for the next tool that is added and forgets.
+    ⛔⛔ THE SYMPTOM IS AN OPERATOR WHO CANNOT ANSWER A PROMPT. Enter arrives as a literal `^M`, the
+    line never terminates, and the only way out of a run is Ctrl-C — which aborts it. Twice observed
+    at the first station of a real run.
+
+    ⛔ AND THE CAUSE IS NOT REACHABLE FROM HERE. `stdin=DEVNULL` on every child was not enough: a
+    readline- or prompt_toolkit-based client opens `/dev/tty` DIRECTLY, so it gets the controlling
+    terminal whatever we do with its stdin. The Proxmark client and the Chameleon CLI are both in
+    that family.
+
+    ⇒ So this does not try to prevent the damage, and it does not restore a snapshot either — a
+    snapshot is only as good as the moment it was taken, and restoring one that was itself wrong
+    fails silently and identically. It asserts the three flags a line-oriented prompt actually
+    needs: CR translated to newline on input, canonical line buffering, and echo. Anything else a
+    child changed is left alone.
     """
-    if _TTY is not None and termios is not None:
-        try:
-            termios.tcsetattr(sys.stdin, termios.TCSADRAIN, _TTY)
-        except Exception:                                  # noqa: BLE001
-            pass
+    if termios is None:
+        return
+    try:
+        fd = sys.stdin.fileno()
+        if not os.isatty(fd):
+            return
+        attrs = termios.tcgetattr(fd)
+        attrs[0] |= termios.ICRNL                     # iflag: Enter becomes a newline
+        attrs[1] |= termios.OPOST | termios.ONLCR     # oflag: newline returns to column 0
+        attrs[3] |= termios.ICANON | termios.ECHO | termios.ECHOE | termios.ISIG
+        attrs[6][termios.VMIN] = 1
+        attrs[6][termios.VTIME] = 0
+        termios.tcsetattr(fd, termios.TCSANOW, attrs)
+    except Exception:                                      # noqa: BLE001 - never block a prompt
+        pass
+
+
+def is_canonical() -> bool:
+    """Could a prompt be answered right now? Used to report the fault rather than hang on it."""
+    if termios is None:
+        return True
+    try:
+        fd = sys.stdin.fileno()
+        if not os.isatty(fd):
+            return True
+        attrs = termios.tcgetattr(fd)
+        return bool(attrs[3] & termios.ICANON) and bool(attrs[0] & termios.ICRNL)
+    except Exception:                                      # noqa: BLE001
+        return True
+
+
+def _prompt_ready() -> None:
+    """Fix the terminal, and if it cannot be fixed, SAY SO rather than hanging on it.
+
+    ⚠ A PROMPT THAT CANNOT BE ANSWERED LOOKS EXACTLY LIKE A PROMPT NOBODY HAS ANSWERED YET. The
+    operator presses Enter, sees `^M`, presses it again, and eventually kills a healthy run. One
+    line of diagnosis is the difference between that and `stty sane` in another window.
+    """
+    _sane()
+    if not is_canonical():
+        sys.stdout.write(
+            "\n     ⛔ THIS TERMINAL IS NOT IN LINE MODE, so Enter will arrive as ^M and this\n"
+            "        prompt cannot be answered. A client left it that way and the repair did not\n"
+            "        take. Run `stty sane` in another window, or re-run with --no-prompt.\n")
+        sys.stdout.flush()
 
 
 def ask(prompt: str, spoken: str = "", sound: str = SND_MOVE) -> None:
     """Blocking confirmation with a cue. Returns when the operator presses Enter."""
     _play(sound)
     _say(spoken or prompt)
-    _sane()
+    _prompt_ready()
     try:
         input(prompt)
     except EOFError:
@@ -197,7 +243,7 @@ def ask_choice(prompt: str, choices: str, default: str, spoken: str = "",
     if sound:
         _play(sound)
     _say(spoken or prompt)
-    _sane()
+    _prompt_ready()
     while True:
         try:
             r = input(prompt).strip().lower()
