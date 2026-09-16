@@ -80,7 +80,8 @@ def _devices(a) -> runner.Devices:
     d = runner.Devices()
     d.pm3 = Pm3(binary=a.pm3)
     if not a.no_flipper:
-        d.flipper = Flipper(port=a.flipper_port or "")
+        d.flipper = Flipper(port=a.flipper_port or "",
+                            attempts=max(1, getattr(a, "flip_attempts", 6)))
     for label, chameleon in _chameleons(a, skip=("cu2",) if a.no_cu2 else ()).items():
         setattr(d, label, chameleon)
     return d
@@ -875,6 +876,13 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("--cu1-port", default=os.environ.get("CU1_PORT"))
     sp.add_argument("--cu2-port", default=os.environ.get("CU2_PORT"))
     sp.add_argument("--flipper-port", default=os.environ.get("FLIPPER_PORT"))
+    sp.add_argument("--flip-attempts", type=int, default=6,
+                    help="tries per Flipper front end before giving up (default 6). ⚠ ONLY A MISS "
+                         "COSTS THIS — a decode returns on the first hit, in about two seconds. A "
+                         "miss runs BOTH front ends to exhaustion at ~6s a try, so 6 is ~76s and 3 "
+                         "is ~38s. Across a full matrix that is the difference between minutes and "
+                         "hours. Lower trades a longer tail of false silences — which the "
+                         "crowded-stack rule then sends to isolation — for wall-clock")
     sp.add_argument("--slot", type=int, default=8, help="scratch slot, so nothing curated is lost")
     sp.add_argument("--no-prompt", action="store_true",
                     help="speak the moves but do not block on Enter (for a watched run)")
