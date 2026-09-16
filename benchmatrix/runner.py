@@ -851,11 +851,19 @@ def _goto(frm, to, interactive: bool, devices: Devices, out, bench=None) -> None
     for line in ui.diagram([to], idle):
         out(line)
     out("")
-    # ⚠ A PURE REMOVAL IS SAID AS A REMOVAL. Describing the arrangement is right when something is
-    # being placed, and confusing when the only thing to do is take the tag out of a stack that is
-    # otherwise already correct.
-    spoken = (ui.spoken_removal(move.remove) if move.remove and not move.place
-              else ui.spoken_arrangement([to]))
+    # ⚠ A MOVE IN ONE DIRECTION IS SAID AS THAT MOVE. Describing the whole arrangement is right
+    # when the bench is being rebuilt, and noise when one thing goes on or comes off a rig that is
+    # otherwise already correct — the operator has to parse the sentence to find the one word in it
+    # that is an instruction.
+    #
+    # ⛔ BUT THE FIRST STATION HAS NO PREVIOUS ARRANGEMENT (`frm is None`), so there the full
+    # description is the only thing that can be checked against the bench.
+    if move.remove and not move.place:
+        spoken = ui.spoken_removal(move.remove)
+    elif move.place and not move.remove and frm is not None:
+        spoken = ui.spoken_addition(move.place, to)
+    else:
+        spoken = ui.spoken_arrangement([to])
     if interactive:
         cues.ask("     press Enter when the bench looks like that: ", spoken=spoken)
     else:
