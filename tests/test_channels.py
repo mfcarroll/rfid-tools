@@ -461,6 +461,40 @@ class TheProxmarkMustLetGoOfTheSimulation(RealChannelBase):
         self.assertTrue(killed, "an exited wrapper must not stop us killing its group")
         self.assertEqual(killed[0][0], 4242, "the group id captured at arm time")
 
+    def test_a_rejected_simulate_command_does_not_leave_a_pipe_to_blow_up_later(self):
+        """⛔⛔ THE BROKEN PIPE THE OPERATOR SAW IN THE MIDDLE OF A GRID. `keri`'s registered
+        simulate command was wrong, the client rejected it and exited, and `disarm`'s Enter — the
+        documented abort path — hit a dead child. The EPIPE from that flush is caught ON PURPOSE,
+        but a caught flush LEAVES THE BYTE IN THE BUFFER, so the interpreter retried it when it
+        finalised the file and printed `Exception ignored while finalizing file` with a traceback
+        pointing at `runner.py / return False` — a line that cannot raise, in a function that had
+        already returned.
+
+        ⚠ SO THE TEST DRIVES `arm`, NOT THE HELPER. Calling `_drop_pipes` directly would prove the
+        helper closes pipes and prove nothing about whether the failure path calls it; that is the
+        exact shape of mistake this file exists to stop (see `test_there_is_exactly_one_disarm`).
+        The child here really is spawned and really has exited before `disarm` writes to it.
+        """
+        spawned = []
+        real_popen, real_sleep = devices.subprocess.Popen, devices.time.sleep
+        devices.subprocess.Popen = lambda *a, **k: spawned.append(real_popen(*a, **k)) or spawned[-1]
+        devices.time.sleep = lambda s: None
+        p3 = Pm3(binary="/bin/echo")                  # exits at once, like a client refusing an option
+        self.stub("[#] Debug log level\n")            # `hw status` afterwards: the port is back
+        try:
+            with self.assertRaises(DeviceError) as cm:
+                p3.arm(reg.ALL["em410x"])
+            self.assertIn("did not start simulating", str(cm.exception))
+        finally:
+            devices.subprocess.Popen, devices.time.sleep = real_popen, real_sleep
+        self.assertEqual(len(spawned), 1, "the fixture only means anything if a child really ran")
+        self.assertIsNone(p3._sim, "a failed arm holds nothing")
+        for name in ("stdin", "stdout"):
+            pipe = getattr(spawned[0], name, None)
+            self.assertTrue(pipe is None or pipe.closed,
+                            "%s outlived the child and will be finalised in someone else's "
+                            "traceback" % name)
+
     def test_and_it_proves_the_port_came_back(self):
         """⛔ Everything after this needs the port, and a simulation still running is — from the next
         command's point of view — indistinguishable from a Proxmark that has gone away."""

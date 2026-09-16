@@ -192,6 +192,32 @@ def _group_alive(pgid: int) -> bool:
         return False
 
 
+def _drop_pipes(proc) -> None:
+    """Close a dead child's pipes here, where a failure can be ignored on purpose.
+
+    ⛔⛔ AN UNCLOSED PIPE RE-RAISES ITS ERROR LATER, IN SOMEONE ELSE'S TRACEBACK. `disarm` writes
+    Enter to the client as its documented abort path. When the client has ALREADY exited — because
+    the simulate command was rejected outright — that write lands in the buffer and the `flush`
+    gets EPIPE, which we catch and mean to ignore. But a caught flush leaves the byte IN THE
+    BUFFER, so when the interpreter finalises the file object it tries again, fails again, and has
+    no caller to report to; it prints `Exception ignored while finalizing file` to stderr instead.
+
+    ⚠ AND IT PRINTS WHEREVER THE GC HAPPENED TO BE. On run 20260916_104455 that was the middle of
+    the grid, stamped with a traceback pointing at `runner.py:781 / return False` — a line that
+    cannot raise anything, in a function that had finished long before. The operator asked about
+    "one broken pipe error in the middle", which is exactly what it looks like and nothing like
+    where it came from. Closing here discards the byte instead of leaving it to be retried.
+    """
+    for name in ("stdin", "stdout", "stderr"):
+        pipe = getattr(proc, name, None)     # cleanup on a failure path may not raise a NEW fault
+        if pipe is None or pipe.closed:
+            continue
+        try:
+            pipe.close()                 # ⚠ still closes the fd when its flush raises, then re-raises
+        except Exception:                # noqa: BLE001 - the child is dead; there is nobody to tell
+            pass
+
+
 def _read_until(proc, markers, deadline: float) -> str:
     """Collect a child's output until one of `markers` appears or the deadline passes.
 
@@ -339,6 +365,7 @@ class Pm3:
             except (ProcessLookupError, PermissionError, OSError):
                 break
             time.sleep(0.8)
+        _drop_pipes(proc)
         # 3. ⛔⛔ AND PROVE THE PORT IS BACK, because everything after this needs it and a simulation
         # that is still running is indistinguishable — from the next command's point of view — from
         # a Proxmark that has gone away. Any USB command also ends a simulation, so this both checks

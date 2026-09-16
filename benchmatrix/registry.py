@@ -208,7 +208,19 @@ ALL: dict[str, Protocol] = {p.key: p for p in [
        cu_read="lf viking read",
        cu_write="lf viking write --id 1a337102",
        cu_decode_marker=r"Viking\s*:",
-       cu_expect="1a337102",
+       # ⛔⛔ THE CHAMELEON'S RENDERING, NOT THE PROXMARK'S RAW — the same fault fdxb had, and the
+       # isolation phase handed over both sides of it verbatim (run 20260916_104455):
+       #     expected  1a337102
+       #     device    Viking: 001a3371
+       # `1a337102` is the tail of the Proxmark's `Raw: F20000001A337102`. The Chameleon prints the
+       # CARD NUMBER, `001a3371` — which is also exactly what the Flipper was measured to print for
+       # the same tag. One credential, three renderings; `expect_for(reader)` exists for precisely
+       # this and this entry was not using it.
+       #
+       # ⚠ THE CELL THAT CAUGHT IT COST SIX OPERATOR INTERVENTIONS. It was screened WRONG in a
+       # crowded stack, so the crowded-stack rule sent it to isolation rather than publishing it —
+       # and what came back was not a Chameleon fault at all but a registry one, named as such.
+       cu_expect="001a3371",
        flip_key="Viking", flip_expect=None,
        notes="VIKING_DECODED_DATA_SIZE = 4, same width as the armed id."),
 
@@ -299,7 +311,7 @@ ALL: dict[str, Protocol] = {p.key: p for p in [
 
     _p(key="indala", tier=0, family="psk", t55_capable=True,
        pm3_write="lf indala clone -r a0000000e6bd0e92",
-       pm3_emulate='lf indala sim --raw a0000000e6bd0e92',
+       pm3_emulate='lf indala sim -r a0000000e6bd0e92',
        pm3_read="lf indala reader",
        pm3_decode_marker=r"Indala \(len",
        expect="a0000000e6bd0e92",
@@ -315,7 +327,15 @@ ALL: dict[str, Protocol] = {p.key: p for p in [
 
     _p(key="keri", tier=0, family="psk", t55_capable=True,
        pm3_write="lf keri clone -t i --cn 12345",
-       pm3_emulate='lf keri sim --cn 12345',
+       # ⛔⛔ DELIBERATELY UNREGISTERED, AND NOT FOR WANT OF A COMMAND. `lf keri sim` exists and
+       # takes `--id <dec>`, described as "a KERI card id... converted to a KERI internal ID" —
+       # while our clone writes an INTERNAL id directly (`-t i --cn 12345`). So `sim --id 12345`
+       # would almost certainly put a DIFFERENT credential on the air than `t55.pm3` holds.
+       #
+       # ⚠ AND THAT IS THE ONE MISTAKE THIS SOURCE MUST NOT MAKE. `emu.pm3` is the GOLD emitter: if
+       # it emits the wrong credential the cell reads WRONG, and a WRONG from the reference emitter
+       # is read as a fault in the DEVICE UNDER TEST. Better no row than a row that accuses the
+       # Chameleon of the Proxmark's misconfiguration. Settle it on the bench, then register it.
        pm3_read="lf keri reader",
        pm3_decode_marker=r"KERI - Internal ID|Descrambled MS - FC:|probably KERI",
        expect="80003039",
@@ -347,7 +367,7 @@ ALL: dict[str, Protocol] = {p.key: p for p in [
 
     _p(key="idteck", tier=0, family="psk", t55_capable=True,
        pm3_write="lf idteck clone --raw 4944544B55667788",
-       pm3_emulate='lf idteck sim --raw 4944544B55667788',
+       pm3_emulate='lf idteck sim -r 4944544B55667788',
        pm3_read="lf idteck reader",
        pm3_decode_marker=r"IDTECK Tag Found: Card ID",
        expect="4944544B55667788",
@@ -362,7 +382,7 @@ ALL: dict[str, Protocol] = {p.key: p for p in [
 
     _p(key="gallagher", tier=0, family="ask", t55_capable=True,
        pm3_write="lf gallagher clone --raw 7feaa31e76d86c6d868cc249",
-       pm3_emulate='lf gallagher sim --raw 7feaa31e76d86c6d868cc249',
+       pm3_emulate='lf gallagher sim -r 7feaa31e76d86c6d868cc249',
        pm3_read="lf gallagher reader",
        pm3_decode_marker=r"GALLAGHER - Region:",
        expect="7feaa31e76d86c6d868cc249",
@@ -377,7 +397,7 @@ ALL: dict[str, Protocol] = {p.key: p for p in [
 
     _p(key="securakey", tier=0, family="ask", t55_capable=True,
        pm3_write="lf securakey clone --raw 7fcb400001adea5344300000",
-       pm3_emulate='lf securakey sim --raw 7fcb400001adea5344300000',
+       pm3_emulate='lf securakey sim -r 7fcb400001adea5344300000',
        pm3_read="lf securakey reader",
        pm3_decode_marker=r"Securakey - len:",
        expect="7fcb400001adea5344300000",
@@ -425,7 +445,7 @@ ALL: dict[str, Protocol] = {p.key: p for p in [
 
     _p(key="fdxb", tier=0, family="ask", t55_capable=True,
        pm3_write="lf fdxb clone --country 999 --national 1337",
-       pm3_emulate='lf fdxb sim --country 999 --national 1337',
+       pm3_emulate='lf fdxb sim -c 999 -n 1337',
        pm3_read="lf fdxb reader",
        # ⛔⛔ TWO FAULTS HERE AT ONCE, AND THEY HID EACH OTHER. Corrected 2026-09-15 from the
        # operator's own `lf fdxb reader` against the tag this harness had just written.
@@ -518,7 +538,7 @@ ALL: dict[str, Protocol] = {p.key: p for p in [
 
     _p(key="indala224", tier=0, family="psk", t55_capable=True,
        pm3_write="lf indala clone -r 80000001b23523a6c2e31eba3cbee4afb3c6ad1fcf649393928c14e5",
-       pm3_emulate='lf indala sim --raw 80000001b23523a6c2e31eba3cbee4afb3c6ad1fcf649393928c14e5',
+       pm3_emulate='lf indala sim -r 80000001b23523a6c2e31eba3cbee4afb3c6ad1fcf649393928c14e5',
        pm3_read="lf indala reader",
        pm3_decode_marker=r"Indala \(len",
        expect="80000001b23523a6c2e31eba3cbee4afb3c6ad1fcf649393928c14e5",

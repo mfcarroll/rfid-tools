@@ -254,13 +254,36 @@ class BenchDerivedValuesArePinned(unittest.TestCase):
     def test_every_writer_puts_the_same_credential_on_the_tag(self):
         """⛔ THE FAULT THE GOLD COLUMN FOUND. `expect` came from the Chameleon's arm while
         `pm3.write` wrote something else, so the gold row could never match. Aligning only the
-        expectation would fix the gold row and break `t55.cu*` instead."""
+        expectation would fix the gold row and break `t55.cu*` instead.
+
+        ⚠ WHAT MUST AGREE IS THE CREDENTIAL WRITTEN, NOT THE TOKEN PRINTED. This also asserted
+        `expect == cu_expect` — that the Proxmark and the Chameleon RENDER it identically — which
+        was true of these four by coincidence and is not a rule. `viking` broke it honestly: the
+        Proxmark prints `1A337102`, the tail of its raw frame, and the Chameleon prints the card
+        number `001a3371`. One credential, two renderings, which is exactly what `expect_for(reader)`
+        exists for. Requiring them equal would force one of the two readings to be wrong.
+        """
         for key in self.OBSERVED:
             with self.subTest(key):
                 p = reg.ALL[key]
-                self.assertEqual(p.expect.lower(), p.cu_expect.lower())
-                self.assertIn(p.cu_expect.lower(), p.cu_write.lower())
-                self.assertIn(p.cu_expect.lower(), p.cu_emulate.lower())
+                self.assertIn(p.expect.lower(), p.cu_write.lower(),
+                              "the Chameleon must WRITE what the Proxmark's expectation describes")
+                self.assertIn(p.expect.lower(), p.cu_emulate.lower(),
+                              "and emulate the same credential it writes")
+
+    def test_but_a_rendering_may_differ_per_reader(self):
+        """⭐ AND `viking` IS THE CASE THAT PROVES IT, twice over: the value the Chameleon prints
+        was measured in isolation (run 20260916_104455), and the Flipper — learned independently,
+        a day earlier — prints the same `001A3371`. Two devices agree with each other and differ
+        from the Proxmark, which is a rendering difference and not a fault in anything."""
+        p = reg.ALL["viking"]
+        self.assertEqual(p.cu_expect, "001a3371")
+        self.assertNotEqual(p.expect.lower(), p.cu_expect.lower())
+        from benchmatrix import learned as _learned
+        flip = _learned.load().get(("viking", "rd.flip"))
+        if flip is not None:
+            self.assertEqual(flip.value.lower(), p.cu_expect.lower(),
+                             "the Flipper, learned independently, renders it the same way")
 
     def test_a_flipper_expectation_derived_from_the_old_credential_is_withdrawn(self):
         """⚠ viking and jablotron had one, derived from the credential that turned out to be wrong.
