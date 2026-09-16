@@ -147,13 +147,20 @@ every licence green, every licence worthless.
 
 ## 9. The write-state rule
 
-> **A read of a tag is attributed to whoever last wrote it.**
+> **A read of a tag is attributed to whoever last wrote it — and a write must say for itself that
+> it happened.**
 
 There are three writers — Proxmark, Chameleon, Flipper — and a T5577 holds one credential at a time.
 The source of a tag read is not a property of the tag, it is a property of the last write. Modelling
 the write as a detail of the read would read whatever the tag still held from the previous step and
 file it under the current protocol: a wrong cell with a plausible-looking cause, which is the worst
 kind.
+
+A refused write is the same failure wearing a different hat. If a `clone` command is rejected, the
+tag keeps its previous credential, the read that follows decodes nothing, and the run reports *"this
+reader cannot judge this protocol"* — a bench verdict for a one-line registry error. So a write is
+confirmed by **evidence that it happened**, never by the absence of an error, and a write that
+cannot confirm itself skips the reads that depended on it rather than letting them be scored.
 
 ---
 

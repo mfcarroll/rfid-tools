@@ -48,6 +48,15 @@ PM3_FAIL = ("claimed by another process", "could not open", "waiting for proxmar
             "please flash the proxmark3 with the same version")
 PM3_ALIVE = ("communicating with pm3 over", "max frame size:")
 
+#: ⛔ A WRITE IS CONFIRMED BY EVIDENCE IT HAPPENED, not by the absence of an error. Every `lf <proto>
+#: clone` in the client prints this on the success path (checked across all sixteen tier-0
+#: commands), and a rejected argument prints usage text instead. Without a positive check, a refused
+#: clone leaves the tag holding its PREVIOUS credential, the read that follows decodes nothing, and
+#: the harness reports "this reader cannot judge this protocol" — a bench verdict for what is
+#: actually a one-line registry error. That misattribution is exactly what this project exists to
+#: prevent, so the write says so itself rather than being inferred from what came after it.
+PM3_WROTE = ("done!", "done:")
+
 #: The Flipper's success line, from `flipper.py`: name, one space, an even number of uppercase hex
 #: digits, alone on the line. ⛔ The name MAY CONTAIN SPACES ("Radio Key"), and assuming it could
 #: not scored a working emulation 0 of 6 and put that number in FINDINGS.md as a defect.
@@ -120,8 +129,15 @@ class Pm3:
         return self.exec(p.pm3_read)
 
     def write_t55(self, p: reg.Protocol) -> str:
-        """Write the gold reference onto a real T5577."""
-        return self.exec(p.pm3_write, timeout=max(self.timeout, 120))
+        """Write the gold reference onto a real T5577, and refuse to pretend it happened."""
+        out = self.exec(p.pm3_write, timeout=max(self.timeout, 120))
+        if not any(m in (out or "").lower() for m in PM3_WROTE):
+            tail = " / ".join(l.strip() for l in (out or "").strip().splitlines()[-3:])
+            raise DeviceError(
+                "pm3: `%s` did not confirm a write. The tag still holds whatever it held before, so "
+                "nothing read from it now is about %s. Client said: %s"
+                % (p.pm3_write, p.key, tail[:200] or "nothing at all"))
+        return out
 
     def disarm(self) -> None:
         """A no-op, and deliberately present.
