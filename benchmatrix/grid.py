@@ -79,11 +79,55 @@ def merge(phase1, phase2):
         out.append(repl if (repl is not None and c.provisional) else c)
     seen = {(c.protocol, c.source, c.reader) for c in out}
     out += [c for k, c in isolated.items() if k not in seen]
-    phase1.cells = out
+    phase1.cells = _relicense(out, phase1.licences)
     phase1.blocks = list(phase1.blocks) + list(phase2.blocks)
     phase1.refusals.update({k: v for k, v in phase2.refusals.items()})
     phase1.finished = phase2.finished
     return phase1
+
+
+def _relicense(cells: list[Cell], licences: dict) -> list[Cell]:
+    """Grant the licences phase 2 just earned, and re-grade what was waiting on them.
+
+    ⛔⛔ AN ISOLATED GOLD ROW IS A LICENCE, AND MERGING IT WITHOUT GRANTING ONE WASTES THE WHOLE
+    PHASE. When the cell phase 2 goes back for is a CALIBRATION row, settling it is not one cell's
+    business: every reading of that (protocol, reader) was graded UNGRADED for want of exactly the
+    licence phase 2 has now produced.
+
+    ⚠ IT HAPPENED, AND IT LOOKED LIKE A DEVICE FAULT. Run 20260916_125646 screened
+    `em410x t55.pm3 -> rd.cu1` SILENT in a crowded stack, isolated it, and read it byte-exact — and
+    still published `em410x` as "⛔ no licence — the calibration row was screened SILENT in a
+    crowded stack and awaits isolation", with `em410x emu.pm3 -> rd.cu1` UNGRADED beside a note
+    saying it had read EXACT. The bench had done the work; the grid said it was outstanding.
+
+    ⭐ RE-GRADED FROM THE STORED OBSERVATION, never by editing an outcome. A cell whose reading was
+    WRONG or SILENT stays WRONG or SILENT once licensed — the licence decides whether a reading may
+    be scored, not what it scores.
+    """
+    from .outcomes import Calibration, CalibrationRefused, grade
+    from .stations import GOLD_SOURCES
+    fresh = {}
+    for c in cells:
+        pair = (c.protocol, c.reader)
+        if (c.source in GOLD_SOURCES and c.outcome is Outcome.EXACT and c.observation is not None
+                and pair not in licences):
+            try:
+                fresh[pair] = licences[pair] = Calibration.from_row(c.observation, GOLD_SOURCES)
+            except CalibrationRefused:
+                pass
+    if not fresh:
+        return cells
+    out = []
+    for c in cells:
+        lic = fresh.get((c.protocol, c.reader))
+        if lic is None or c.outcome is not Outcome.UNGRADED or c.observation is None:
+            out.append(c)
+            continue
+        import dataclasses
+        graded = grade(c.observation, lic, crowding=c.crowding)
+        out.append(dataclasses.replace(graded, isolated=c.isolated, station=c.station,
+                                       carried_from=c.carried_from))
+    return out
 
 
 def _audit(cells: list[Cell], sources: dict, readers: list[str],

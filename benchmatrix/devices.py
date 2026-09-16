@@ -50,7 +50,15 @@ PM3_FAIL = ("claimed by another process", "could not open", "waiting for proxmar
             "failed to open", "no proxmark3 found", "permission denied", "resource busy",
             "unable to open", "timed out", "offline mode", "[pm3 error running",
             "cannot communicate with the proxmark3", "capabilities structure version",
-            "please flash the proxmark3 with the same version")
+            "please flash the proxmark3 with the same version",
+            # ⛔⛔ "time out", NOT "timed out". The list had the past tense only, and the client says
+            # `[!] command execution time out` when a command reaches the device and never
+            # completes. So a read that FAILED was scored SILENT — a verdict about a decoder, from
+            # an invocation that returned nothing because it died. Run 20260916_125646 recorded
+            # `fdxb emu.cu1 -> rd.pm3` SILENT that way, against a reader that had decoded fdxb
+            # byte-exact in the two runs before it, and it was one flap-check away from being
+            # published as a ChameleonUltra emulation gap.
+            "command execution time out", "failed to get current device config")
 PM3_ALIVE = ("communicating with pm3 over", "max frame size:")
 
 #: ⛔ A WRITE IS CONFIRMED BY EVIDENCE IT HAPPENED, not by the absence of an error. Every `lf <proto>
