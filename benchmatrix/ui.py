@@ -97,6 +97,28 @@ def _one_rig_spoken(station) -> str:
     return said
 
 
+def working(out, what: str) -> "callable":
+    """Announce a slow operation BEFORE it blocks, and report how long it took.
+
+    ⛔⛔ SILENCE DURING A LONG CALL IS INDISTINGUISHABLE FROM A HANG, and the operator's only move
+    is Ctrl-C — which aborts a healthy session. `cue_done` already exists for exactly this reason at
+    the END of a run; the same argument applies to any step that blocks for tens of seconds with
+    nothing on screen. A `lf t55xx wipe` writes eight blocks and its timeout is 120s, so "stuck" and
+    "working" looked identical for as long as it took. Operator, mid-session: "Appears to be stuck".
+
+    ⭐ AND THE ELAPSED TIME IS WORTH KEEPING. This bench optimises operator interventions, so
+    knowing which machine steps cost twenty seconds and which cost two is what says whether a
+    station is worth restructuring. It turns "is it stuck?" into a number.
+    """
+    import time
+    out("      %s %s…" % (mark("wait"), what))
+    started = time.monotonic()
+
+    def done(line: str) -> None:
+        out("%s  (%.0fs)" % (line, time.monotonic() - started))
+    return done
+
+
 def diagram(stations, idle=()) -> list[str]:
     """The bench as a picture: one column per rig, top of the stack at the top.
 
@@ -144,7 +166,8 @@ def _plain(text: str) -> str:
 #: Status marks, coloured once so every call site agrees.
 MARKS = {"ok": ("✓", ("green",)), "bad": ("⛔", ("red", "bold")), "warn": ("⚠", ("yellow",)),
          "screen": ("◌", ("yellow",)), "skip": ("▒", ("dim",)), "note": ("·", ("dim",)),
-         "wipe": ("⌫", ("magenta",)), "write": ("✎", ("blue",)), "move": ("↔", ("cyan",))}
+         "wipe": ("⌫", ("magenta",)), "write": ("✎", ("blue",)), "move": ("↔", ("cyan",)),
+         "wait": ("⧗", ("dim",))}
 
 
 def mark(kind: str) -> str:

@@ -563,18 +563,23 @@ def cmd_learn(a) -> int:
         if not a.no_prompt:
             cues.ask("     press Enter when the bench looks like that: ",
                      spoken=ui.spoken_arrangement([station]))
-        for p in wanted:
-            print("\n    %s %s → %s" % (ui.mark("write"), p.key, reader))
+        for n, p in enumerate(wanted, 1):
+            print("\n    %s %s → %s  (%d of %d)"
+                  % (ui.mark("write"), p.key, reader, n, len(wanted)))
+            done = ui.working(print, "wiping the tag and proving it with `lf t55xx detect`")
             ok, detail = pm3.wipe_t55()
+            done("      %s tag wiped — %s" % (ui.mark("wipe" if ok else "bad"), detail))
             if not ok:
                 print("      ⛔ the tag was not wiped (%s). A read now cannot be attributed to the "
                       "write that follows it. Skipping." % detail)
                 continue
+            done = ui.working(print, "the Proxmark writes %s to the tag" % p.key)
             try:
                 pm3.write_t55(p)
             except DeviceError as e:
                 print("      ⛔ %s" % e)
                 continue
+            done("      %s written — not yet verified by anything" % ui.mark("write"))
             if reader == "rd.pm3":
                 text, obs, proposals = _learn_read(pm3, p, reader)
             else:
@@ -588,11 +593,13 @@ def cmd_learn(a) -> int:
                               "learning from this tag — the credential is not what the registry "
                               "says it is.")
                         continue
+                done = ui.working(print, "%s reads it back" % reader)
                 try:
                     text, obs, proposals = _learn_read(dev, p, reader)
                 except DeviceError as e:
                     print("      ⛔ %s" % e)
                     continue
+                done("      %s %s answered" % (ui.mark("ok"), reader))
             if reader == "rd.flip":
                 # ⛔ THE FLIPPER KEEPS ITS ANCHORED EXTRACTOR (RULES.md §6). Its success line has a
                 # shape worth pinning to, and `flip_expect` is the bare hex that `flip_line()`

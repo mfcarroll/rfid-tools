@@ -179,3 +179,29 @@ class APureAdditionIsSaidAsAnAddition(unittest.TestCase):
         """⚠ Something on AND something off is not a delta anyone can follow."""
         said = self._cue(build_station({PM3, CU2}, B), build_station({PM3, T5577, CU1}, B))
         self.assertEqual(said, "put Chameleon one on the Proxmark, with a tag in between")
+
+
+class ALongOperationSaysSoBeforeItBlocks(unittest.TestCase):
+    """⛔⛔ SILENCE DURING A LONG CALL IS INDISTINGUISHABLE FROM A HANG, and the operator's only move
+    is Ctrl-C — which aborts a healthy session. `cue_done` already exists for exactly this reason at
+    the END of a run; the same argument applies to any step that blocks for tens of seconds.
+
+    ⚠ `lf t55xx wipe` writes eight blocks and then proves itself with `detect`. Its timeout is 120s,
+    so on a real bench "stuck" and "working" looked identical for as long as it took. Operator,
+    mid-session, on a wipe that was doing its job: "Appears to be stuck".
+    """
+
+    def test_the_announcement_comes_first(self):
+        said = []
+        done = ui.working(said.append, "wiping the tag")
+        self.assertEqual(len(said), 1, "the operator hears about it BEFORE the wait, not after")
+        self.assertIn("wiping the tag", said[0])
+        done("  wiped")
+        self.assertEqual(len(said), 2)
+
+    def test_and_the_result_carries_how_long_it_took(self):
+        """⭐ This bench optimises operator interventions, so which machine steps cost twenty
+        seconds and which cost two is what says whether a station is worth restructuring."""
+        said = []
+        ui.working(said.append, "wiping")("  wiped")
+        self.assertRegex(said[-1], r"^  wiped\s+\(\d+s\)$")
