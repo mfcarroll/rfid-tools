@@ -138,3 +138,36 @@ class TheFlasherTargetsOneNamedDevice(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class AFailedTriggerSaysWhatActuallyHappened(unittest.TestCase):
+    """⛔⛔ REPORTING AN ABSENCE IS NOT A DIAGNOSIS. "The bootloader never enumerated" is true of
+    three different faults that need three different things done about them."""
+
+    DFU = (0x1915, 0x521F)
+    APP = {"/dev/cu.A": (0x6868, 0x8686), "/dev/cu.B": (0x6868, 0x8686)}
+
+    def test_an_unchanged_bus_means_the_command_had_no_effect(self):
+        why = dfu.describe_change(self.APP, self.APP, self.DFU)
+        self.assertIn("did not even reboot", why)
+
+    def test_a_vanished_port_means_it_rebooted_without_a_bootloader(self):
+        """The command took effect. That is a different fault from being ignored, and it points at
+        a device with no bootloader to reach — one flashed over SWD with the application only."""
+        why = dfu.describe_change(self.APP, {"/dev/cu.B": (0x6868, 0x8686)}, self.DFU)
+        self.assertIn("REBOOTED", why)
+        self.assertIn("/dev/cu.A", why)
+        self.assertIn("no bootloader", why)
+
+    def test_an_unexpected_new_device_names_its_usb_ids(self):
+        """A bootloader under ids we are not watching for looks identical to no bootloader."""
+        after = dict(self.APP, **{"/dev/cu.X": (0x1915, 0x0101)})
+        del after["/dev/cu.A"]
+        why = dfu.describe_change(self.APP, after, self.DFU)
+        self.assertIn("1915:0101", why)
+        self.assertIn("dfu_usb", why, "it must say which setting would fix it")
+
+    def test_the_bootloader_arriving_late_is_named_as_such(self):
+        after = dict(self.APP, **{"/dev/cu.X": self.DFU})
+        why = dfu.describe_change(self.APP, after, self.DFU)
+        self.assertIn("late", why)
