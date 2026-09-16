@@ -12,6 +12,9 @@
 # gets `GNU_VERSION=$(arm-none-eabi-gcc -dumpversion)` without a shell — worth the small feature,
 # because the alternative is pinning a compiler version in a file and having it rot silently.
 
+# The ChameleonUltra recipe below — the three environment pieces, the harmless closing failure, and
+# the DFU flow `dfu.py` implements — is Matthew Carroll's, from the ChameleonUltra project's
+# `research/indala-psk-read/` notes and `enterdfu.py`.
 [targets.chameleon-ultra]
 description = "ChameleonUltra nRF52 application firmware"
 

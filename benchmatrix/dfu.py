@@ -1,6 +1,20 @@
 #!/usr/bin/env python3
 """Nordic DFU flashing for one named device — trigger and program in a single process.
 
+⭐ DERIVED FROM `enterdfu.py` BY MATTHEW CARROLL, in the ChameleonUltra project at
+`research/indala-psk-read/enterdfu.py` (commits 61599a30 and 34a78cbe, 2026-09-15). Everything that
+makes this work correctly was worked out there and is carried over unchanged in substance: the DFU
+trigger frame, the USB ids, the `cu.`/`tty.` equivalence, refusing to fire when a device is already
+in DFU, targeting one NAMED port instead of the first match, and above all polling for the
+bootloader from inside this process because the window is shorter than the gap between two shell
+commands.
+
+It lives here rather than being called there because a general tool that depends on one project's
+research directory is not general. What this version adds: an explicit success record from
+`nrfutil --json` in place of an exit-status check, JSON-lines output so a caller can report each
+step, the USB ids and timeouts as configuration, and a lazy pyserial import so the pure logic stays
+testable on an interpreter without it.
+
 ⛔⛔ THE BOOTLOADER WINDOW IS SHORTER THAN THE GAP BETWEEN TWO SHELL COMMANDS. Trigger DFU in one
 call and run `nrfutil device program` in the next, and the device has already fallen back to the
 application: nrfutil then emits no events at all and exits clean, and the version afterwards is the
