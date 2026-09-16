@@ -461,6 +461,23 @@ class TheProxmarkMustLetGoOfTheSimulation(RealChannelBase):
         self.assertTrue(killed, "an exited wrapper must not stop us killing its group")
         self.assertEqual(killed[0][0], 4242, "the group id captured at arm time")
 
+    def test_every_emitter_settles_before_anything_reads_it(self):
+        """⚠ AN UNJUSTIFIED ASYMMETRY BETWEEN TWO EMITTERS IS A BENCH PROPERTY IN THE RESULTS. The
+        Chameleon had settled for a second since it was written; the Proxmark returned the instant
+        its client printed the simulating banner, which is a message and not a steady carrier.
+
+        ⛔ AND TWO CELLS HAVE DISAGREED BETWEEN RUNS ON UNCHANGED FIRMWARE — `em410x emu.pm3 →
+        rd.cu1` and `em410x emu.flip → rd.pm3` — both emulated em410x, both THE FIRST CELL MEASURED
+        AT THEIR STATION. That is the read that follows a mode switch rather than another read. A
+        mechanism, not a diagnosis; this test holds the asymmetry closed either way.
+        """
+        for cls in (Pm3, Chameleon):
+            with self.subTest(cls.__name__):
+                settle = getattr(cls(), "arm_settle", None) if cls is Pm3 else \
+                    getattr(cls(port="/dev/tty.fake", name="cu1"), "arm_settle", None)
+                self.assertIsNotNone(settle, "%s arms with no settle period" % cls.__name__)
+                self.assertGreater(settle, 0)
+
     def test_a_rejected_simulate_command_does_not_leave_a_pipe_to_blow_up_later(self):
         """⛔⛔ THE BROKEN PIPE THE OPERATOR SAW IN THE MIDDLE OF A GRID. `keri`'s registered
         simulate command was wrong, the client rejected it and exited, and `disarm`'s Enter — the

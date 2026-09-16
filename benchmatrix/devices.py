@@ -251,6 +251,10 @@ class Pm3:
     binary: str = DEFAULT_PM3
     timeout: int = 90
     id: str = "rd.pm3"
+    #: Seconds to let the carrier settle after the client reports it is simulating. ⚠ MATCHES THE
+    #: CHAMELEON'S. A reader asked immediately after an arm measures the gap between a client's
+    #: message and a steady field, which is a property of the bench and not of either device.
+    arm_settle: float = 1.0
     #: Filled in by `alive()` from the same `hw version` it already runs.
     reported: str = ""
 
@@ -335,6 +339,20 @@ class Pm3:
                 "pm3: `%s` did not start simulating. Nothing was put on the air, so any read that "
                 "followed would be about an empty field. Client said: %s"
                 % (p.pm3_emulate, " / ".join(seen.strip().splitlines()[-3:])[:220] or "nothing"))
+        # ⚠ THE CLIENT'S BANNER IS NOT THE FIELD BEING STEADY. `Chameleon.arm` has settled for a
+        # second since it was written and this settled for nothing, with no reason given for the
+        # difference — an emitter is an emitter, and a reader asked too early measures the gap
+        # between a message and a carrier.
+        #
+        # ⛔ AND THERE IS A FLAP THIS WOULD EXPLAIN, THOUGH IT DOES NOT PROVE IT. Two cells in this
+        # project have disagreed between runs on unchanged firmware: `em410x emu.pm3 -> rd.cu1`
+        # (EXACT 11:19, `LF tag not found` 11:52) and `em410x emu.flip -> rd.pm3`. Both are
+        # emulated em410x and both were THE FIRST CELL MEASURED AT THEIR STATION, which is the one
+        # read that follows a mode switch and a null sweep rather than another read. That is a
+        # hypothesis with a mechanism, not a diagnosis — it is recorded so the next flap can
+        # confirm or kill it, and the six reproducible gaps found beside them are unaffected
+        # (SILENT in both runs that measured them).
+        time.sleep(self.arm_settle)
 
     def disarm(self) -> None:
         """⛔⛔ ENTER, NOT A KILL. `kbd_enter_pressed` is the client's own abort path and it is what
