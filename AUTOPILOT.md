@@ -92,9 +92,37 @@ the operator's return; do not reason about them from the disagreement alone.
 
 ### 2c. The unmeasured
 
-`em410x_electra` is almost entirely `▫`, and `cu1·rd` shows `–` (no such command in this firmware).
-`indala224` has no `cu1·wr`. **cu2 has never been measured at all.** All of these are bench work —
-queue them, build whatever registry rows or firmware commands they need.
+⛔⛔ **`em410x_electra` — MEASURED 2026-09-16 AND THE ANSWER REFUTES THE GAP REGISTER.** The register
+said *"the Proxmark DOES support Electra … and its reader prints the Electra value"*. It was read
+from source. **The hardware disagrees:**
+
+| step | result |
+|---|---|
+| `lf em 410x clone --id 2244668800 --electra` | writes it; prints `Electra 0x7e1eaaaaaaaaaaaa` |
+| `lf em 410x reader` | prints **`EM 410x ID 2244668800` and nothing else** |
+| `lf em 410x reader -h` | **no Electra flag exists** — clk/invert/amp/break/continuous/verbose only |
+| Chameleon `lf em 410x read` | `EM410X/64: 2244668800` — also no Electra distinction |
+| Flipper (learned, 20260915_233837) | `22446688007E1EAA` — **it alone distinguishes Electra** |
+
+⛔⛔ **SO DO NOT RECORD `2244668800` AS ELECTRA'S EXPECTATION.** It is byte-identical to plain
+`em410x`'s, and a registry holding the same token for both would let an `em410x` emission pass an
+`electra` cell and vice versa — a false pass built in by construction. The run's own remedy
+("record the token it prints") was written before anyone ran it, and is wrong.
+
+⇒ **On this bench only the Flipper can judge Electra.** That is a gap-register row about the
+Proxmark, not a limit of ours: `rd.pm3` cannot distinguish the two protocols at all. Electra's
+`rd.pm3` column should be refused by name, permanently, rather than left as "go and measure it".
+⚠ `cu_read` is still genuinely absent (`–`), which is ours and is real work.
+
+`indala224` has no `cu1·wr`. **cu2 was measured on 2026-09-16 and its writer TIMES OUT** —
+`CMD 3039 INDALA224_WRITE_TO_T55XX`, reproducible in ~4 s with the correct command and arguments
+(`lf indala write --raw <56 hex> --224`; the registry row is correct, verified). A firmware command
+that hangs rather than returning an error is a bug whatever the tag state. ⭐ **Reproducible over
+USB with no bench move — work it.**
+
+⭐ **`fdxb emu.pm3 → rd.cu2` is SILENT** (new, run 20260916_161528) while `t55.pm3 → rd.cu2` is
+EXACT. Either the Proxmark's own `lf fdxb sim` is wrong or our reader cannot take an emulated fdxb.
+Ambiguous; queued.
 
 ### 2d. Codebase tidying — only with the tests green
 
