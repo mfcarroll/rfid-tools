@@ -74,6 +74,11 @@ class Observation:
     #: `decoded` True — and only shows up the day a reader decodes the WRONG value and the harness
     #: calls it SILENT. Recording the raw answer lets that be caught on a GOOD run instead.
     marker_fired: bool = True
+    #: ⛔ THE LINES THAT CARRY THE ANSWER, not the first N characters of the reply. The Proxmark
+    #: prints six lines of banner before it says anything about the tag, so a fixed-length slice of
+    #: the transcript records the session log path and truncates the decode — which is precisely
+    #: what is needed to diagnose a registry fault. Observed while trying to fix four of them.
+    summary: tuple = ()
     session: str = ""
     pad: str = ""
 
@@ -224,6 +229,24 @@ def _strip_ansi(text: str) -> str:
     return re.sub(r"\x1b\[[0-9;?]*[A-Za-z]", "", text or "")
 
 
+#: Lines worth keeping from a reader's reply: what it decoded, and any raw frame it printed.
+_NOISE = ("loaded `", "execute command", "using uart", "communicating with", "max frame size",
+          "session log", "proxmark3 rfid instrument", "client....", "bootrom", "os........")
+
+
+def _summarise(text: str, expect: str, decode_marker: str) -> tuple:
+    """The lines a human would need to see. Everything a client prints before it answers is noise."""
+    keep = []
+    for line in (text or "").splitlines():
+        t = line.strip()
+        if not t or any(n in t.lower() for n in _NOISE):
+            continue
+        if (expect and expect.lower() in t.lower()) or "raw" in t.lower() \
+                or re.search(decode_marker, t, re.IGNORECASE):
+            keep.append(t)
+    return tuple(keep[:8])
+
+
 def observe(protocol: str, source: str, reader: str, text: str, expect: str,
             decode_marker: str, session: str = "", pad: str = "") -> Observation:
     """Turn raw reader output into an Observation.
@@ -245,4 +268,5 @@ def observe(protocol: str, source: str, reader: str, text: str, expect: str,
     # would be an impossible Observation (matched but nothing demodulated).
     return Observation(protocol=protocol, source=source, reader=reader, text=clean,
                        matched=matched, decoded=decoded or matched, marker_fired=decoded,
+                       summary=_summarise(clean, expect, decode_marker),
                        session=session, pad=pad)
