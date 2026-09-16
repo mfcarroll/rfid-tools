@@ -14,73 +14,95 @@ of this project; do not let it collapse.
 
 ## The reconciliation
 
-### A. Three-way intersection — our current 16 arms
+⛔ **Capability is not one thing.** The first draft of this file conflated *what `pm3grade.sh`
+tests* with *what the firmware implements*, and undercounted the firmware badly. Three different
+questions, three different answers:
 
-Our grid is *exactly* the set both reference tools speak. That is not a coincidence and it is not a
-plan; it is where the arms landed by accident.
-
-`em410x` · `viking` · `jablotron` · `pac` · `hidprox (H10301)` · `ioprox (XSF)` · `awid` · `indala (26)`
-· `keri` · `nexwatch` · `idteck` · `gallagher` · `securakey` · `noralsy` · `gproxii` · `fdxb`
-
-### B. Flipper has it, we don't — 10 protocols
-
-These are the immediate scope gap. All ten have at least one reference decoder on this bench, so
-every one of them is testable *today* with no new tooling.
-
-| Flipper protocol | pm3 equivalent | Notes |
+| capability | source of truth | count |
 |---|---|---|
-| `EM4100/16` | `lf em 410x` (clock variant) | bit-rate variant of a protocol we already emit |
-| `EM4100/32` | `lf em 410x` (clock variant) | same |
-| `Electra` | — no dedicated pm3 command | EM4100-family variant; pm3 coverage unconfirmed |
-| `Indala224` | `lf indala` | we emit Indala26 only |
-| `Paradox` | `lf paradox` | full pm3 support |
-| `Pyramid` | `lf pyramid` | full pm3 support |
-| `FDX-A` | `lf destron` | pm3 names it Destron |
-| `HidGeneric` | `lf hid` (raw/arbitrary length) | generalises our H10301-only arm |
-| `HidExGeneric` | `lf hid` (raw/arbitrary length) | same |
-| `InstaFob` | — no dedicated pm3 command | pm3 coverage unconfirmed |
+| **emulate** | `lf_tag_em.c` dispatch | **18** |
+| **read / clone to T55xx** | `data_cmd.h` `*_SCAN` / `*_WRITE_TO_T55XX` | **22** |
+| **currently tested** | `pm3grade.sh` `ORDER` | **16** |
 
-**⇒ Flipper total = 16 + 10 = 26.** Our coverage of the Flipper's set is **16/26 (62%)**.
+### A. Emulated by the firmware — 18
 
-Three of the ten (`EM4100/16`, `EM4100/32`, `Indala224`) are *variants of modulation we already
-produce*. If the underlying emitters are sound, they are close to free. The other seven are new work.
+`em410x` · `em410x_electra` · `hidprox` · `idteck` · `indala` · `indala224` · `ioprox` · `awid` ·
+`fdxb` · `viking` · `jablotron` · `pac` · `keri` · `gallagher` · `nexwatch` · `securakey` ·
+`gproxii` · `noralsy`
 
-### C. Proxmark has it, neither Flipper nor we do — 9 (+1 disabled)
+⭐ **Two of these are built and untested: `em410x_electra` and `indala224`.** They are not new work
+at all — they are grid rows nobody has ever run. That is the cheapest item in this whole document.
+
+### B. Read / clone but NOT emulated — 4
+
+`fdxa` · `paradox` · `pyramid` (each has `_SCAN` **and** `_WRITE_TO_T55XX`) · `instafob` (`_SCAN`
+only, no T55xx write)
+
+⇒ For these the Chameleon can act as a *reader* and as a *cloner* but not as a *card*. That is a
+distinct row shape in the matrix, not a missing protocol: `(t55.cu, rd.pm3)` is testable today even
+though `(emu.cu, *)` is not. Adding an emitter for the first three is real but bounded work — the
+frame builders already exist for the T55xx write path.
+
+### C. Not present at all — 4
+
+`EM4100/16` · `EM4100/32` (bit-rate variants of an emitter we have) · `HidGeneric` ·
+`HidExGeneric` (arbitrary-length HID; our arm is H10301-only)
+
+### D. Against the Flipper's 26
+
+| our capability | count | of Flipper's 26 |
+|---|---|---|
+| emulate | 18 | **69%** |
+| read or clone | 22 | **85%** |
+| tested | 16 | 62% |
+
+The Flipper set is fully accounted for: 18 emulated + 4 read-only + 4 absent = 26.
+
+### E. Proxmark-only — 9 (+1 disabled)
 
 `cotag` · `hitag` · `motorola` (Flexpass) · `nedap` · `pcf7931` · `presco` · `ti` · `trovan` ·
-`visa2000` · *(`zx8211`, commented out in the pm3 table)*
+`visa2000` · *(`zx8211`, commented out)*
 
-Several of these are **chips with their own protocol and challenge/response** (`hitag`, `pcf7931`,
-`ti`, `cotag`), not simple one-way LF ID broadcasts. They are a different class of work from
-everything in A and B and should not be mixed into the same grid. `motorola`, `nedap`, `presco`,
-`trovan`, `visa2000` are plain ID protocols and are legitimate future scope.
+Four of these (`cotag`, `hitag`, `pcf7931`, `ti`) are **interactive chips with challenge/response**,
+not one-way ID broadcasts. Different class of work; do not mix them into this grid. The other five
+are plain ID protocols and are legitimate future scope.
 
-Excluded deliberately: `t55xx` (a writable chip, not a protocol — it is a *source*, not a test
-target) and the general commands (`config`, `read`, `search`, `sim*`, `sniff`, `tune`, `cmdread`,
-`relay`).
-
-### D. Chameleon-only
-
-None. There is nothing we attempt that neither reference tool can judge — which is the one piece of
-good news in this table, because it means **every arm we have is gradeable against an independent
-judge**, and the uncalibrated-grid failure was therefore entirely avoidable.
+Excluded deliberately: `t55xx` and `em4x05` (writable chips — *sources*, not test targets) and the
+pm3 general commands (`config`, `read`, `search`, `sim*`, `sniff`, `tune`, `cmdread`, `relay`).
 
 ## Scope decision this drives
 
 | Tier | Contents | Count | Why |
 |---|---|---|---|
-| **0 — regression** | the current 16 arms | 16 | must never break; every one has two judges |
-| **1 — cheap adds** | EM4100/16, EM4100/32, Indala224 | 3 | variants of emitters we already have |
-| **2 — real adds** | Paradox, Pyramid, FDX-A, HidGeneric, HidExGeneric | 5 | pm3 decodes all five; new emitter work |
-| **3 — unconfirmed** | Electra, InstaFob | 2 | need a pm3-side judge identified first |
+| **0 — regression** | the 16 tested arms | 16 | must never break; every one has two independent judges |
+| **0b — FREE** | `em410x_electra`, `indala224` | 2 | **already emulated, never tested.** Grid rows, not features |
+| **1 — read-side rows** | fdxa, paradox, pyramid, instafob | 4 | reader/clone paths exist; test those cells now, emitters later |
+| **2 — new emitters** | fdxa, paradox, pyramid | 3 | frame builders exist from the T55xx write path |
+| **3 — new protocols** | EM4100/16, EM4100/32, HidGeneric, HidExGeneric | 4 | genuinely absent |
 | **4 — future** | motorola, nedap, presco, trovan, visa2000 | 5 | pm3-only, plain ID protocols |
-| **5 — out of class** | cotag, hitag, pcf7931, ti, zx8211 | 5 | interactive chips, not broadcast protocols |
+| **5 — out of class** | cotag, hitag, pcf7931, ti, zx8211 | 5 | interactive chips |
 
-**The honest headline: the target is 26, we attempt 16, and of those 16 we currently have a
-trustworthy verdict on very few.** That is what the matrix is for.
+**The honest headline: the firmware emulates 18 and we test 16, so the nearest gap is two rows of
+configuration, not two features — and of the 16 we test, very few have a trustworthy verdict.** See
+the ChameleonUltra project's `ASSESSMENT-BRIEF.md`.
+
+## Research-build-only commands ⛔
+
+`LF_RESEARCH_CMDS_ENABLED` **defaults to 0**; only this branch's `firmware/application/Makefile`
+sets it to 1. These exist in our builds ONLY and cannot run against stock or upstream firmware:
+
+`LF_EMU_DEBUG` (3037) · `LF_RADIO_DEBUG` (3038) · `LF_EMU_SEQDUMP` (3065) · `LF_EMU_SEQHOLD` (3066)
+· `LF_READER_CAPTURE` · `LF_T55XX_READ_CAPTURE`
+
+⇒ Any harness step using one must be marked research-build-only, or the cross-firmware runs this
+project exists to enable will fail in a way that looks like a firmware gap. `hw emuhold` (SEQHOLD)
+is **not a protocol** — it plays a synthetic square wave of alternating N-entry runs (N x 256us) to
+answer the long-DC question, which C443 showed no shipping arm can ask. It belongs as an optional
+instrument-qualification step, never as a grid row.
 
 ## First bench task
 
-Tier 0 is not "done", it is *unmeasured*. Before adding a single protocol, run the full
-SOURCE × READER matrix (`README.md`) over the 16 tier-0 arms with calibration rows enforced. Adding
-tier-1 arms on top of an unmeasured tier 0 would repeat the calibration failure at larger scale.
+Tier 0 is not "done", it is *unmeasured*. Run the full SOURCE x READER matrix (`DESIGN.md`) over
+tier 0 **plus tier 0b** — 18 arms, since the two free ones cost only configuration — with
+calibration rows enforced. Adding anything on top of an unmeasured tier 0 would repeat C473 at
+larger scale.
