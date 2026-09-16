@@ -34,7 +34,7 @@ from . import cues, identity, registry as reg, ui
 from .devices import DeviceError, WrongDevice
 from .identity import IdentityFault, NullSweep, null_sweep, sweeps_agree
 from .outcomes import (Calibration, CalibrationRefused, Cell, Outcome, grade, observe, screened,
-                       ungraded)
+                       unaccounted, ungraded)
 from .plan import Block, Op, RunPlan
 from .stations import (CU1, CU2, FLIPPER, GOLD_SOURCES, HUMAN, PM3, READERS, TAG_SOURCES, T5577,
                        null_station, plan_move)
@@ -117,6 +117,9 @@ class RunResult:
     #: (protocol, reader) pairs whose decode marker did not fire on a byte-exact read. The cell is
     #: still correct; the REGISTRY is not, and would misreport a wrong decode as silence.
     bad_markers: dict = field(default_factory=dict)
+    #: (protocol, reader) -> lines a SILENT reading printed that this harness could not account
+    #: for. ⛔ SUSPECTED HARNESS FAULTS, NOT FINDINGS — see `_check_unparsed`.
+    unparsed: dict = field(default_factory=dict)
     #: Pairs whose calibration row was UNDECIDED rather than refused — screened in a crowded stack,
     #: or a silence nothing present could attribute. ⛔ THEIR DEPENDENT CELLS ARE STILL MEASURED, and
     #: that is the whole point: when a gold row cannot be interpreted, the reads from another SOURCE
@@ -495,6 +498,7 @@ def _routine(report: BlockReport, devices: Devices, res: RunResult, session: str
         if obs is None:
             continue
         _check_marker(obs, res, out)
+        _check_unparsed(obs, res, out)
         if cell.source in TAG_SOURCES:
             pending.append((op, obs))          # graded once the whole tag state has been read
         else:
@@ -774,6 +778,23 @@ def _read(op: Op, devices: Devices, session: str, pad: str, out, protocol=None, 
         raise RunAborted("reader %s failed mid-routine: %s" % (rid, e)) from e
     return observe(p.key, src, rid, text, p.expect_for(rid) or p.expect,
                    dev.decode_marker(p), session=session, pad=pad)
+
+
+def _check_unparsed(obs, res: RunResult, out) -> None:
+    """⛔ A SILENCE FROM A READER THAT CLEARLY SAID SOMETHING IS OUR BUG, NOT ITS VERDICT. The cell
+    still reads SILENT — there are four outcomes and this is not a fifth — but the run reports the
+    pair as a suspected harness fault, so a wrong marker or a wrong expectation surfaces as what it
+    is instead of as a decoder gap."""
+    if obs is None or obs.decoded or obs.matched:
+        return
+    odd = unaccounted(obs.text, obs.decode_marker or "")
+    pair = (obs.protocol, obs.reader)
+    if not odd or pair in res.unparsed:
+        return
+    res.unparsed[pair] = odd
+    out("      %s %-10s %-7s SILENT, but it PRINTED things this harness does not recognise. The "
+        "marker or the expectation may be wrong, not the reader. First: %r"
+        % (ui.mark("warn"), obs.protocol, obs.reader, odd[0][:60]))
 
 
 def _check_marker(obs, res: RunResult, out) -> None:

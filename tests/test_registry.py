@@ -268,3 +268,51 @@ class BenchDerivedValuesArePinned(unittest.TestCase):
         for key in ("viking", "jablotron"):
             with self.subTest(key):
                 self.assertIsNone(reg.ALL[key].flip_expect)
+
+
+from benchmatrix import outcomes                                     # noqa: E402
+from tests.helpers import runner                                     # noqa: E402
+
+
+class ASilenceThatMayBeOurs(unittest.TestCase):
+    """⛔⛔ 18 EXPECTATIONS IN THIS REGISTRY HAVE NEVER BEEN SEEN PRINTED BY THE DEVICE THEY DESCRIBE.
+    A wrong one does not announce itself: the marker fails to fire, the expectation fails to match,
+    and the cell reads SILENT — a verdict about the reader. Every harness bug in this project has
+    been exactly that, an assumption about output shape surfacing as a claim about hardware.
+
+    ⚠ THE WORST CASE IS REAL AND RECENT. The Flipper renders FDX-B as `ISO FDX-B` with the id on a
+    line of its own; there is no `<name> <HEX>` line to anchor to, so it scored nothing and was
+    written up as a Flipper FDX-B gap — against a firmware that reads FDX-B fine.
+    """
+
+    FDXB_ON_FLIPPER = ("Reading RFID...\nPress Ctrl+C to abort\n"
+                       "ISO FDX-B\nID: 999-000000001337\nCountry: 999 Unknown; Temp: ---\n"
+                       "Reading stopped\n")
+    QUIET = "Reading RFID...\nPress Ctrl+C to abort\nReading stopped\n"
+
+    def test_output_we_cannot_account_for_is_named(self):
+        got = outcomes.unaccounted(self.FDXB_ON_FLIPPER, r"^[A-Za-z][A-Za-z0-9/\- ]*?\s+[0-9A-F]{4,}$")
+        self.assertIn("ISO FDX-B", got)
+        self.assertIn("ID: 999-000000001337", got)
+
+    def test_a_genuinely_silent_reader_leaves_nothing_unaccounted(self):
+        """⭐ THE ASYMMETRY THAT MAKES IT USABLE. Only a reader that printed nothing but boilerplate
+        can support a finding — and that case stays clean, so real gaps still get reported."""
+        self.assertEqual(outcomes.unaccounted(self.QUIET, r"nothing"), ())
+
+    def test_and_a_line_the_marker_matched_is_accounted_for(self):
+        self.assertEqual(outcomes.unaccounted("Reading stopped\nH10301 7B11D7\n", r"H10301"), ())
+
+    def test_a_run_reports_the_pair_without_changing_the_outcome(self):
+        from tests.helpers import make_devices, quiet, tiny_plan
+        from benchmatrix import grid
+        plan = tiny_plan(keys=("em410x",), sources=("t55.pm3",), readers=("rd.pm3",))
+        # ⚠ A VALUE THE EXPECTATION DOES NOT CONTAIN, or the read matches and there is nothing to
+        # be suspicious about. This is a reader answering in a shape we never registered.
+        dev = make_devices(answers={("em410x", e): "[+] MYSTERY FORMAT 99887766\n"
+                                    for e in ("t5577", "cu1", "cu2", "flipper")})
+        res = runner.run(plan, dev, interactive=False, session="S", out=quiet)
+        self.assertTrue(res.unparsed, "the reader said something and nothing recognised it")
+        md = grid.render(res, reg.resolve(["em410x"]))
+        self.assertIn("silences that may be OURS", md)
+        self.assertIn("Do not read these as decoder gaps", md)
