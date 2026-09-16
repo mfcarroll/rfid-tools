@@ -92,7 +92,8 @@ def build_env(target: Target, out=print) -> dict:
         if isinstance(value, str) and value.startswith("!"):
             cmd = value[1:].strip()
             try:
-                r = subprocess.run(shlex.split(cmd), capture_output=True, text=True, timeout=30)
+                r = subprocess.run(shlex.split(cmd), capture_output=True, text=True, timeout=30,
+                                   stdin=subprocess.DEVNULL)
                 value = (r.stdout or "").strip()
             except Exception as e:                         # noqa: BLE001
                 raise FirmwareError("%s: could not resolve env %s from `%s`: %s"
@@ -144,7 +145,8 @@ def build(target: Target, docker: bool = False, out=print) -> BuildResult:
     out("  building %s in %s" % (target.name, cwd))
     out("    %s" % " ".join(shlex.quote(a) for a in argv))
     started = time.time()
-    r = subprocess.run(argv, cwd=cwd, env=env, capture_output=True, text=True, errors="replace")
+    r = subprocess.run(argv, cwd=cwd, env=env, capture_output=True, text=True,
+                       errors="replace", stdin=subprocess.DEVNULL)
     tail = ((r.stdout or "") + (r.stderr or "")).strip().splitlines()
     for line in tail[-4:]:
         out("    | %s" % line[:120])
@@ -216,7 +218,8 @@ def flash(target: Target, port: str, name: str, artifact: str | None = None,
     python = target.path(spec.get("python", "")) if spec.get("python") else _serial_python()
     argv = [python, os.path.join(HERE, "dfu.py"), json.dumps(cfg)]
 
-    proc = subprocess.run(argv, capture_output=True, text=True, errors="replace")
+    proc = subprocess.run(argv, capture_output=True, text=True, errors="replace",
+                          stdin=subprocess.DEVNULL)
     for line in (proc.stdout or "").splitlines():
         try:
             rec = json.loads(line)
