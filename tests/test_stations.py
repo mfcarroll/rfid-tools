@@ -166,3 +166,43 @@ class TwoFacesTwoDevices(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class AnyDeviceMayBeLeftOut(unittest.TestCase):
+    """⚠ CU1 WAS UNCONDITIONAL. `--no-cu2` and `--no-flipper` existed from the start and the first
+    Chameleon was simply assumed present — so "measure only Chameleon 2" was the one single-device
+    session the harness could not express, and the two are deliberately flashed differently."""
+
+    def _bench_for(self, **flags):
+        from benchmatrix.cli import _bench
+        import argparse
+        a = argparse.Namespace(no_cu1=False, no_cu2=False, no_flipper=False,
+                               max_stack=3, oem=None, pad="pad0", tags=1)
+        for k, v in flags.items():
+            setattr(a, k, v)
+        return _bench(a)
+
+    def test_the_default_bench_has_everything(self):
+        self.assertEqual(self._bench_for().has, frozenset({PM3, T5577, CU1, CU2, FLIPPER}))
+
+    def test_chameleon_one_can_be_left_out_like_any_other(self):
+        self.assertEqual(self._bench_for(no_cu1=True, no_flipper=True).has,
+                         frozenset({PM3, T5577, CU2}))
+
+    def test_a_cu2_only_bench_can_still_be_planned(self):
+        """⭐ THE POINT OF THE FLAG. Chameleon 2 needs the Proxmark to write its gold tag and to
+        judge its emulation, and nothing else."""
+        from benchmatrix import plan as planning, registry as reg
+        p = planning.build(reg.resolve(["em410x"]), ["t55.pm3", "t55.cu2", "emu.cu2"],
+                           ["rd.pm3", "rd.cu2"], self._bench_for(no_cu1=True, no_flipper=True))
+        self.assertTrue(p.cells)
+        for b in p.blocks:
+            self.assertNotIn(CU1, b.station.stack)
+
+    def test_excluding_everything_but_the_proxmark_is_refused_with_a_reason(self):
+        """⛔ A PROXMARK ALONE MEASURES NOTHING — every cell it can reach by itself is self-judging,
+        so the plan would refuse them all and print an EMPTY GRID. That reads as "this bench has no
+        capabilities" rather than "you excluded every device that could answer"."""
+        with self.assertRaises(ValueError) as cm:
+            self._bench_for(no_cu1=True, no_cu2=True, no_flipper=True)
+        self.assertIn("cannot judge itself", str(cm.exception))

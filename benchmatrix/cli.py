@@ -61,11 +61,24 @@ def _learn_device(a, reader: str):
 
 
 def _bench(a) -> Bench:
-    has = {PM3, T5577, CU1}
-    if not a.no_cu2:
-        has.add(CU2)
-    if not a.no_flipper:
-        has.add(FLIPPER)
+    """⚠ CU1 USED TO BE UNCONDITIONAL. `--no-cu2` and `--no-flipper` existed from the start and the
+    first Chameleon was simply assumed present, which made "measure only Chameleon 2" the one
+    single-device session the harness could not express — the exact case `--no-cu1` is for, since
+    the two are deliberately flashed differently."""
+    has = {PM3, T5577}
+    for flag, dev in (("no_cu1", CU1), ("no_cu2", CU2), ("no_flipper", FLIPPER)):
+        if not getattr(a, flag, False):
+            has.add(dev)
+    if not (has - {PM3, T5577}):
+        # ⛔ THE PROXMARK ALONE CAN MEASURE NOTHING. Every cell it could reach on its own is
+        # self-judging, so the plan would refuse all of them and print an empty grid — which reads
+        # as "this bench has no capabilities" rather than "you excluded every device that could
+        # answer". Said here, before a single station is built.
+        raise ValueError(
+            "every device except the Proxmark has been excluded, and a Proxmark cannot judge "
+            "itself — `emu.pm3 → rd.pm3` is the self-judging cell the planner refuses, and a tag "
+            "the Proxmark both wrote and read is the gold row, not a measurement of anything else. "
+            "Leave at least one of the Chameleons or the Flipper in.")
     return Bench(has=frozenset(has), max_stack=a.max_stack, has_oem=frozenset(a.oem or ()),
                  pad=a.pad, tag_count=a.tags)
 
@@ -85,7 +98,8 @@ def _devices(a) -> runner.Devices:
     if not a.no_flipper:
         d.flipper = Flipper(port=a.flipper_port or "",
                             attempts=max(1, getattr(a, "flip_attempts", 6)))
-    for label, chameleon in _chameleons(a, skip=("cu2",) if a.no_cu2 else ()).items():
+    skip = tuple(l for l in ("cu1", "cu2") if getattr(a, "no_%s" % l, False))
+    for label, chameleon in _chameleons(a, skip=skip).items():
         setattr(d, label, chameleon)
     return d
 
@@ -129,7 +143,8 @@ def _scripted(a) -> runner.Devices:
     knows only that an armed emitter on the reader's pad is audible. The grid it prints says the
     control logic works, and says NOTHING about any protocol.
     """
-    kw, air = scripted_bench(flipper=not a.no_flipper, cu2=not a.no_cu2)
+    kw, air = scripted_bench(flipper=not a.no_flipper, cu2=not a.no_cu2,
+                             cu1=not getattr(a, "no_cu1", False))
     d = runner.Devices(**kw)
     d.operator = obedient_operator(air)
     return d
@@ -1063,6 +1078,7 @@ def build_parser() -> argparse.ArgumentParser:
             sp.add_argument("--pad", default="pad0",
                             help="pad label stamped into every licence; change it when a reader is "
                                  "physically repositioned, which invalidates earlier licences")
+            sp.add_argument("--no-cu1", action="store_true")
             sp.add_argument("--no-cu2", action="store_true")
             sp.add_argument("--no-flipper", action="store_true")
 
@@ -1125,6 +1141,9 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("--cu2-port", default=os.environ.get("CU2_PORT"))
     sp.add_argument("--flipper-port", default=os.environ.get("FLIPPER_PORT"))
     sp.add_argument("--slot", type=int, default=8)
+    sp.add_argument("--no-cu1", action="store_true",
+                    help="leave Chameleon 1 out — for measuring Chameleon 2 on its own, the two "
+                         "being deliberately flashed differently")
     sp.add_argument("--no-cu2", action="store_true")
     sp.add_argument("--no-flipper", action="store_true")
     sp.add_argument("--dry-run", action="store_true")
