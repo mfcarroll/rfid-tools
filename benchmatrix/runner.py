@@ -533,6 +533,13 @@ def _grade_one(op: Op, obs, report: BlockReport, res: RunResult, out, issued: li
                 out("      %s %-10s %-9s %-7s CALIBRATION REFUSED"
                     % (ui.mark("bad"), cell.protocol.key, cell.source, cell.reader))
                 out("          %s" % str(e))
+                # ⭐ SHOW BOTH SIDES OF THE DISAGREEMENT, HERE. A registry fault is corrected by
+                # comparing what was expected against what came back; sending the operator to find
+                # the transcript turns a five-minute fix into a session.
+                out("          expected  %s" % (cell.protocol.expect_for(cell.reader)
+                                                or cell.protocol.expect))
+                for line in obs.summary:
+                    out("          device    %s" % line[:110])
                 return
 
     licence = res.licences.get(cell.pair)
