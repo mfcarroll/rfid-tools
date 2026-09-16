@@ -27,6 +27,7 @@ Per station:
 from __future__ import annotations
 
 import datetime as _dt
+import os as _os
 from dataclasses import dataclass, field
 
 from . import cues, identity
@@ -104,6 +105,11 @@ class RunResult:
     aborted: str = ""
     finished: str = ""
     provenance: str = "bench"
+    #: device id -> what that device says it is running. Recorded at proof of life, published in
+    #: the grid and the JSON: a cell is a claim about a firmware, not about a device in general.
+    firmware: dict = field(default_factory=dict)
+    #: The harness's own commit, so a grid says which version of these rules produced it.
+    harness: str = ""
 
     @property
     def void_blocks(self) -> list[BlockReport]:
@@ -142,6 +148,27 @@ class Devices:
         return [d for d in (self.pm3, self.flipper, self.cu1, self.cu2) if d is not None]
 
 
+_HARNESS_VERSION = None
+
+
+def _harness_version() -> str:
+    """The commit this harness is running from. A grid should say which rules produced it.
+
+    ⚠ Worked out once per process. It shells out to git, and a run asks for it at every station.
+    """
+    global _HARNESS_VERSION
+    if _HARNESS_VERSION is None:
+        import subprocess
+        here = _os.path.dirname(_os.path.dirname(_os.path.abspath(__file__)))
+        try:
+            r = subprocess.run(["git", "-C", here, "describe", "--always", "--dirty", "--tags"],
+                               capture_output=True, text=True, timeout=10)
+            _HARNESS_VERSION = (r.stdout or "").strip() or "unknown"
+        except Exception:                                  # noqa: BLE001
+            _HARNESS_VERSION = "unknown"
+    return _HARNESS_VERSION
+
+
 def session_id() -> str:
     return _dt.datetime.now().strftime("%Y%m%d_%H%M%S")
 
@@ -165,9 +192,12 @@ def run(plan: RunPlan, devices: Devices, *, interactive: bool = True,
         # ⛔ PROOF OF LIFE IS INSIDE THE `finally` TOO. A device can be armed before the run starts —
         # a previous session that ended badly, an `econfig` run by hand — and aborting here without
         # putting it back would leave the bench emulating, with nothing on screen to say so.
+        res.harness = _harness_version()
         for dev in devices.all():
             ok, why = dev.alive()
             out("    %s %s" % ("✓" if ok else "⛔", why))
+            res.firmware[getattr(dev, "name", None) or dev.id] = getattr(
+                dev, "reported", "not reported")
             if not ok:
                 res.aborted = why
                 cues.cue_fault("instrument not alive. aborting.")

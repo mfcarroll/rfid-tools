@@ -25,7 +25,7 @@ place where cross-firmware protocol gaps are recorded.
 
 ## The rules
 
-Ten of them, in [RULES.md](RULES.md). They are enforced in code, not left to discipline. The first
+Eleven of them, in [RULES.md](RULES.md). They are enforced in code, not left to discipline. The first
 is the one the rest exist to protect:
 
 > **A reader's silence about a source means nothing until that reader has decoded the same protocol
@@ -108,7 +108,7 @@ the one place where swapping tags beats rearranging the bench.
 ./bench scope                      # the registry, and what it can and cannot grade
 ./bench plan                       # the cells, the station script, and what is refused
 ./bench run --dry-run --no-prompt  # rehearse the whole thing with no hardware
-./runtests                         # 136 tests, no hardware, no network
+./runtests                         # 146 tests, no hardware, no network
 ```
 
 ### Setup: which device is on which port
@@ -190,7 +190,7 @@ benchmatrix/
   setup.py            device discovery, chip-id identity, and `.env`
   learned.py          expectations learned from a real tag, and the self-licensing guard
   grid.py             the published grid, the exclusion list, the gap register
-tests/                136 tests, all on the scripted bench — `./runtests`
+tests/                146 tests, all on the scripted bench — `./runtests`
 ```
 
 ## The protocol registry
@@ -219,6 +219,13 @@ attached is the strongest form a bug report takes.
 
 ⛔ Only an isolated reading may become a gap. A gap is a claim that something does **not** work, and
 a crowded stack cannot support that claim.
+
+## Provenance
+
+Every run records what each device reported at proof of life, and publishes it with the grid —
+firmware for each device, the Proxmark's client version alongside its firmware, and the harness's
+own commit. The two Chameleons run different builds on purpose, so a cell is a claim about a
+firmware and not about a device in general.
 
 ## Status
 

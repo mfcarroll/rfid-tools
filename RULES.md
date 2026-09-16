@@ -1,6 +1,6 @@
 # The rules the harness enforces
 
-Nine rules. Each one exists because ignoring it produced a wrong published result on a real bench,
+Eleven rules. Each one exists because ignoring it produced a wrong published result on a real bench,
 and each is enforced in code rather than left to the operator's discipline. This file is the
 reference: the code refers to these rules by name and does not restate the reasoning.
 
@@ -230,6 +230,32 @@ UNGRADED saying so rather than being scored against a tag whose state was guesse
 harness does not pick between "the write did not land" and "this reader is deaf"; it says a second
 reader on the same tag would separate them, and leaves the cell UNGRADED.
 
+## 11. The provenance rule
+
+> **A cell is a claim about a firmware, not about a device in general.**
+
+The two Chameleons on this bench run different builds on purpose — that is half of why there are
+two — so *"the Chameleon decodes Keri"* means nothing until it says which one and which build. Every
+run records what each device reported at proof of life, and publishes it with the grid:
+
+| device | firmware |
+|---|---|
+| `cu1` | Chameleon Ultra v2.2 (v2.2.0-861-g1866718) |
+| `cu2` | Chameleon Ultra v2.2 (v2.2.0-875-g02fc2e2) |
+| `pm3` | os Iceman/master/v4.x, client Iceman/master/v4.x |
+| `rfid-tools` | the commit these rules came from |
+
+⚠ **The client version is recorded as well as the firmware.** A mismatched Proxmark client fails
+every command while looking cheerful, and that pairing has cost a bench session before now.
+
+⚠ **A device that does not report is recorded as not reporting**, flagged in the table rather than
+left blank. The Flipper channel is one: `flipper.py` exposes no version query, and reaching past it
+to the serial port would put two readers on one `/dev/cu.*`, which is how a session's replies get
+eaten.
+
+It costs nothing — proof of life already runs `hw version` on every channel — and without it a grid
+cannot be cited later, which is the only thing a grid is for.
+
 ---
 
 ## Where each rule was paid for
@@ -250,3 +276,4 @@ own.
 | 8. self-licensing | found while building this harness |
 | 9. write-state | found while building this harness |
 | 10. verification | operator, after the first bench run |
+| 11. provenance | operator, after the first bench run |

@@ -85,6 +85,7 @@ def render(result, protocols: list[reg.Protocol]) -> str:
     lines.append("")
     lines.append("stations: " + " → ".join(b.block.station.name for b in result.blocks))
     lines.append("")
+    lines.extend(_provenance(result))
 
     for rdr in readers:
         lines.append("## reader `%s` — %s" % (rdr, READER_NOTE[rdr]))
@@ -113,6 +114,22 @@ def render(result, protocols: list[reg.Protocol]) -> str:
     lines.extend(gap_register(result, protocols))
     lines.extend(_open_questions(result))
     return "\n".join(lines)
+
+
+def _provenance(result) -> list[str]:
+    """⛔ WHAT WAS RUNNING WHEN THIS WAS MEASURED. A cell is a claim about a firmware, not about a
+    device in general — the two Chameleons on this bench run different builds on purpose, and
+    "the Chameleon decodes Keri" means nothing until it says which one and which build. A grid that
+    cannot answer that cannot be cited later, which is the only thing a grid is for."""
+    if not result.firmware:
+        return []
+    out = ["### what was running", "", "| device | firmware |", "|---|---|"]
+    for dev, ver in sorted(result.firmware.items()):
+        flag = "" if ver and "not reported" not in ver else " ⚠"
+        out.append("| `%s`%s | %s |" % (dev, flag, ver or "unknown"))
+    out.append("| `rfid-tools` | %s |" % (result.harness or "unknown"))
+    out.append("")
+    return out
 
 
 def _short(o: Outcome) -> str:
@@ -278,6 +295,8 @@ def to_json(result, protocols: list[reg.Protocol]) -> str:
     return json.dumps({
         "session": result.session,
         "provenance": result.provenance,
+        "firmware": dict(result.firmware),
+        "harness": result.harness,
         "started": result.started,
         "finished": result.finished,
         "aborted": result.aborted or None,
