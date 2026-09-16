@@ -252,6 +252,11 @@ def ungraded(protocol: str, source: str, reader: str, note: str,
 
 # ------------------------------------------------------------------ text matching
 
+def _flat(s: str) -> str:
+    """Case-folded, with every run of whitespace collapsed to one space. See `observe`."""
+    return " ".join((s or "").split()).lower()
+
+
 def _strip_ansi(text: str) -> str:
     return re.sub(r"\x1b\[[0-9;?]*[A-Za-z]", "", text or "")
 
@@ -288,7 +293,19 @@ def observe(protocol: str, source: str, reader: str, text: str, expect: str,
     inherited from pm3grade.sh's `grep -qiF` and is deliberate: hex case is not a finding.
     """
     clean = _strip_ansi(text)
-    matched = expect.lower() in clean.lower()
+    # ⛔⛔ WHITESPACE IS COLLAPSED ON BOTH SIDES BEFORE THE SUBSTRING TEST, BECAUSE A CREDENTIAL IS
+    # NOT ALWAYS ON ONE LINE. `hidprox` is FC and CN together — neither alone identifies the card —
+    # and the Proxmark prints `FC: 123  CN: 4567` on one line while the Chameleon prints them on
+    # two. Without this there is NO single substring that pins that credential for the Chameleon,
+    # so the only expectations available were `4567` (which a tag with a different facility code
+    # satisfies) and `123` (three digits). Either one merges WRONG into EXACT, which is the single
+    # thing the four outcomes exist to prevent. Operator, at the learning prompt: "1 and 2 together
+    # are what define the credential".
+    #
+    # ⚠ THIS WIDENS AN ALREADY-LOOSE TEST and is not free — two unrelated adjacent fields could in
+    # principle join into a false match. It is bounded by `tests/test_archive.py`, which replays
+    # every byte-exact reading this bench has ever published against the current matcher.
+    matched = _flat(expect) in _flat(clean)
     decoded = bool(re.search(decode_marker, clean, re.IGNORECASE | re.MULTILINE))
     # ⛔ A BYTE-EXACT HIT IMPLIES A DECODE HAPPENED. If the marker missed while the expectation hit,
     # the marker is wrong, not the read — never let that combination produce `decoded=False`, which
