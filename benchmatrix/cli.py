@@ -217,6 +217,57 @@ def cmd_plan(a) -> int:
     return 1 if bad else 0
 
 
+def _carry_forward(a, plan, devices, session, protos):
+    """Drop the stations an earlier run already completed, and keep its readings.
+
+    ⭐ THE STATION IS THE UNIT, AND IT ALREADY WAS. Each one takes a null sweep before and after and
+    voids itself if they disagree (RULES.md §3), so a station that finished cleanly carries its own
+    proof that nothing was emitting around it. A USB dropout at station 3 cost two complete stations
+    — 97 byte-exact readings and 49 licences — and none of that data was wrong.
+
+    ⛔ IT IS NOT A CACHE OF "ALREADY VERIFIED". Firmware, pad and harness commit must all match, or
+    the earlier reading is a claim about a different instrument and is refused. See `resume.py`.
+    """
+    from . import resume
+    try:
+        earlier = resume.load(a.resume)
+    except resume.ResumeRefused as e:
+        print("  ⛔ %s" % e)
+        raise SystemExit(2)
+    firmware = {}
+    for dev in devices.all():
+        ok, why = dev.alive()
+        print("  %s %s" % ("✓" if ok else "⛔", why))
+        if not ok:
+            raise SystemExit(2)
+        firmware[dev.id] = dev.reported
+    bad = resume.check(earlier, firmware, a.pad, runner._harness_version())
+    if bad:
+        print("\n  ⛔ cannot carry %s forward, and these are not warnings:" % earlier.session)
+        for why in bad:
+            print("     · %s" % why)
+        print("\n     Run without --resume to measure it again.")
+        raise SystemExit(2)
+    cells, licences, moved = resume.rebuild(earlier, protos, session)
+    done = set(earlier.stations)
+    keep = [b for b in plan.blocks if b.station.name not in done]
+    print("\n  ⟲ carrying %d station(s) forward from %s: %s"
+          % (len(done), earlier.session, ", ".join(sorted(done))))
+    print("     %d reading(s) and %d licence(s) re-graded from their stored evidence under this "
+          "harness." % (len(cells), len(licences)))
+    if moved:
+        # ⛔ NOTHING SHOULD MOVE. `check` already refused a differing harness commit, so an outcome
+        # that changes anyway means something neither the firmware nor the commit accounted for.
+        print("     ⛔ %d carried reading(s) DO NOT re-grade the same way. Not carrying anything "
+              "forward — this is a finding about the harness, not a detail:" % len(moved))
+        for line in moved[:8]:
+            print("        · %s" % line)
+        raise SystemExit(2)
+    print("     %d of this plan's %d stations remain." % (len(keep), len(plan.blocks)))
+    plan.blocks = keep
+    return plan, earlier, cells, licences
+
+
 def cmd_run(a) -> int:
     reg.validate()
     session = a.session or runner.session_id()
@@ -225,8 +276,12 @@ def cmd_run(a) -> int:
         print("  %s" % n)
     p = planning.build(protos, a.source, a.reader, _bench(a), cross=getattr(a, "cross", False))
     devices = _devices(a)
+    carried_cells, carried_lic, earlier = [], {}, None
+    if getattr(a, "resume", None):
+        p, earlier, carried_cells, carried_lic = _carry_forward(a, p, devices, session, protos)
     try:
-        result = runner.run(p, devices, interactive=not a.no_prompt, session=session)
+        result = runner.run(p, devices, interactive=not a.no_prompt, session=session,
+                            licences=dict(carried_lic))
     except runner.RunAborted as e:
         print("\n  ⛔ ABORTED — %s\n" % e)
         print("     No grid is published from an aborted run.")
@@ -239,6 +294,15 @@ def cmd_run(a) -> int:
                   % (len(e.result.cells), stem))
         cues.cue_done("run aborted.", ok=False)
         return 2
+    # ⭐ THE CARRIED READINGS JOIN THE GRID BEFORE PHASE 2 DECIDES ANYTHING, because a screened
+    # cell from this session may be licensed by a gold row carried from the last one — and because
+    # a cell measured today always wins over the same cell carried forward.
+    if carried_cells:
+        taken = {(c.protocol, c.source, c.reader) for c in result.cells}
+        result.cells = list(result.cells) + [
+            c for c in carried_cells if (c.protocol, c.source, c.reader) not in taken]
+        result.carried_from = earlier.session
+
     # ⛔ PHASE 2 IS PART OF THE RUN, NOT AN EXTRA. Phase 1 buys its coverage by stacking, and the
     # crowded-stack rule means the bill comes due on whatever failed. Leaving those cells UNGRADED
     # and calling the run finished would publish the crowding as a result.
@@ -894,6 +958,13 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("--slot", type=int, default=8, help="scratch slot, so nothing curated is lost")
     sp.add_argument("--no-prompt", action="store_true",
                     help="speak the moves but do not block on Enter (for a watched run)")
+    sp.add_argument("--resume", metavar="RUN",
+                    help="carry the completed stations of an earlier run forward and measure only "
+                         "what is left. ⭐ A station takes a null sweep before and after and voids "
+                         "itself if they disagree, so one that finished cleanly is a self-contained "
+                         "measurement. ⛔ NOT a cache of what passed: the firmware on every device, "
+                         "the pad and the harness commit must all match, or the earlier readings "
+                         "are claims about a different instrument and it refuses")
     sp.add_argument("--no-isolate", action="store_true",
                     help="stop after phase 1; screened cells stay UNGRADED rather than being "
                          "re-measured in isolation")

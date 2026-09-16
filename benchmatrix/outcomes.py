@@ -180,6 +180,14 @@ class Cell:
     crowding: frozenset = frozenset()
     #: True once an isolated re-measurement produced this cell.
     isolated: bool = False
+    #: Which station this reading was taken at. ⭐ NEEDED TO CARRY A RUN FORWARD: a station takes a
+    #: null sweep before and after its routine, so a cell is only trustworthy in isolation if the
+    #: station that produced it finished with both sweeps agreeing (RULES.md §3). Without this the
+    #: cell cannot be attributed to a station at all, and an aborted run's readings are unusable
+    #: even though most of them had every control they needed.
+    station: str = ""
+    #: Session this reading came from, when it was carried forward rather than taken now.
+    carried_from: str = ""
 
     @property
     def glyph(self) -> str:
@@ -225,7 +233,7 @@ def screened(obs: Observation, crowding: frozenset, station: str) -> Cell:
                 "screened %s at %s with %s also in the stack — not a verdict until isolated "
                 "(RULES.md §7)" % (obs.outcome_if_licensed.value, station,
                                    ", ".join(sorted(crowding))),
-                crowding=frozenset(crowding))
+                crowding=frozenset(crowding), station=station)
 
 
 def grade(obs: Observation, licence: Optional[Calibration], note: str = "",

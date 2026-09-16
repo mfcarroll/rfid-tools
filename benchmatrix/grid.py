@@ -93,6 +93,14 @@ def render(result, protocols: list[reg.Protocol]) -> str:
                  + "   – refused at plan time, with a reason below")
     lines.append("")
     lines.append("stations: " + " → ".join(b.block.station.name for b in result.blocks))
+    carried = [c for c in result.cells if c.carried_from]
+    if carried:
+        lines.append("")
+        lines.append("⟲ **%d of these cells were carried forward from run `%s`** — stations it "
+                     "completed with both null sweeps agreeing, on the same firmware, pad and "
+                     "harness commit. Each was re-graded here from its stored evidence, not copied. "
+                     "Cells measured in THIS session take precedence where both exist."
+                     % (len(carried), result.carried_from or carried[0].carried_from))
     lines.append("")
     lines.extend(_provenance(result))
 
@@ -399,6 +407,7 @@ def to_json(result, protocols: list[reg.Protocol]) -> str:
         "cells": [{"protocol": c.protocol, "source": c.source, "reader": c.reader,
                    "outcome": c.outcome.value, "note": c.note,
                    "crowding": sorted(c.crowding), "isolated": c.isolated,
+                   "station": c.station or None, "carried_from": c.carried_from or None,
                    # ⭐ SAYS WHICH ROWS ARE PLACEHOLDERS. Without it a reader of the JSON cannot
                    # tell a screening result awaiting isolation from a finished measurement that
                    # has no gold row yet, which are opposite kinds of outstanding work.
@@ -432,4 +441,9 @@ def to_json(result, protocols: list[reg.Protocol]) -> str:
         "exclusions": [{"protocol": e.protocol, "source": e.source, "reader": e.reader,
                         "rule": e.rule, "why": e.why} for e in result.plan.exclusions],
         "stations": [b.block.station.name for b in result.blocks],
+        # ⭐ THE UNIT A RESUME CAN TRUST. A station carries its own before/after null sweep, so one
+        # that completed with both sweeps agreeing is a self-contained measurement (RULES.md §3) —
+        # and that, not the run, is what a later session may carry forward.
+        "completed_stations": [b.block.station.name for b in result.blocks
+                               if not b.void and b.before is not None and b.after is not None],
     }, indent=2)
