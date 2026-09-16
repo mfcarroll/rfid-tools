@@ -191,3 +191,23 @@ class WhatItProposes(unittest.TestCase):
         lines = learned.value_lines(self.PM3_FDXB)
         self.assertTrue(any("Animal ID" in l for l in lines))
         self.assertFalse(any("Session log" in l for l in lines))
+
+
+class WhatItRefusesToEvenAttempt(_ScriptedLearningBench):
+    """⛔ A FIRMWARE FACT IS REFUSED BY NAME, NOT DISCOVERED BY CRASHING. `em410x_electra` has no
+    Chameleon scan command — the firmware emulates and clones it and cannot read it, one of the row
+    shapes SCOPE.md §B exists to record. Asking the Chameleon to learn it raised a `DeviceError`
+    from the middle of a station, after the tag had been wiped and written."""
+
+    def test_a_protocol_the_reader_cannot_read_is_refused_before_the_bench_is_touched(self):
+        code, recs = self._run("-r", "rd.cu1", "-p", "em410x_electra")
+        self.assertEqual(code, 0, "a firmware fact is not an error exit")
+        self.assertEqual(recs, {})
+        self.assertIn("no Chameleon read command", self.printed)
+        self.assertNotIn("✎", self.printed, "no station was set up and no tag was written")
+
+    def test_and_the_learnable_ones_alongside_it_still_run(self):
+        """⚠ One impossible cell must not take the session with it."""
+        _, recs = self._run("-r", "rd.cu1", "-p", "em410x_electra", "-p", "hidprox")
+        self.assertIn(("hidprox", "rd.cu1"), recs)
+        self.assertNotIn(("em410x_electra", "rd.cu1"), recs)

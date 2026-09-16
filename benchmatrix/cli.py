@@ -392,6 +392,28 @@ def _write(result, protos, suffix: str = "") -> str:
     return stem
 
 
+def _why_not_learnable(p, reader: str) -> str | None:
+    """Can this reader be asked about this protocol at all? ⛔ REFUSE IT, DO NOT CRASH ON IT.
+
+    ⚠ `em410x_electra` HAS NO CHAMELEON SCAN COMMAND — the firmware emulates and clones it and
+    cannot read it, which is a fact about the firmware and one of the row shapes SCOPE.md §B exists
+    to record. Asking the Chameleon to learn it raised a `DeviceError` out of the middle of a
+    station, after the tag had been wiped and written. `plan.py` refuses impossible cells by naming
+    the firmware fact; so does this.
+    """
+    if not p.pm3_write:
+        return ("the Proxmark has no clone command for %s, so there is no gold tag to learn from"
+                % p.key)
+    if reader in ("rd.cu1", "rd.cu2") and not p.cu_read:
+        return "no Chameleon read command is registered for %s" % p.key
+    if reader in ("rd.cu1", "rd.cu2") and not p.cu_decode_marker:
+        return ("no Chameleon decode marker for %s, so a value could not be told apart from noise"
+                % p.key)
+    if reader == "rd.pm3" and not (p.pm3_read and p.pm3_decode_marker):
+        return "the Proxmark has no read command or decode marker for %s" % p.key
+    return None
+
+
 def _learn_read(dev, p, reader):
     """Read with one device and turn the text into (observation, proposals)."""
     text = dev.read(p)
@@ -468,10 +490,22 @@ def cmd_learn(a) -> int:
     bench = Bench(has=frozenset({PM3, FLIPPER, CU1, CU2, T5577}))
     readers = a.reader or [r for r in DEFAULT_LEARN_READERS]
 
-    todo = {r: [p for p in protos if p.expect_for(r) is None or a.relearn] for r in readers}
-    todo = {r: ps for r, ps in todo.items() if ps}
+    todo, refused = {}, []
+    for r in readers:
+        want = [p for p in protos if p.expect_for(r) is None or a.relearn]
+        keep = []
+        for p in want:
+            why = _why_not_learnable(p, r)
+            (refused.append((p.key, r, why)) if why else keep.append(p))
+        if keep:
+            todo[r] = keep
+    if refused:
+        print("\n  cannot be learned, and not a failure — the reason is a firmware fact:")
+        for key, r, why in refused:
+            print("    · %-15s %-8s %s" % (key, r, why))
     if not todo:
-        print("  · every expectation asked for is already known. `--relearn` to take them again.")
+        print("\n  · every expectation asked for is already known or cannot be taken. "
+              "`--relearn` to take the known ones again.")
         return 0
 
     print("\n  learning %d expectation(s) over %d station(s):"
