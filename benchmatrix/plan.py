@@ -26,7 +26,7 @@ from dataclasses import dataclass, field
 
 from . import registry as reg
 from .stations import (Bench, EMULATED_SOURCES, GOLD_SOURCES, HUMAN, PM3, READERS, SOURCES,
-                       STACK_ORDER,
+                       STACK_ORDER, parse_station,
                        MAX_ACTIVE_IN_A_STACK, Station, StationError, TAGS,
                        TAG_SOURCES, T5577, build_station,
                        devices_to_measure,
@@ -270,8 +270,28 @@ def _covered_by_reference(source: str, reader: str) -> Exclusion:
         "is how a bad writer is told from a bad reader." % (source, reader))
 
 
+def _not_here(p, source: str, reader: str, fixed) -> Exclusion | None:
+    """Refuse a cell the given layout cannot produce — BEFORE the calibration logic, not after.
+
+    ⛔⛔ AND THAT ORDER IS THE WHOLE THING. Filtering cells after `_cells` had built them left
+    dependent cells standing while the gold row that licenses them had been removed, and `audit`
+    then refused the plan with a wall of "measured BEFORE its calibration row". Correct, and
+    useless: the real answer is that a tagless layout cannot hold the T5577 the gold row is written
+    on, so nothing in it can be licensed at all. Refusing here lets `_cells`'s existing cascade say
+    exactly that, once, per pair.
+    """
+    if any(station_admits(s, source, reader) for s in fixed):
+        return None
+    need = sorted(HUMAN[d] for d in devices_to_produce(source, reader))
+    return Exclusion(
+        p.key, source, reader, "not-in-this-layout",
+        "this needs %s, and the bench was given as %s. Nothing is moved to measure it — set up a "
+        "layout that holds those, or drop --at to let the planner choose."
+        % (" + ".join(need), " / ".join(s.name for s in fixed)))
+
+
 def _refuse(p: reg.Protocol, source: str, reader: str, bench: Bench,
-            cross: bool = False) -> Exclusion | None:
+            cross: bool = False, fixed=()) -> Exclusion | None:
     """Every reason a cell must not be planned."""
     emitter, writer = SOURCES[source]
     rd = READERS[reader]
@@ -335,6 +355,14 @@ def _refuse(p: reg.Protocol, source: str, reader: str, bench: Bench,
     except StationError as e:
         return Exclusion(p.key, source, reader, "self-judging", str(e))
 
+    # ⚠ AFTER THE SELF-JUDGING CHECK, NOT BEFORE IT. `station_admits` asks what a cell needs, and
+    # asking that of a device pointed at its own antenna raises — so a layout check placed first
+    # crashed on `(emu.pm3, rd.pm3)` instead of refusing it.
+    if fixed:
+        got = _not_here(p, source, reader, fixed)
+        if got is not None:
+            return got
+
     # ⭐ THE REFERENCE INSTRUMENT HAS TO BE ON ONE SIDE OF A TAG CELL. See `_covered_by_reference`.
     if not cross and source in TAG_SOURCES and source not in GOLD_SOURCES and reader != "rd.pm3":
         got = _covered_by_reference(source, reader)
@@ -371,12 +399,12 @@ def _refuse(p: reg.Protocol, source: str, reader: str, bench: Bench,
 
 
 def _cells(protocols, sources, readers, bench,
-           cross: bool = False) -> tuple[list[PlannedCell], list[Exclusion]]:
+           cross: bool = False, fixed=()) -> tuple[list[PlannedCell], list[Exclusion]]:
     wanted: dict[tuple[str, str, str], PlannedCell] = {}
     exclusions: list[Exclusion] = []
 
     def consider(p, source, reader, is_cal) -> bool:
-        why = _refuse(p, source, reader, bench, cross)
+        why = _refuse(p, source, reader, bench, cross, fixed)
         if why is not None:
             exclusions.append(why)
             return False
@@ -410,7 +438,7 @@ def _cells(protocols, sources, readers, bench,
                 continue
             if not consider(p, lic, reader, True):
                 for src in requested:
-                    own = _refuse(p, src, reader, bench, cross)
+                    own = _refuse(p, src, reader, bench, cross, fixed)
                     exclusions.append(own or Exclusion(
                         p.key, src, reader, "no-calibration",
                         "the licensing row (%s, %s) is itself refused, so this cell could only ever "
@@ -643,7 +671,7 @@ def _rank(key: str) -> int:
 # ------------------------------------------------------------------ the entry point
 
 def build(protocols: list[reg.Protocol], sources: list[str], readers: list[str],
-          bench: Bench, phase: int = 1, cross: bool = False) -> RunPlan:
+          bench: Bench, phase: int = 1, cross: bool = False, at=()) -> RunPlan:
     for s in sources:
         if s not in SOURCES:
             raise ValueError("unknown source %r (known: %s)" % (s, ", ".join(SOURCES)))
@@ -651,9 +679,22 @@ def build(protocols: list[reg.Protocol], sources: list[str], readers: list[str],
         if r not in READERS:
             raise ValueError("unknown reader %r (known: %s)" % (r, ", ".join(READERS)))
 
-    cells, exclusions = _cells(protocols, sources, readers, bench, cross)
+    fixed = [s if isinstance(s, Station) else parse_station(s, bench) for s in (at or ())]
+    cells, exclusions = _cells(protocols, sources, readers, bench, cross, fixed)
     blocks: list[Block] = []
-    if cells:
+    if at:
+        # ⭐⭐ THE BENCH IS A GIVEN, NOT A CHOICE. Normally the planner picks arrangements and asks
+        # the operator to build each one; when a rig is already standing — left set up, or shared
+        # with another process — the useful question is the inverse: what can be measured HERE.
+        #
+        # ⛔ AND WHAT CANNOT IS REFUSED BY NAME, NOT DROPPED. A cell this layout does not admit has
+        # a reason — the device that would produce it is not in the stack — and saying so is the
+        # difference between a small grid and a grid with holes nobody can account for.
+        for station in fixed:
+            ops = _routine(station, cells)
+            if ops:
+                blocks.append(Block(station, ops))
+    elif cells:
         for station in order_stations(choose_stations(cells, bench), cells):
             blocks.append(Block(station, _routine(station, cells)))
     plan = RunPlan(bench=bench, blocks=_coalesce(blocks), exclusions=exclusions, phase=phase,

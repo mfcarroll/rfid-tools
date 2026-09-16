@@ -174,6 +174,78 @@ coverage per setup, more crowding. `--tags N` only affects the isolation phase.
 **Ctrl-C is safe at any point.** The run stops, every device goes back to reader mode, and the
 readings taken so far are filed as `run_<session>_ABORTED.md` — clearly marked, never as a grid.
 
+### Measuring one device
+
+The planner normally chooses every arrangement the request needs. Narrowing the request narrows the
+bench: to grade **one Chameleon**, against the Proxmark and the tag, leave the rest out.
+
+```bash
+./bench run --tags 16 --no-cu2 --no-flipper \
+  -s t55.pm3 -s t55.cu1 -s emu.pm3 -s emu.cu1 \
+  -r rd.pm3 -r rd.cu1
+```
+
+79 cells, **2 stations, 4 operator interventions** — and it still covers all three arms:
+
+| cell | what it measures |
+|---|---|
+| `t55.pm3 → rd.cu1` | its **reader**, against the gold tag |
+| `t55.cu1 → rd.pm3` | its **writer**, judged by the gold reader |
+| `emu.cu1 → rd.pm3` | its **emitter**, judged by the gold reader |
+| `emu.pm3 → rd.cu1` | its reader against a gold **emission** |
+| `t55.pm3 → rd.pm3` | the calibration rows that license all of it |
+
+### `--at`: the bench is already in this layout
+
+For a rig left standing, or one shared with another session, the useful question is the inverse of
+the usual one: not *what arrangements does this request need*, but **what can be measured in the
+layout that exists**. `--at` takes a station spelled exactly as the grid prints it.
+
+```bash
+./bench run --tags 16 --at PM3+T55+CU1 \
+  -s t55.pm3 -s t55.cu1 -s emu.cu1 -r rd.pm3 -r rd.cu1
+```
+
+Nothing is moved to satisfy a cell. Anything the layout cannot produce is **refused by name**, with
+what it would have needed:
+
+> `not-in-this-layout` — this needs the Proxmark + the T5577 tag, and the bench was given as
+> `PM3+CU1`. Nothing is moved to measure it — set up a layout that holds those, or drop `--at`.
+
+`--at` is repeatable, so a session willing to make one specific change can name both layouts.
+
+⛔ **A TAGLESS LAYOUT CANNOT LICENSE ANYTHING.** The gold row is a credential written on a T5577, so
+a station with no tag in it has nothing to calibrate against and every cell is refused — `--at
+PM3+CU1` plans **zero** cells, and says why for each. `PM3+T55+CU1` is the layout that is
+self-contained.
+
+⚠ **AND ONLY A TAGLESS LAYOUT IS GENUINELY HANDS-OFF.** A station holding a tag still needs the tag
+lifted out and put back for its two null sweeps (RULES.md §3) — three interventions, not none. The
+sweeps are not skippable: without them nothing proves the field was quiet, and a run that skipped
+them would be publishing numbers with no control behind them.
+
+### `--resume`: carrying a run forward
+
+A station takes a null sweep before its routine and another after, and voids itself if they
+disagree. **A station that finished cleanly is therefore a self-contained measurement**, and an
+abort three stations in should not cost the two that completed.
+
+```bash
+./bench run --resume 20260916_085441 -s t55.pm3 -r rd.pm3 ...
+```
+
+It drops the stations that run completed and measures what is left.
+
+⛔ **THIS IS NOT A CACHE OF "ALREADY VERIFIED".** The firmware on every device, the pad, and the
+stations recorded as complete must all line up, or the earlier readings are claims about a
+different instrument and it refuses by name. A cell is a claim about a firmware (RULES.md §11).
+
+⭐ **AND THE EVIDENCE IS RE-GRADED, NOT COPIED.** Every carried reading goes back through `observe`
+and `grade` under today's registry and today's licences, gold rows first. If any outcome moves, the
+whole carry is refused and the differences printed — on a bench that has not changed, a moving
+outcome is a finding about the harness. The published grid says how many cells were carried and
+from which session; a cell measured in this session always wins over the same cell carried forward.
+
 ## How it is built
 
 ```
