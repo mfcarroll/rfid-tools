@@ -13,7 +13,7 @@ import io
 import unittest
 
 from tests.helpers import make_devices, quiet, reg                     # noqa: F401
-from benchmatrix import cli, learned
+from benchmatrix import cli, learned, outcomes
 
 
 class _Args:
@@ -75,8 +75,10 @@ class LearningFromAnyReader(_ScriptedLearningBench):
         self.assertEqual(rec.reader, "rd.cu1")
         self.assertEqual(rec.source, "t55.pm3", "the gold writer, never an emulation")
         self.assertTrue(rec.evidence, "the transcript is the provenance")
-        self.assertIn(rec.value.lower(), rec.evidence.lower(),
-                      "a value that is not in the output could never match")
+        # ⚠ THE MATCHER'S OWN TEST, not a literal `in`. A credential can span lines — see the
+        # joined proposal — and `observe` collapses whitespace to find it.
+        self.assertIn(outcomes._flat(rec.value), outcomes._flat(rec.evidence),
+                      "a value the matcher could not find could never match")
 
     def test_it_folds_into_cu_expect_in_a_later_session(self):
         _, recs = self._run("-r", "rd.cu1", "-p", "hidprox")
@@ -160,16 +162,48 @@ class WhatItProposes(unittest.TestCase):
     CU_HIDPROX = ("[+] HIDProx/H10301\n[+] Card number...... 4567\n"
                   "[+] Facility code.... 123\n[+] Raw.............. 2006ec0c86\n")
 
+    #: What the Chameleon really printed at the learning prompt, 2026-09-15 — banner, mode switch,
+    #: our own research-build commentary, and the credential split across two lines.
+    CU_REAL = ("{ Chameleon Ultra connected: v2.2 }\n"
+               "Switch to {  Tag Reader  } mode successfully.\n"
+               "HIDProx/HID H10301 26-bit\n"
+               "1 other layout also fits: Indala 26-bit — the Proxmark prints them all.\n"
+               "⚠ no format pinned — this is the FIRST layout that fits, not the only one.\n"
+               "FC: 123\nCN: 4567\n")
+
     def test_every_proposal_can_actually_match(self):
-        """⛔ A proposal that fails its own substring test is a bug offered as a choice."""
-        for text in (self.PM3_FDXB, self.CU_HIDPROX):
+        """⛔ A proposal validated by a different rule than the one that grades it is a bug offered
+        as a choice — so this asks the matcher, not a literal `in`."""
+        for text in (self.PM3_FDXB, self.CU_HIDPROX, self.CU_REAL):
             for c in learned.candidates(None, text):
-                self.assertIn(c.lower(), text.lower())
+                self.assertIn(outcomes._flat(c), outcomes._flat(text))
 
     def test_a_short_token_does_not_outrank_a_long_one(self):
         """⚠ `4567` was the top proposal for hidprox. Matching is a substring test, so four digits
         are satisfied by a raw frame, a timestamp or a facility code that happens to contain them."""
-        self.assertEqual(learned.candidates(None, self.CU_HIDPROX)[0], "2006ec0c86")
+        got = learned.candidates(None, self.CU_HIDPROX)
+        self.assertLess(got.index("2006ec0c86"), got.index("4567"))
+
+    def test_a_credential_split_across_lines_is_offered_whole(self):
+        """⛔⛔ FC AND CN TOGETHER ARE THE CARD. Every single-line proposal pins half of it and lets
+        the other half be anything: `4567` reads EXACT off a tag with a different facility code,
+        which merges WRONG into EXACT. Operator, at the prompt: "1 and 2 together are what define
+        the credential"."""
+        self.assertEqual(learned.candidates(None, self.CU_REAL)[0], "FC: 123 CN: 4567")
+
+    def test_the_connection_banner_is_never_a_proposal(self):
+        """⛔ `v2.2 }` WAS PROPOSAL 4. As an expectation it is satisfied by the Chameleon being
+        plugged in, with no tag on the pad at all — a licence for an empty bench."""
+        got = learned.candidates(None, self.CU_REAL)
+        for bad in ("v2.2 }", "{ Chameleon Ultra connected: v2.2 }",
+                    "Switch to {  Tag Reader  } mode successfully."):
+            self.assertNotIn(bad, got)
+
+    def test_nor_is_our_own_commentary_about_the_reading(self):
+        """⚠ The research build annotates a decode. An annotation explains a reading; it is not
+        one, and `no format pinned` is a warning about the very ambiguity being pinned here."""
+        self.assertFalse([c for c in learned.candidates(None, self.CU_REAL)
+                          if "format pinned" in c or "layout also fits" in c])
 
     def test_a_word_from_the_banner_is_not_proposed_first(self):
         """⚠ "Animal" — the last word of the FDX-B header — was once the top proposal: a real

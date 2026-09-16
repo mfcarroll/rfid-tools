@@ -151,6 +151,16 @@ _PREFIX = re.compile(r"^\[[+=!]\]\s*")
 #: Lines that carry no value: a flag rendered as a word, an empty field, a heading.
 _EMPTY = ("none", "n/a", "no", "yes", "true", "false", "unknown", "0", "")
 
+#: ⛔ A CLIENT SAYS A LOT BEFORE IT ANSWERS, AND NONE OF IT IS A CREDENTIAL. `outcomes._NOISE`
+#: covers the Proxmark's preamble; these are the Chameleon's, plus the commentary our own research
+#: build prints around a decode. Offered as proposals they are not merely useless — `v2.2 }`, out of
+#: the connection banner, was proposal 4 for hidprox, and as an expectation it would be satisfied by
+#: the Chameleon being PLUGGED IN with no tag on the pad at all.
+_LEARN_NOISE = ("chameleon ultra connected", "mode successfully", "switch to {",
+                "other layout also fits", "no format pinned", "connected:")
+#: Our own annotations around a device's answer. They explain a reading; they are not one.
+_ANNOTATION = "⚠⛔⭐✓·↔✎⌫"
+
 #: What a credential is mostly made of, once a client has finished formatting it.
 _VALUE_CHARS = set("0123456789abcdefABCDEF -")
 
@@ -176,6 +186,8 @@ def value_lines(text: str) -> list[str]:
             continue
         if t.lower().lstrip("[+=!] ").startswith(("pm3 -->", "usb]")):
             continue
+        if t[0] in _ANNOTATION or any(n in t.lower() for n in _LEARN_NOISE):
+            continue
         out.append(t)
     return out
 
@@ -199,10 +211,12 @@ def candidates(summary, text: str) -> list[str]:
     lines: list[str] = []
 
     def add(into: list, tok: str) -> None:
+        from .outcomes import _flat
         tok = (tok or "").strip()
-        # ⚠ MUST BE FINDABLE IN THE OUTPUT, or the expectation can never match. A proposal that
-        # fails its own test is a bug offered to the operator as a choice.
-        if len(tok) >= 3 and tok.lower() in (text or "").lower() and tok.lower() not in _EMPTY \
+        # ⚠ MUST BE FINDABLE BY THE MATCHER THAT WILL LOOK FOR IT — the same flattened test
+        # `observe` uses, not a plain `in`. A proposal validated by a different rule than the one
+        # that grades it is a bug offered to the operator as a choice.
+        if len(tok) >= 3 and _flat(tok) in _flat(text) and tok.lower() not in _EMPTY \
                 and tok not in into and tok not in values and tok not in lines:
             into.append(tok)
 
@@ -229,4 +243,22 @@ def candidates(summary, text: str) -> list[str]:
     # asymmetry is why the ordering leans strict: an expectation that is too tight fails loudly and
     # visibly, and one that is too loose passes wrongly and says nothing.
     values.sort(key=lambda t: (not any(c.isdigit() for c in t), -_valueish(t), -len(t)))
-    return (values + lines)[:10]
+
+    # ⛔⛔ A CREDENTIAL IS NOT ALWAYS ONE FIELD, AND FOR hidprox IT IS NOT EVEN ONE LINE. FC and CN
+    # together identify the card; the Chameleon prints them on separate lines, so every single-line
+    # proposal pins half a credential and lets the other half be anything. `4567` would read EXACT
+    # off a tag with a different facility code. So the short labelled fields are also offered
+    # joined — which `observe` can match, because it collapses whitespace for exactly this reason.
+    # ⚠ AND IT GOES THROUGH THE SAME VALIDATION AS EVERY OTHER PROPOSAL. A client that prefixes
+    # each line (`[+] `) leaves that prefix BETWEEN the joined fields, so the join is not findable
+    # and must not be offered — the Proxmark is such a client, and prints FC and CN on one line
+    # anyway. Dropping it here is the check doing its job, not a case to special-case around.
+    fields = [l for l in lines if len(l) <= 24 and any(c.isdigit() for c in l)
+              and (":" in l or ".." in l)]
+    joined: list[str] = []
+    if len(fields) > 1:
+        add(joined, " ".join(fields))
+
+    # ⚠ RESERVED SLOTS, NOT ONE RANKED LIST. `(values + lines)[:10]` let banner fragments crowd out
+    # the whole lines entirely — for hidprox, `FC: 123` and `CN: 4567` never appeared at all.
+    return (joined + values[:5] + lines[:5])[:10]
