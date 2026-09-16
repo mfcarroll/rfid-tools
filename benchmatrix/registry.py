@@ -409,9 +409,9 @@ ALL: dict[str, Protocol] = {p.key: p for p in [
        pm3_decode_marker=r"FDX-B / ISO 11784/5 Animal|Valid FDX-B ID found",
        expect="999-000000001337",
        cu_type="FDXB",
-       cu_emulate="lf fdxb econfig -s {slot} --raw 00339a080402079f8040797788040201",
+       cu_emulate="lf fdxb econfig -s {slot} --raw 00339a080402079f80403b7598040201",
        cu_read="lf fdxb read",
-       cu_write="lf fdxb write --raw 00339a080402079f8040797788040201",
+       cu_write="lf fdxb write --raw 00339a080402079f80403b7598040201",
        cu_decode_marker=r"FDX-B ASK/biphase",
        # ⛔⛔ AN EXPECTATION FOR JUDGING THE CHAMELEON MUST NOT COME FROM THE CHAMELEON. This was
        # `...80407977 88040201` — the raw in this entry's OWN `cu_write --raw`. A calibration row is
@@ -419,20 +419,30 @@ ALL: dict[str, Protocol] = {p.key: p for p in [
        # Using its own encoding instead makes the control "does the Chameleon agree with itself",
        # which is RULES.md §8 arriving through the registry rather than through `bench learn`.
        #
-       # ⭐ CORRECTED FROM THE BENCH, run 20260915_204348, reading the gold tag:
-       #     expected  00 33 9a 08 04 02 07 9f | 80 40 79 77 88 04 02 01
-       #     device    00 33 9a 08 04 02 07 9f | 80 40 3b 75 98 04 02 01
-       # The first eight bytes — country 999, national 1337, CRC — are IDENTICAL. The Chameleon read
-       # the Proxmark's tag correctly. What differs is bytes 10-12, and the device's own reply says
-       # why: "the CRC covers the first 8 bytes only — the last 40 bits of that raw are NOT
-       # protected". The two writers fill that unprotected trailer differently.
+       # ⛔ AND IT WAS HIDING A REGISTRY INCONSISTENCY: THE TWO WRITERS WERE WRITING DIFFERENT
+       # CREDENTIALS. Both tags decode to country 999, national 1337, so the mismatch reads as a
+       # rendering quirk until the 13-byte FDX-B frames are laid side by side:
        #
-       # ⚠ SO `t55.cu1 -> rd.cu1` IS NOW EXPECTED TO READ `WRONG`, AND THAT IS THE POINT. It is the
-       # honest statement of a real difference: told to write `--raw ...79778804...`, the Chameleon
-       # puts a frame on the tag that is not the one the gold writer puts there. Whether `cu_write`
-       # should be realigned to the Proxmark's frame is a question about what we want to test, not a
-       # typo to quietly fix — and `t55.cu1 -> rd.pm3` (does the Proxmark read the Chameleon's
-       # frame at all?) is still unmeasured, because the park bug ate that cell twice.
+       #     byte         0  1  2  3  4  5  6  7 |  8  9 | 10 11 12
+       #     pm3  (gold) 9C A0 00 00 03 9F 00 00 | DB 59 | 00 00 00   Animal bit set?... False
+       #     cu   (ours) 9C A0 00 00 03 9F 00 01 | CB 78 | 00 00 00   Animal bit set?... True
+       #
+       # Bytes 0-7 are the ID and flags, 8-9 the CRC-16 over them, 10-12 the extra data the CRC does
+       # NOT cover. The unprotected bytes are `00 00 00` in both. What differs is byte 7 — the
+       # ANIMAL BIT, a real FDX-B field inside the CRC, which is why the CRC differs with it.
+       # `lf fdxb clone --country 999 --national 1337` does not set it; our raw does.
+       #
+       # ⇒ So `cu_write` and `cu_emulate` are realigned to the gold frame. Writing a different
+       # credential from the device under test is not a second data point, it is a different
+       # experiment: it would put `t55.cu1` and `t55.pm3` in the same grid measuring two credentials
+       # and invite the difference to be read as a decoder gap.
+       #
+       # ⚠ MY FIRST READING OF THIS WAS WRONG and is recorded because the mistake is easy to repeat.
+       # The Chameleon's own reply says "the CRC covers the first 8 bytes only", and its 128-bit raw
+       # `00339a08 0402079f 80403b75 98040201` differs from ours in bytes 10-12 — so the difference
+       # looks like it sits in the unprotected region. It does not. That raw is the T5577 BLOCK
+       # IMAGE: an 11-bit header plus a control bit after every 8 data bits, so its byte boundaries
+       # do not line up with the frame's fields at all. Compare frames with frames.
        cu_expect="00339a080402079f80403b7598040201",
        flip_key="FDX-B",
        notes="FDXB_DECODED_DATA_SIZE = 11 against a 16-byte armed raw — different encodings."),
