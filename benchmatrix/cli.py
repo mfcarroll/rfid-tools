@@ -369,6 +369,9 @@ def cmd_run(a) -> int:
         print("  %s" % n)
     p = planning.build(protos, a.source, a.reader, _bench(a), cross=getattr(a, "cross", False),
                        at=getattr(a, "at", None) or ())
+    # ⚠ ON THE PLAN, NOT PASSED TO `run`, so `planning.isolate` inherits it — a cell worth
+    # repeating in phase 1 is worth repeating in the phase that exists to settle it.
+    p.repeat = max(1, getattr(a, "repeat", 1) or 1)
     devices = _devices(a)
     carried_cells, carried_lic, earlier, stem_suffix = [], {}, None, ""
     if getattr(a, "resume", None):
@@ -420,6 +423,7 @@ def cmd_run(a) -> int:
         print("\n  %d cell(s) were screened non-EXACT in a crowded stack and are not verdicts."
               % len(result.to_isolate))
         p2 = planning.isolate(result.to_isolate, _bench(a))
+        p2.repeat = p.repeat
         print("  Isolating them takes %d station(s) and %d operator intervention(s)%s."
               % (len(p2.blocks), p2.interventions,
                  "" if a.tags > 1 else " — more tags would cut that"))
@@ -601,7 +605,15 @@ def _compare_with_earlier(result) -> None:
     """
     earlier = history.load(RUNS, dict(result.firmware), exclude=result.session)
     result.disagreements = history.disagreements(result.cells, earlier)
-    result.unstable = history.unstable(result.cells, earlier)
+    # ⛔ THE WITHIN-RUN REPEATS ARE THE STRONGER EVIDENCE AND MUST NOT BE DROPPED HERE. A cell that
+    # varied under identical conditions is already known unstable; recomputing the set from
+    # cross-run history alone would discard it and let a gap be built on it after all.
+    result.unstable = history.unstable(result.cells, earlier) | set(getattr(result, "unstable", ()))
+    for key, tally in sorted(getattr(result, "repeated", {}).items()):
+        result.disagreements.append(
+            (key[0], key[1], key[2], "VARIES",
+             [history.Reading("%d reads, one stack" % sum(tally.values()),
+                              ", ".join("%s %d" % kv for kv in tally.items()))]))
     for proto, source, reader, now, other in result.disagreements:
         print("  %s %s %s → %s is %s here and %s in %s — no finding will be built on it"
               % (ui.mark("warn"), proto, source, reader, now, other[0].outcome, other[0].session))
@@ -1130,6 +1142,12 @@ def build_parser() -> argparse.ArgumentParser:
                          "measurement. ⛔ NOT a cache of what passed: the firmware on every device, "
                          "the pad and the harness commit must all match, or the earlier readings "
                          "are claims about a different instrument and it refuses")
+    sp.add_argument("--repeat", type=int, default=1, metavar="N",
+                    help="take every reading N times, seconds apart on one stack, and mark a cell "
+                         "that does not give the same answer each time. ⭐ This is the only way to "
+                         "earn the word INTERMITTENT: comparing across runs catches a cell that "
+                         "disagrees with itself, but never under controlled conditions. The "
+                         "calibration is earned once, so N costs N reads and not N rebuilds")
     sp.add_argument("--no-isolate", action="store_true",
                     help="stop after phase 1; screened cells stay UNGRADED rather than being "
                          "re-measured in isolation")

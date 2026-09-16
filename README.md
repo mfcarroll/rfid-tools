@@ -286,6 +286,25 @@ in the banner.
 a cell the run actually graded — a grid missing measured cells is the fault this command exists to
 repair.
 
+### `--repeat N`: the only way to earn the word "intermittent"
+
+```bash
+./bench run -s t55.pm3 -s emu.pm3 -r rd.cu1 -p em410x --repeat 10
+```
+
+Comparing across runs catches a cell that disagrees with itself, but **never under controlled
+conditions** — run order, prior device workload and everything else moved in between. `--repeat`
+takes each reading N times seconds apart on one stack, so a disagreement means the *reading* varies
+and agreement is worth something.
+
+⛔ **The counts are never a vote.** 7 EXACT and 3 SILENT is not "EXACT"; the cell is marked as
+varying under identical conditions, no finding is built on it, and the first reading remains the
+cell. The repeats say whether to *trust* a cell, not what it says.
+
+⚠ **N costs N reads, not N rebuilds.** `em410x emu.pm3 → rd.cu1` needs its calibration row from a
+real tag, so answering it once takes two stations and four operator interventions — ten answers
+that way means ten rebuilds. The licence is earned once and the read repeated.
+
 ### `bench state`: what the bench believes NOW
 
 A run answers *"what happened that afternoon"*. Nobody wants to know that — they want *"can the

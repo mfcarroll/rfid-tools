@@ -102,6 +102,9 @@ class RunResult:
     started: str
     plan: RunPlan
     cells: list[Cell] = field(default_factory=list)
+    #: (protocol, source, reader) -> {outcome: count} for cells read more than once that disagreed.
+    #: ⚠ The counts are recorded and NEVER used as a vote; see `_note_repeats`.
+    repeated: dict = field(default_factory=dict)
     licences: dict = field(default_factory=dict)
     refusals: dict = field(default_factory=dict)
     #: (protocol, reader) pairs where that reader has decoded that protocol at least once in this
@@ -510,7 +513,8 @@ def _routine(report: BlockReport, devices: Devices, res: RunResult, session: str
                 % (ui.mark("skip"), cell.protocol.key, cell.source, cell.reader))
             continue
 
-        obs = _read(op, devices, session, pad, out)
+        obs = _read(op, devices, session, pad, out,
+                    repeat=getattr(res.plan, "repeat", 1), res=res)
         if obs is None:
             continue
         _check_marker(obs, res, out)
@@ -791,18 +795,57 @@ def _reader_id(dev: str) -> str:
 
 
 def _read(op: Op, devices: Devices, session: str, pad: str, out, protocol=None, source=None,
-          reader=None):
+          reader=None, repeat: int = 1, res=None):
+    """Read a cell, optionally several times, and say so when the answers differ.
+
+    ⭐⭐ REPEATING IS THE ONLY WAY TO EARN THE WORD "INTERMITTENT". Comparing across runs catches a
+    cell that disagrees with itself, but never under controlled conditions: run order, prior device
+    workload and everything else moved in between. Repeating HERE holds all of that fixed — same
+    stack, same arm, seconds apart — so disagreement means the reading itself varies and agreement
+    is worth something.
+
+    ⛔ AND IT COSTS NOTHING TO REBUILD. `em410x emu.pm3 -> rd.cu1` needs its calibration row from a
+    real tag, so settling it by re-running took two stations and four operator interventions EACH
+    TIME; ten answers meant ten rebuilds. The licence is earned once and the reading taken N times.
+
+    ⚠ THE FIRST READING IS STILL THE CELL. A disagreement is not resolved by voting, so the repeats
+    do not produce a verdict — they mark the cell disputed through the same machinery a cross-run
+    disagreement uses, and the gap register withholds any claim built on it.
+    """
     p = protocol or op.cell.protocol
     src = source or op.cell.source
     rid = reader or op.cell.reader
     dev = devices.by_dev(op.device)
-    try:
-        text = dev.read(p)
-    except DeviceError as e:
-        cues.cue_fault("reader failed. aborting.")
-        raise RunAborted("reader %s failed mid-routine: %s" % (rid, e)) from e
-    return observe(p.key, src, rid, text, p.expect_for(rid) or p.expect,
-                   dev.decode_marker(p), session=session, pad=pad)
+    seen = []
+    for _ in range(max(1, repeat)):
+        try:
+            text = dev.read(p)
+        except DeviceError as e:
+            cues.cue_fault("reader failed. aborting.")
+            raise RunAborted("reader %s failed mid-routine: %s" % (rid, e)) from e
+        seen.append(observe(p.key, src, rid, text, p.expect_for(rid) or p.expect,
+                            dev.decode_marker(p), session=session, pad=pad))
+    if len(seen) > 1:
+        _note_repeats(seen, src, rid, res, out)
+    return seen[0]
+
+
+def _note_repeats(seen, src: str, rid: str, res, out) -> None:
+    """⛔ A CELL THAT VARIES UNDER IDENTICAL CONDITIONS IS THE ONE THING THAT DESERVES THE WORD."""
+    kinds = [o.outcome_if_licensed.value for o in seen]
+    tally = {k: kinds.count(k) for k in dict.fromkeys(kinds)}
+    if len(tally) == 1:
+        out("      %s %-10s %-9s %-7s %s, %d of %d"
+            % (ui.mark("ok"), seen[0].protocol, src, rid, kinds[0], len(seen), len(seen)))
+        return
+    said = ", ".join("%s %d" % (k, n) for k, n in tally.items())
+    out("      %s %-10s %-9s %-7s VARIES UNDER IDENTICAL CONDITIONS — %s of %d reads, seconds "
+        "apart on one stack. No finding is built on it."
+        % (ui.mark("warn"), seen[0].protocol, src, rid, said, len(seen)))
+    if res is not None:
+        key = (seen[0].protocol, src, rid)
+        res.unstable = set(getattr(res, "unstable", set())) | {key}
+        res.repeated[key] = tally
 
 
 def _check_unparsed(obs, res: RunResult, out) -> None:
