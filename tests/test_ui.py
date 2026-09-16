@@ -205,3 +205,40 @@ class ALongOperationSaysSoBeforeItBlocks(unittest.TestCase):
         said = []
         ui.working(said.append, "wiping")("  wiped")
         self.assertRegex(said[-1], r"^  wiped\s+\(\d+s\)$")
+
+
+class OnlyTheTagIsADelta(unittest.TestCase):
+    """⛔⛔ THE DEVICES ARE THE RIG. They are stacked, one sits on another, and what is underneath
+    changes what the whole thing is. Removing the Proxmark from PM3+T55+FLIP does not leave "the
+    same rig minus one" — it leaves the tag sitting ON TOP of the Flipper, which the operator has to
+    build. Operator, shown "take out the Proxmark" for exactly that: "in that instance 'take out'
+    doesn't really make sense... essentially a new setup".
+
+    ⇒ A tag is the one thing that passes through a rig without being part of it, so a tag going in
+    or coming out is the one change worth saying as a change.
+    """
+
+    def _cue(self, frm, to):
+        return ui.spoken_move(frm, to)
+
+    def test_a_tag_leaving_and_returning_stays_a_delta(self):
+        full = build_station({PM3, T5577, FLIPPER}, B)
+        bare = build_station({PM3, FLIPPER}, B)
+        self.assertEqual(self._cue(full, bare), "take out the tag")
+        self.assertEqual(self._cue(bare, full), "put the tag in between")
+
+    def test_but_losing_the_device_underneath_is_a_new_setup(self):
+        said = self._cue(build_station({PM3, T5577, FLIPPER}, B),
+                         build_station({T5577, FLIPPER}, B))
+        self.assertEqual(said, "put the tag on the Flipper")
+        self.assertNotIn("take out", said)
+
+    def test_and_so_is_getting_it_back(self):
+        said = self._cue(build_station({T5577, FLIPPER}, B),
+                         build_station({PM3, T5577, FLIPPER}, B))
+        self.assertEqual(said, "put the Flipper on the Proxmark, with a tag in between")
+
+    def test_a_device_swap_was_never_a_delta_and_still_is_not(self):
+        self.assertEqual(self._cue(build_station({PM3, T5577, CU1}, B),
+                                   build_station({PM3, T5577, FLIPPER}, B)),
+                         "put the Flipper on the Proxmark, with a tag in between")

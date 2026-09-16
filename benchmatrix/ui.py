@@ -106,12 +106,24 @@ def spoken_move(frm, to) -> str:
     instruction. At the FIRST station (`frm is None`) there is no previous state for a delta to be
     against, so the arrangement is the only thing that can be checked against the bench.
     """
-    from .stations import plan_move
+    from .stations import TAGS, plan_move
     move = plan_move(frm, to)
-    if move.remove and not move.place:
-        return spoken_removal(move.remove)
-    if move.place and not move.remove and frm is not None:
-        return spoken_addition(move.place, to)
+    moved = frozenset(move.remove) | frozenset(move.place)
+    # ⛔⛔ ONLY A TAG MOVING THROUGH THE RIG IS A DELTA. EVERYTHING ELSE IS A NEW SETUP. The devices
+    # ARE the rig — they are stacked, one sits on another, and what is under them changes what the
+    # whole thing is. Taking the Proxmark out of PM3+T55+FLIP does not leave "the same rig minus
+    # one": it leaves the tag sitting ON TOP of the Flipper, which the operator has to build.
+    # Calling that "take out the Proxmark" understates the work and misdescribes the result.
+    # Operator, seeing it: "in that instance 'take out' doesn't really make sense... essentially a
+    # new setup".
+    #
+    # ⇒ A tag is the one thing that passes through a rig without being part of it, so a tag going
+    # in or coming out is the one change worth saying as a change.
+    if moved and moved <= TAGS and frm is not None:
+        if move.remove and not move.place:
+            return spoken_removal(move.remove)
+        if move.place and not move.remove:
+            return spoken_addition(move.place, to)
     return spoken_arrangement([to])
 
 

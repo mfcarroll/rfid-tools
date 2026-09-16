@@ -347,10 +347,19 @@ class ASilenceFromACrowdedStackIsNotAFinding(_ScriptedLearningBench):
     def _args_ns(self):
         return cli.build_parser().parse_args(["learn", "-r", "rd.flip"])
 
-    def test_the_operator_is_asked_to_take_the_bystander_out_and_put_it_back(self):
+    def test_the_operator_is_asked_to_rebuild_the_rig_and_then_restore_it(self):
+        """⛔ NOT "take out the Proxmark". The devices ARE the rig, so removing the one at the
+        bottom leaves the tag sitting ON TOP of the Flipper — a setup to build, not a subtraction.
+        Only a tag passes through a rig without being part of it, so only a tag is a delta.
+
+        ⭐ THE TAG STILL DOES NOT MOVE. The credential stays exactly where it was written; what
+        changes is what is underneath it."""
         self._retry("Viking AABBCCDD\n")
-        self.assertEqual(self.moves, ["take out the Proxmark", "put the Proxmark underneath"],
-                         "the TAG does not move — the credential stays where it was written")
+        self.assertEqual(len(self.moves), 2, "out to read it isolated, back to write the next one")
+        self.assertEqual(self.moves[0], "put the tag on the Flipper")
+        self.assertIn("with a tag in between", self.moves[1])
+        for said in self.moves:
+            self.assertNotIn("take out", said, "nothing is being taken out of a sandwich here")
 
     def test_a_reading_that_appears_once_isolated_is_learned(self):
         text, _, _ = self._retry("Viking AABBCCDD\n")
@@ -382,10 +391,9 @@ class AndTheLearnLoopActuallyAsksForThatRetry(_ScriptedLearningBench):
 
         def move(prompt, spoken="", **kw):
             self.moves.append(spoken)
-            if spoken == "take out the Proxmark":
-                self.dev.flipper.answers[("viking", "t5577")] = "%s AABBCCDD\n" % p.flip_key
-            elif spoken == "put the Proxmark underneath":
-                self.dev.flipper.answers[("viking", "t5577")] = ""
+            # The bench answers differently once the Proxmark is out from under the tag.
+            self.dev.flipper.answers[("viking", "t5577")] = (
+                "%s AABBCCDD\n" % p.flip_key if "on the Flipper" in spoken else "")
         self.moves = []
         cli.cues.ask = move
         # ⛔ AND THE VALUE PROMPT, or the suite blocks on `input()` forever. A prompted run asks the
@@ -410,8 +418,8 @@ class AndTheLearnLoopActuallyAsksForThatRetry(_ScriptedLearningBench):
 
     def test_a_stacked_silence_triggers_the_isolated_reading(self):
         recs = self._run_prompted("-r", "rd.flip", "-p", "viking")
-        self.assertIn("take out the Proxmark", self.moves,
-                      "the loop never asked for the bystander to be removed")
+        self.assertIn("put the tag on the Flipper", self.moves,
+                      "the loop never asked for the rig without the Proxmark in it")
         self.assertIn(("viking", "rd.flip"), recs,
                       "the isolated reading is what gets learned")
         self.assertEqual(recs[("viking", "rd.flip")].value, "AABBCCDD")
