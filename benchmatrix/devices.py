@@ -28,6 +28,7 @@ import time
 from dataclasses import dataclass, field
 from typing import Optional
 
+from . import cues
 from . import registry as reg
 from .stations import T5577
 
@@ -112,6 +113,14 @@ class WrongDevice(DeviceError):
 
 
 def _run(argv: list[str], timeout: int) -> str:
+    """Run a client and return its combined output.
+
+    ⚠ THE TERMINAL IS REPAIRED AFTERWARDS, EVERY TIME. Both the Proxmark client and the Chameleon
+    CLI open `/dev/tty` for their line editors, so `stdin=DEVNULL` does not keep them off the
+    operator's terminal — and a terminal left non-canonical means the next prompt cannot be
+    answered at all. Fixing it here puts the repair next to the thing that breaks it, rather than
+    relying on every future prompt to remember.
+    """
     try:
         # ⛔ errors="replace" IS LOAD-BEARING. `lf t55xx dump` puts raw credential bytes in the
         # stream and strict UTF-8 raises; a bare except then returns only the error string, and a
@@ -123,6 +132,8 @@ def _run(argv: list[str], timeout: int) -> str:
         return "\n[TIMED OUT after %ss running %s]\n" % (timeout, shlex.join(argv[:3]))
     except Exception as e:                                        # noqa: BLE001 - reported, not raised
         return "\n[pm3 ERROR running '%s': %s]\n" % (shlex.join(argv[:3]), e)
+    finally:
+        cues._sane()
 
 
 # ===================================================================== Proxmark3
