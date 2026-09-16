@@ -72,7 +72,7 @@ class Op:
     wherever a writer can read its own work back and no wanted cell already does that.
     """
 
-    kind: str                       # write | arm | disarm | read | verify | place
+    kind: str                       # write | wipe | blank | arm | disarm | read | verify | place
     device: str
     protocol: reg.Protocol
     cell: PlannedCell | None = None
@@ -163,7 +163,9 @@ class RunPlan:
             for o in b.ops:
                 if o.kind == "write":
                     held = (o.protocol.key, o.device)
-                elif o.kind == "verify":
+                elif o.kind == "wipe":
+                    held = None
+                elif o.kind in ("verify", "blank"):
                     pass
                 elif o.kind == "place":
                     held = (o.protocol.key, None)
@@ -425,7 +427,7 @@ def _routine(station: Station, cells: list[PlannedCell]) -> list[Op]:
                     continue
                 parked = source not in GOLD_SOURCES
                 if parked:
-                    ops += _park_ops(station, writer)
+                    ops += _clear_ops(p, station, writer)
                 ops.append(Op("write", writer, p, after_park=parked))
                 ops += _verify_ops(p, writer, station, todo)
                 for c in todo:
@@ -451,23 +453,32 @@ def _routine(station: Station, cells: list[PlannedCell]) -> list[Op]:
     return ops
 
 
-def _park_ops(station: Station, writer: str, tag: int = 0) -> list:
-    """Put the tag into a state that differs from what is about to be written, and prove it took.
+def _clear_ops(p: reg.Protocol, station: Station, writer: str, tag: int = 0) -> list:
+    """Put the tag into a state that cannot be mistaken for P, and prove it took.
 
     ⛔⛔ WITHOUT THIS, A WRITER UNDER TEST IS CREDITED WITH THE GOLD WRITER'S WORK. Both write the
     same credential for a given protocol, so a byte-exact read after the second write is exactly
     what a write that did nothing would leave behind.
 
-    ⭐ THE GOLD WRITER PARKS WHERE IT CAN, which keeps the question narrow: "can this device write
-    protocol P" rather than "can it write anything at all". Where it is not in the stack the writer
-    parks itself, which is still sound — the tag demonstrably changed, and only that device touched
-    it — but a failure then says nothing about P specifically.
+    ⭐⭐ A WIPE IS THE BETTER CLEARING, FOR TWO REASONS. It leaves the tag holding no credential at
+    all, which is a stronger discriminator than holding a different one; and it restores the default
+    config block, which some writers need — the Flipper will refuse to write a T5577 left in certain
+    configurations, and without a wipe "cannot write this protocol" and "cannot write this tag" are
+    the same reading.
+
+    ⭐ AND THE CONFIRMING READ IS ALREADY LICENSED. The gold row immediately before it is the same
+    reader reading the same tag byte-exact, so a silence straight after the wipe can only mean the
+    tag changed. Silence licensed by the positive reading that preceded it is the null-sweep
+    discipline applied to one tag instead of the whole field.
+
+    ⚠ Only the Proxmark wipes. Where it is not in the stack the writer parks the tag on a credential
+    of its own instead — sound, since the tag demonstrably changed and only that device touched it,
+    but it neither restores the config nor says anything about P specifically if it fails.
     """
+    if PM3 in station.devices:
+        return [Op("wipe", PM3, p, tag=tag), Op("blank", PM3, p, tag=tag)]
     park = reg.park_protocol()
-    parker = PM3 if PM3 in station.devices else writer
-    ops = [Op("write", parker, park, tag=tag)]
-    ops += _verify_ops(park, parker, station, [], tag=tag)
-    return ops
+    return [Op("write", writer, park, tag=tag)] + _verify_ops(park, writer, station, [], tag=tag)
 
 
 def _verify_ops(p: reg.Protocol, writer: str, station: Station, wanted: list, tag: int = 0) -> list:
@@ -578,7 +589,7 @@ def isolate(screened: list, bench: Bench) -> RunPlan:
             for n, p in enumerate(batch):
                 parked = WRITER_SOURCE[writer] not in GOLD_SOURCES
                 if parked:
-                    here += _park_ops(write_station, writer, tag=n)
+                    here += _clear_ops(p, write_station, writer, tag=n)
                 here.append(Op("write", writer, p, tag=n, after_park=parked))
                 wanted_here = [c for (src, rdr), cs in routes.items() for c in cs
                                if c.protocol == p.key and READERS[rdr] == writer]

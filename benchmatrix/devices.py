@@ -139,6 +139,22 @@ class Pm3:
                 % (p.pm3_write, p.key, tail[:200] or "nothing at all"))
         return out
 
+    def wipe_t55(self) -> str:
+        """Wipe the tag and restore the default config block (0x000880E0).
+
+        ⭐ TWO JOBS AT ONCE. It puts the tag into a state that cannot be mistaken for any credential
+        — so a later read can only have come from the write under test — and it restores a config
+        the other writers can actually work with. The Flipper in particular will refuse to write a
+        T5577 left in some configurations, and a wipe from the Proxmark makes it writable again;
+        without one, "the Flipper cannot write this protocol" and "the Flipper cannot write this
+        TAG" look identical.
+
+        ⚠ The reply is not the confirmation. Nothing here says the wipe took — only a read that
+        comes back silent, on a reader that was reading the credential a moment earlier, can say
+        that (RULES.md §10).
+        """
+        return self.exec("lf t55xx wipe", timeout=max(self.timeout, 120))
+
     def disarm(self) -> None:
         """A no-op, and deliberately present.
 
@@ -458,6 +474,13 @@ class Scripted:
     def write_t55(self, p: reg.Protocol) -> str:
         self.log.append(("write", p.key))
         self.air.armed[T5577] = (p.key, p.expect)      # the tag now holds this credential
+        return "ok"
+
+    def wipe_t55(self) -> str:
+        """⚠ ACTUALLY CLEARS THE FAKE TAG. A wipe that only logged itself would let a test for "the
+        write did nothing, so the tag is still empty" pass against a tag that was never emptied."""
+        self.log.append(("wipe",))
+        self.air.armed.pop(T5577, None)
         return "ok"
 
     def arm(self, p: reg.Protocol) -> None:

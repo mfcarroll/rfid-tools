@@ -197,13 +197,25 @@ byte-exact read after the Chameleon's write is exactly what a write that did not
 behind — the `t55.cu*` and `t55.flip` columns would measure the Proxmark's work and credit it to the
 device under test.
 
-So before a writer **under test** writes protocol P, the tag is put into a state known to differ from
-P, and that parking write is itself verified. A read of P afterwards can then only have come from the
-writer under test. The gold writer needs no parking: the tag already holds a different protocol, and
-what a gold row claims is only that the tag *carries* the credential, not who put it there.
+So before a writer **under test** writes protocol P, the tag is cleared, and the clearing is itself
+confirmed. A read of P afterwards can then only have come from the writer under test. The gold writer
+needs no clearing: the tag already holds a different protocol, and what a gold row claims is only
+that the tag *carries* the credential, not who put it there.
 
-⚠ A parking write that cannot be verified blocks the write it was meant to protect. The reads go
-UNGRADED saying so, rather than being scored against a tag whose state is unknown.
+**Clearing is a wipe where the Proxmark is in the stack**, which does two jobs at once. It leaves the
+tag holding no credential at all — a stronger discriminator than holding a different one — and it
+restores the default config block, which some writers need. The Flipper will refuse to write a T5577
+left in certain configurations, and without a wipe *"cannot write this protocol"* and *"cannot write
+this tag"* are the same reading. Where there is no Proxmark in the stack, the writer parks the tag on
+a credential of its own instead: sound, since the tag demonstrably changed and only that device
+touched it, but it neither restores the config nor isolates the question to P.
+
+⭐ **And the confirming read is already licensed.** The gold row immediately before it is the same
+reader, reading the same tag, byte-exact — so a silence straight after the wipe can only mean the tag
+changed. That is the A/B/A rule applied to one tag instead of the whole field: silence is evidence
+only when something was expected to speak. A clearing that cannot be confirmed blocks the write it
+was meant to protect, and those reads go UNGRADED saying so rather than being scored against a tag
+whose state was guessed at.
 
 ⚠ **With only one reader, a failed read-back is ambiguous and is reported as ambiguous.** The
 harness does not pick between "the write did not land" and "this reader is deaf"; it says a second
