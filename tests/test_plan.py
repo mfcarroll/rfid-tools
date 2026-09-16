@@ -45,12 +45,28 @@ class WhatCannotBeMeasured(unittest.TestCase):
         self.assertTrue(all(c.is_calibration for c in plan.cells))
         # Two distinct reasons the rest drop out, and the grid must not conflate them:
         #   no-expectation — the Chameleon renders it in wording nobody has recorded
-        #   unlicensable   — nothing can produce a gold tag it and the Proxmark agree on
-        self.assertEqual({e.rule for e in plan.exclusions}, {"no-expectation", "unlicensable"})
-        electra = [e for e in plan.exclusions if e.protocol == "em410x_electra"]
-        self.assertTrue(electra)
-        self.assertIn("different credentials", electra[0].why,
-                      "it must name the real cause, not claim a T5577 cannot hold it")
+        #   no-read-arm    — the firmware has no scan command for it at all
+        self.assertEqual({e.rule for e in plan.exclusions}, {"no-expectation", "no-read-arm"})
+        electra = {e.rule for e in plan.exclusions if e.protocol == "em410x_electra"}
+        self.assertEqual(electra, {"no-read-arm"},
+                         "Electra has no EM410X_ELECTRA_SCAN — that is the reason for THIS column")
+
+    def test_a_missing_expectation_is_never_reported_as_an_impossible_bench(self):
+        """⛔ THE TWO NEED DIFFERENT THINGS DONE ABOUT THEM. "Unlicensable" is a verdict about the
+        bench; "no expectation" is a note that nobody has looked yet. The Proxmark can both write
+        and read `em410x_electra` — what is missing is a record of what it PRINTS."""
+        plan = tiny_plan(keys=("em410x_electra",), sources=("t55.pm3",), readers=("rd.pm3",))
+        self.assertEqual(plan.cells, [])
+        rules = {e.rule for e in plan.exclusions}
+        self.assertEqual(rules, {"no-expectation"})
+        self.assertIn("bench learn", " ".join(e.why for e in plan.exclusions),
+                      "a refusal that is really a to-do must name the remedy")
+
+    def test_a_protocol_with_no_gold_writer_IS_unlicensable(self):
+        """`fdxa`: the Proxmark has no recorded clone signature, so nothing can make a gold tag."""
+        plan = tiny_plan(keys=("fdxa",), sources=("t55.cu1",), readers=("rd.pm3",))
+        self.assertEqual(plan.cells, [])
+        self.assertIn("unlicensable", {e.rule for e in plan.exclusions})
 
     def test_a_protocol_with_no_registered_read_arm_is_still_refused(self):
         """Defensive: every tier-0 protocol has one, but a tier-1 addition might not."""
