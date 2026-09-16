@@ -1,0 +1,10 @@
+# The only dependency, and it arrived when the Flipper tooling moved into this repo.
+#
+# ⭐ `benchmatrix/flipper.py` drives the Flipper's lfrfid CLI over USB serial IN-PROCESS. It used to
+# be a script in the ChameleonUltra project's research directory, shelled out to and parsed from its
+# stdout — which is how `rd.flip` came to return nothing for every protocol while the Flipper was
+# decoding perfectly. Structured results cost one dependency and remove that whole class of bug.
+#
+# ⚠ EVERYTHING ELSE STILL SHELLS OUT. The Proxmark and the Chameleon are driven through their own
+# clients, which have their own environments; only the Flipper is spoken to directly.
+pyserial>=3.5

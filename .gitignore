@@ -3,3 +3,4 @@ __pycache__/
 runs/*.md
 runs/*.json
 .env
+.venv/
