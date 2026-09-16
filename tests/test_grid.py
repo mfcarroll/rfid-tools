@@ -46,8 +46,29 @@ class EveryMeasuredCellIsShown(unittest.TestCase):
         it agrees with `stations.py` and would still have missed a source absent from both."""
         _, res = self._run(["em410x"], ["t55.pm3"], ["rd.pm3"])
         with self.assertRaises(grid.GridError) as cm:
-            grid._audit(res.cells, ["emu.cu2"], ["rd.pm3"], reg.resolve(["em410x"]))
+            grid._audit(res.cells, {"rd.pm3": ["emu.cu2"]}, ["rd.pm3"], reg.resolve(["em410x"]))
         self.assertIn("contradicts its own totals", str(cm.exception))
+
+    def test_a_column_this_reader_never_saw_is_not_drawn_at_all(self):
+        """⛔ `emu.cu1` UNDER `rd.cu1` IS NOT A POSSIBLE CONFIGURATION — a Chameleon cannot emulate
+        and read at once — and one global column list gave that impossibility a column of its own,
+        refused all the way down. The operator: "that's not a possible configuration... that should
+        just be dropped from the table, as it's confusing."
+
+        ⚠ AND THE REFUSAL IS NOT LOST, it is in "refused at plan time" with the rule that made it.
+        A `– refsd` earns its place beside a measurement, where it says THIS protocol was refused
+        and the others were not; a column with nothing else in it says only that it should not have
+        been drawn.
+        """
+        md, res = self._run(["em410x"], ["t55.pm3", "emu.cu1"], ["rd.pm3", "rd.cu1"])
+        self.assertTrue(any(c.source == "emu.cu1" for c in res.cells), "the fixture must arm it")
+        cu = md.split("## reader `rd.cu1`", 1)[1].split("## reader", 1)[0]
+        header = [l for l in cu.splitlines() if l.startswith("| protocol")][0]
+        self.assertNotIn("emu.cu1", header, "a Chameleon cannot read its own emulation")
+        pm = md.split("## reader `rd.pm3`", 1)[1].split("## reader", 1)[0]
+        self.assertIn("emu.cu1", [l for l in pm.splitlines() if l.startswith("| protocol")][0],
+                      "and the reader that CAN judge it still gets the column")
+        self.assertIn("self-judging", md, "the refusal keeps its reason in the refusals section")
 
     def test_the_tally_and_the_table_count_the_same_cells(self):
         """⚠ THE SYMPTOM THE OPERATOR SAW. The tallies are computed from the cells and the table

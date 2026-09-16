@@ -28,7 +28,8 @@ import dataclasses
 from typing import Optional
 
 from . import registry as reg
-from .outcomes import Calibration, CalibrationRefused, Cell, Outcome, grade, observe
+from .outcomes import (Calibration, CalibrationRefused, Cell, Outcome, grade, observe,
+                       unaccounted)
 from .plan import Exclusion
 from .resume import load as load_run
 from .stations import Bench, GOLD_SOURCES
@@ -106,7 +107,7 @@ def republish(path: str, protocols: list[reg.Protocol], regrade: bool = False) -
             "a subset would drop measured cells from the grid, which is the fault this command was "
             "written to fix." % (", ".join(missing[:4]), "them" if len(missing) > 1 else "it"))
 
-    cells, licences, moved, unregradable = _cells(rows, table, doc, earlier, regrade)
+    cells, licences, moved, unregradable, odd = _cells(rows, table, doc, earlier, regrade)
     bench = doc.get("bench", {})
     return Republished(
         session=doc.get("session", "?"), provenance=doc.get("provenance", "bench"),
@@ -127,8 +128,13 @@ def republish(path: str, protocols: list[reg.Protocol], regrade: bool = False) -
                      for v in doc.get("void_blocks", [])],
         carried_from=next((c["carried_from"] for c in doc.get("cells", [])
                            if c.get("carried_from")), ""),
-        unparsed={(u["protocol"], u["reader"]): tuple(u["printed"])
-                  for u in doc.get("unparsed", [])},
+        # ⛔ REGRADING HAS TO REDO THE CONTROLS TOO. "Silences that may be OURS" is a claim about
+        # today's registry, not about the reading — copying the stored list into a regraded file
+        # would republish a suspicion that today's code no longer holds, which is precisely the
+        # kind of stale claim this mode exists to clear. Verbatim keeps what was filed, because
+        # verbatim keeps everything that was filed.
+        unparsed=odd if regrade else {(u["protocol"], u["reader"]): tuple(u["printed"])
+                                      for u in doc.get("unparsed", [])},
         bad_markers={(b["protocol"], b["reader"]): b["observed"]
                      for b in doc.get("bad_markers", [])},
         mode="regraded" if regrade else "verbatim",
@@ -143,7 +149,7 @@ def _cells(rows, table, doc, earlier, regrade):
     to arm, which is itself the finding. Dropping it would leave a blank where the record has a
     reason, and blanks are the one thing the grid must not invent.
     """
-    licences, cells, moved, unregradable = {}, [], [], []
+    licences, cells, moved, unregradable, odd = {}, [], [], [], {}
     ordered = sorted(rows, key=lambda c: c["source"] not in GOLD_SOURCES)
     for c in ordered:
         p = table[c["protocol"]]
@@ -163,6 +169,10 @@ def _cells(rows, table, doc, earlier, regrade):
                 licences[pair] = Calibration.from_row(obs, GOLD_SOURCES)
             except CalibrationRefused:
                 pass
+        if regrade and obs is not None and not (obs.decoded or obs.matched):
+            said = unaccounted(obs.text, obs.decode_marker or "")
+            if said and pair not in odd:
+                odd[pair] = said
         crowding = frozenset(c.get("crowding") or ())
         if regrade and obs is not None:
             cell = grade(obs, licences.get(pair), crowding=crowding)
@@ -180,7 +190,7 @@ def _cells(rows, table, doc, earlier, regrade):
         cells.append(dataclasses.replace(cell, isolated=bool(c.get("isolated")),
                                          station=c.get("station") or "",
                                          carried_from=c.get("carried_from") or ""))
-    return cells, licences, moved, unregradable
+    return cells, licences, moved, unregradable, odd
 
 
 def banner(r: Republished, harness_now: str) -> list[str]:
