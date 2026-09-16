@@ -169,9 +169,26 @@ label.
 ⭐ **Touch `.loop-heartbeat` as the first action of every tick**, before reading anything. It is the
 only external evidence that the round is alive rather than wedged, and it costs nothing.
 
-⚠ **The honest gap.** Run-on-startup covers a reboot and a cron covers the cadence, but a cron that
-lives inside a session dies with it, so it cannot restart a session that has ended — the one case a
-watchdog exists for. That is a real hole, and the operator has accepted it. What makes it tolerable
-is the VNC check-ins: **a stalled round is visible, and costs idle time rather than wrong results.**
-An unattended round that produces nothing is a bad day; one that produces unlicensed verdicts is
-C473. ⛔ Do not trade the second for the first.
+⚠ **A ROUTINE, NOT A SESSION CRON.** These are not the same thing and only one of them is a
+fallback. A cron created inside a session dies with it, so it cannot restart a session that has
+ended — the one case worth guarding. A **routine** lives outside any session and launches a new one
+on schedule, which closes that hole properly. ⛔ Do not substitute a session cron for it.
+
+⭐ **CONSEQUENCE 1 — every tick may be a COLD session.** A routine starts fresh: no conversation
+context, no memory of the last tick, nothing carried but the filesystem and git. ⇒ **This file and
+the repo are the only handover.** Anything a tick needs to know must be written down before that
+tick ends — a conclusion held only in context is lost at the next launch. Finish every tick with
+the work list updated and committed, not with a plan you intend to remember.
+
+⛔ **CONSEQUENCE 2 — TWO ROUNDS CAN NOW RUN AT ONCE.** Ticks inside one session serialise; sessions
+launched by a routine do not. If a tick is still working when the next fires, two rounds drive one
+bench and commit over each other. **So the heartbeat is a concurrency guard, not just a liveness
+signal:**
+
+> **First action of every tick: read `.loop-heartbeat`. If it is NEWER than 25 minutes, another
+> round is live — say so in one line and stop. Do not work, do not commit.** Otherwise touch it and
+> proceed, and touch it again as each unit of work completes so a long tick does not read as dead.
+
+⚠ That test is deliberately cheap and deliberately conservative: a tick skipped because a sibling
+was working costs one interval, and two rounds interleaving commits on one bench costs the day.
+
