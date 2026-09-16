@@ -16,8 +16,8 @@ import os
 import os as _os
 import sys
 
-from . import (cues, firmware, grid, history, learned, outcomes, plan as planning, registry as reg,
-               republish, state,
+from . import (capability, cues, firmware, grid, history, learned, outcomes, plan as planning,
+               registry as reg, republish, state,
                runner, setup, ui)
 from . import devices as devices_mod
 from .devices import (DEFAULT_PM3, Chameleon, DeviceError, Flipper, Pm3, obedient_operator,
@@ -154,8 +154,19 @@ def cmd_state(a) -> int:
               "--probe if the devices have been reflashed since." 
               % (whence, "\n".join("       %s = %s" % kv for kv in sorted(now.items())) or "       (none)"))
         return 2
-    md = state.render(found, now, protos, list(grid.SOURCE_ORDER), list(grid.READER_ORDER),
-                      refused=state.refusals(RUNS))
+    if a.by_pair:
+        md = state.render(found, now, protos, list(grid.SOURCE_ORDER), list(grid.READER_ORDER),
+                          refused=state.refusals(RUNS))
+    else:
+        # ⚠ THE DEVICES ON THE BENCH, NOT EVERY DEVICE THE PROJECT KNOWS. What can answer a cell
+        # depends on what is attached, so the alternative-reader search has to be told.
+        here = [d for d in capability.DEVICES
+                if any(d in k or ("flip" in k and d == "flipper") for k in now)] or None
+        md = capability.render(
+            capability.assess(found, protos, devices=here or capability.DEVICES,
+                              refused=state.refusals(RUNS)),
+            protos, now, devices=here or capability.DEVICES,
+            mismatches=capability.check_reference(found))
     if a.out:
         with open(a.out, "w", encoding="utf-8") as fh:
             fh.write(md + "\n")
@@ -1059,6 +1070,10 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("-p", "--protocol", action="append")
     sp.add_argument("--probe", action="store_true",
                     help="read the firmware off the devices instead of from the newest run")
+    sp.add_argument("--by-pair", action="store_true",
+                    help="the (source → reader) view instead: which device can read which other "
+                         "device's output. Answers a question about PAIRS; the default answers "
+                         "the one about devices")
     sp.add_argument("-o", "--out", help="write here instead of printing")
     sp.add_argument("--learned", default=learned.DEFAULT_PATH)
     sp.add_argument("--pm3", default=DEFAULT_PM3)

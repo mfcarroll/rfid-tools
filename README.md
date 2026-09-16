@@ -305,7 +305,41 @@ cell. The repeats say whether to *trust* a cell, not what it says.
 real tag, so answering it once takes two stations and four operator interventions — ten answers
 that way means ten rebuilds. The licence is earned once and the read repeated.
 
-### `bench state`: what the bench believes NOW
+### `bench state`: what each device can do, right now
+
+```bash
+./bench state
+```
+
+Protocols down; for each device, **read / write / emulate**. Touches nothing. Amalgamated from every
+run whose readings are still about the devices attached now.
+
+| | is answered by |
+|---|---|
+| **read** | `t55.pm3 → rd.D` — D decodes a Proxmark-written gold tag |
+| **write** | `t55.D → rd.pm3` — D puts it on a tag another device reads back |
+| **emul** | `emu.D → rd.pm3` — D emits it well enough for another device to decode |
+
+⛔ **The Proxmark is the reference reader, and that is checked rather than asserted.** It is the one
+device licensed by a byte-exact gold row for every protocol here — but if any other reader ever
+decodes a source `rd.pm3` called silent, the yardstick is wrong and the report says so at the top
+instead of quietly publishing a short grid. (One Chameleon hearing the other does not count: that is
+one implementation talking to itself.)
+
+⛔ **The Proxmark cannot judge its own write or emulation** — `emu.pm3 → rd.pm3` is the self-judging
+cell the planner refuses. Those two columns are answered by whatever other reader has an answer, and
+the report names it.
+
+⚠ **Three kinds of empty, and they mean different things.** `–` is no such command in that firmware
+(the ChameleonUltra clones fdxa and emulates none). `▫` is work nobody has done. And a cell listed
+under *"cannot be measured with the devices currently attached"* is neither — a rule refuses every
+reader on the bench, so it needs a third device, not an afternoon. On a Proxmark + one Chameleon
+that is every subcarrier protocol's `pm3·emu`, which only a Flipper can settle.
+
+`--by-pair` gives the source → reader view instead, which answers the other question: which device
+can read which other device's output.
+
+### (pair view) what the bench believes NOW
 
 A run answers *"what happened that afternoon"*. Nobody wants to know that — they want *"can the
 Chameleon on my desk read gproxii today"*, and that answer is spread across runs of different
