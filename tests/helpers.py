@@ -20,7 +20,10 @@ def pm3_exact(p: reg.Protocol) -> str:
             "keri": "KERI - Internal ID:", "nexwatch": "NexWatch raw id : 0x1",
             "idteck": "IDTECK Tag Found: Card ID", "gallagher": "GALLAGHER - Region:",
             "securakey": "Securakey - len: 26", "noralsy": "Noralsy - Card:",
-            "gproxii": "G-Prox-II - Len: 26", "fdxb": "FDX-B / ISO 11784/5 Animal Tag ID Found",
+                           # ⛔ `FDX-B / ISO 11784/5 Animal Tag ID Found` was here too — the same string the
+               # registry had, and one the client does not print. A fixture built from the same
+               # wrong source as the code it tests agrees with it perfectly and proves nothing.
+               "gproxii": "G-Prox-II - Len: 26", "fdxb": "FDX-B / ISO 11784/5 Animal\n[+] Animal ID.........",
             "indala224": "Indala (len 224)", "em410x_electra": "EM 410x ID",
             "paradox": "Paradox - ", "pyramid": "Pyramid - len: 26",
             "fdxa": "FDX-A FECAVA Destron: ", "instafob": ""}[p.key]

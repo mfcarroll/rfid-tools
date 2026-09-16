@@ -30,7 +30,7 @@ from typing import Optional
 
 from . import cues
 from . import registry as reg
-from .stations import T5577
+from .stations import READER_OF, T5577
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.normpath(os.path.join(HERE, "..", ".."))          # .../rfid
@@ -531,7 +531,13 @@ class Scripted:
         return self.answers.get(("exec", cmds[0]), "")
 
     def audible(self) -> list:
-        """(device, protocol, expected) for every armed emitter this reader can hear."""
+        """(device, protocol key, the Protocol it holds) for every emitter this reader can hear.
+
+        ⚠ THE THIRD ELEMENT IS THE PROTOCOL, NOT A RENDERING OF IT. What an emitter holds and how a
+        reader words it are two different axes, and storing `p.expect` collapsed them — see `read`.
+        The identity probe depends on the first (each Chameleon is armed with its OWN id under a
+        shared key) and `expect_for` on the second.
+        """
         return [(d, k, v) for d, (k, v) in sorted(self.air.armed.items())
                 if d != self.id and (self.air.in_stack is None or d in self.air.in_stack)]
 
@@ -552,7 +558,25 @@ class Scripted:
         for dev, _, _ in holding:
             if (p.key, dev) in self.answers:
                 return self.answers[(p.key, dev)]
-        return "\n".join("[+] %s scripted read: %s" % (p.key, exp) for _, _, exp in holding if exp)
+        # ⛔⛔ EACH READER RENDERS THE CREDENTIAL IN ITS OWN WORDING, AND SO MUST THE FAKE. This used
+        # the value stashed at arm/write time, which is always `p.expect` — the Proxmark's rendering
+        # — so every scripted reader printed the Proxmark's token. That made `expect_for(reader)`
+        # untestable: the split it exists for could not be exercised, because the fake never
+        # produced two different renderings of the same credential.
+        #
+        # ⚠ FOUND BY CORRECTING fdxb, which is the first registry entry where `expect` and
+        # `cu_expect` actually differ — and differ because the harness had been comparing the
+        # Proxmark's output against the Chameleon's token for as long as the entry had existed.
+        # Until then every protocol had them equal, so the fake agreed with the real classes by
+        # coincidence rather than by construction. Fifth time the scripted bench has been able to
+        # pass a test the hardware would fail.
+        rid = READER_OF.get(self.role, "rd.%s" % self.role)
+        lines = []
+        for _, _, held in holding:
+            want = held.expect_for(rid)
+            if want:
+                lines.append("[+] %s scripted read: %s" % (p.key, want))
+        return "\n".join(lines)
 
     #: Set False to model a writer that returns cheerfully and puts nothing on the tag.
     write_works: bool = True
@@ -560,7 +584,7 @@ class Scripted:
     def write_t55(self, p: reg.Protocol) -> str:
         self.log.append(("write", p.key))
         if self.write_works:
-            self.air.armed[T5577] = (p.key, p.expect)  # the tag now holds this credential
+            self.air.armed[T5577] = (p.key, p)        # the tag now holds this credential
         return "ok"
 
     #: Set False to model a wipe that returns cheerfully and changes nothing.
@@ -578,7 +602,7 @@ class Scripted:
     def arm(self, p: reg.Protocol) -> None:
         self.log.append(("arm", p.key))
         self.armed = p.key
-        self.air.armed[self.id] = (p.key, p.expect)
+        self.air.armed[self.id] = (p.key, p)
 
     def disarm(self) -> None:
         self.log.append(("disarm",))

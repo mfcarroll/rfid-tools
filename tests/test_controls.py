@@ -692,13 +692,16 @@ class AFailedGoldRowMustNotSilenceTheOtherSources(unittest.TestCase):
     that could show either reader can see the protocol at all — was never read."""
 
     def _run(self):
+        # ⛔ NO HAND-WRITTEN `answers` HERE, AND THAT IS THE POINT. This used to supply one device
+        # string — built from `p.expect` — as the reply to EVERY reader, which is the same fault the
+        # scripted `read` had: it words the Proxmark's rendering in the Chameleon's mouth. fdxb is
+        # the first entry where `expect` and `cu_expect` genuinely differ, so the fixture that had
+        # always been wrong finally produced a wrong answer. Letting the fake render each reader's
+        # own expectation from the registry is both more faithful and less to keep in step.
         from benchmatrix import plan as planning
         protos = reg.resolve(["fdxb"])
-        p = reg.ALL["fdxb"]
-        ans = {("fdxb", e): "[+] FDX-B / ISO 11784/5 Animal Tag ID Found\n  Raw ID Hex: %s" % p.expect
-               for e in ("t5577", "cu1", "cu2", "flipper")}
         plan = planning.build(protos, ["t55.pm3", "t55.cu1"], ["rd.pm3", "rd.cu1"], Bench())
-        dev = make_devices(answers=ans)
+        dev = make_devices()
         dev.pm3.write_works = False      # the Proxmark's fdxb write does not land
         return runner.run(plan, dev, interactive=False, session="S", out=quiet)
 
@@ -730,3 +733,39 @@ class AFailedGoldRowMustNotSilenceTheOtherSources(unittest.TestCase):
         res = self._run()
         self.assertTrue(all(c.outcome is Outcome.UNGRADED for c in res.cells))
         self.assertEqual(res.licences, {})
+
+
+class TheNullSweepMustListenInEachReadersOwnWording(unittest.TestCase):
+    """⛔⛔ THE CONTROL THAT PROVES NOTHING IS EMITTING WAS HALF-DEAF.
+
+    `null_sweep` asked `expect_for(getattr(reader, "id", "rd.pm3"))` — a DEVICE id where the method
+    takes a READER id — and the `or p.expect` behind it swallowed the mistake whole. Every reader in
+    every null sweep was therefore checked against the PROXMARK's rendering of the credential. A
+    Chameleon that could hear a stray emitter would not have raised a hit unless the Proxmark's
+    token happened to appear in the Chameleon's output.
+
+    ⚠ AND IT LOOKED CORRECT FOR AS LONG AS EVERY ENTRY HAD `expect == cu_expect`, which was true of
+    the whole registry until fdxb was corrected. Found by making `expect_for` refuse an
+    unrecognised reader rather than quietly answer for the Proxmark.
+    """
+
+    def test_a_chameleon_hears_a_stray_it_renders_differently(self):
+        from benchmatrix import identity
+        from benchmatrix.devices import Air, Scripted
+        p = reg.ALL["fdxb"]
+        self.assertNotEqual(p.expect_for("rd.pm3"), p.expect_for("rd.cu1"),
+                            "fdxb is what makes this testable")
+        air = Air()
+        stray = Scripted(id="cu2", role="cu2", air=air)
+        stray.arm(p)                                   # something IS emitting, which is the fault
+        sweep = identity.null_sweep("NULL", [Scripted(id="cu1", role="cu1", air=air)], [p], [])
+        self.assertIn("fdxb", sweep.hits,
+                      "the Chameleon heard it and the sweep must say so")
+
+    def test_and_a_genuinely_quiet_bench_still_reads_clean(self):
+        from benchmatrix import identity
+        from benchmatrix.devices import Air, Scripted
+        air = Air()
+        sweep = identity.null_sweep("NULL", [Scripted(id="cu1", role="cu1", air=air)],
+                                    [reg.ALL["fdxb"]], [])
+        self.assertEqual(sweep.hits, frozenset())
