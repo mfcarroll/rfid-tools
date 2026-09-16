@@ -59,6 +59,28 @@ each protocol in the same session — so unlike C473 they are evidence about our
 ⭐ This is also exactly the operator's own earlier bench observation (the Proxmark reads Indala,
 KERI, IDTECK from a *Flipper* emulation but not ours), now reproduced under the calibration rule.
 
+⭐⭐ **DIAGNOSE IN THIS ORDER — and do NOT re-grade these cells.** The grading answer is already
+known, licensed and measured; re-measuring it unattended tells us nothing and is C473's method.
+The open question is *why*, which is upstream of any reader and therefore outside the calibration
+rule's scope — a capture makes no claim about decodability.
+
+1. ⭐ **`seqdump.py` — NO BENCH AT ALL.** Reads the live PWM entries off an emulating Chameleon over
+   USB and diffs them entry by entry against the emitter source's intent. If the emitter builds the
+   wrong sequence, this says so with no pad, no tag and no Proxmark, in any bench configuration.
+   Needs `DATA_CMD_LF_EMU_SEQDUMP` (3065), which our builds have. **Start here every time.**
+2. **`pm3cap.py` — PM3 + CU2, TAGLESS** (a tag's own signal contaminates it). The comparator-free
+   raw buffer; nothing in the chain calls a demodulator. Only worth spending a bench move on if (1)
+   comes back clean, i.e. the sequence is right and the defect is downstream in the peripheral.
+   ⛔ Requires the operator, so it is a queued item, not a tick's work.
+3. Bench grading — on the operator's return, never here.
+
+⚠ **FIVE OF THE SIX ARE PSK** (`indala`, `keri`, `nexwatch`, `idteck`, `indala224`); only `gproxii`
+is ASK. C471's method — predict the run histogram from the frame's own bits, then match — was built
+on PAC, which is NRZ. It transfers to `gproxii` directly and **must be re-derived for PSK**: a phase
+flip appears as a single run at 1.5x or 0.5x the subcarrier period, so it is detectable in run
+structure, but it is different arithmetic. ⛔ Write the criterion BEFORE the capture (M55), not after.
+Deriving it is good hands-off work and is worth a tick of its own.
+
 ⇒ Work the emitters on the host: `firmware/application/src/rfid/nfctag/lf/protocols/`, verified by
 `ctest/`'s round trip, and queue each fix for bench confirmation on the operator's return. **A host
 round trip is not a bench verdict** — say so every time.
