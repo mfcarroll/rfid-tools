@@ -358,8 +358,24 @@ class Chameleon:
 
     @staticmethod
     def _refused(out: str) -> str:
+        """The line that says the Chameleon would not do it — and, for a crash, the line that says
+        WHY.
+
+        ⛔ A TRACEBACK'S FIRST LINE CARRIES NO INFORMATION. This matched `Traceback (most recent
+        call last):` and stopped, so a CLI crash reported itself as `CLI exception: Traceback (most
+        recent call last):` and the actual exception — the last line, the only one that names the
+        fault — was discarded. Both Chameleons refused to write `indala224` on the bench and said
+        exactly that much about it.
+        """
         m = re.search(r"(?im)^.*\b(error|warning|invalid|unrecognized|usage|traceback)\b.*$", out or "")
-        return m.group(0).strip()[:110] if m else ""
+        if not m:
+            return ""
+        first = m.group(0).strip()
+        if "traceback" not in first.lower():
+            return first[:110]
+        # ⭐ THE TAIL OF A TRACEBACK IS THE EXCEPTION. Everything above it is the route there.
+        tail = [l.strip() for l in (out or "").strip().splitlines() if l.strip()]
+        return ("%s ... %s" % (first, tail[-1]))[:240] if tail else first[:110]
 
     def alive(self) -> tuple[bool, str]:
         try:
@@ -518,6 +534,28 @@ class Flipper:
             return True, "flipper: alive — rebooted, %d bytes largest block" % block
         return True, "flipper: alive — %d bytes largest block" % block
 
+    def _recover(self, e: "flipper.FlipperError", doing: str) -> None:
+        """Reboot and let the caller try once more, or refuse for good.
+
+        ⛔⛔ THE PLUGIN DIES MID-SESSION AND PROOF OF LIFE CANNOT SEE IT COMING. `alive()` checks the
+        heap once, at the start of a run; C377 measured the cliff arriving twelve minutes in, with
+        107,464 bytes still free, because the loader needs 66KB CONTIGUOUS. This run reported
+        137,040 bytes at startup and then refused the plugin two stations later — correctly aborting
+        a nine-station matrix after two.
+
+        ⚠ ONLY FOR THE FRAGMENTATION REFUSAL. Every other rejection means we asked for something
+        wrong, and retrying a wrong question is how a phantom count gets made (M28).
+        """
+        if flipper.FRAGMENTED not in str(e):
+            raise DeviceError("flipper: the reader is not running — nothing measured against it "
+                              "would mean anything. A silent reader and a silent emulator produce "
+                              "IDENTICAL numbers. %s" % e) from e
+        try:
+            flipper.reboot(self.port)
+        except (flipper.FlipperError, OSError) as boom:
+            raise DeviceError("flipper: the rfid plugin will not load (heap too fragmented for a "
+                              "66KB contiguous block, C377) and the reboot failed — %s" % boom) from e
+
     def read(self, p: reg.Protocol) -> str:
         """Return the anchored decode lines, not the transcript.
 
@@ -526,16 +564,18 @@ class Flipper:
         the "Available protocols:" listing — the exact trap that once turned 5 attempts into 10
         reported successes.
         """
-        with self._session() as f:
-            try:
-                tries = f.read(flipper.front_ends_for(p.family), self.attempts)
-            except flipper.FlipperError as e:
-                raise DeviceError(
-                    "flipper: the reader is not running — nothing measured against it would mean "
-                    "anything. A silent reader and a silent emulator produce IDENTICAL numbers. %s"
-                    % e) from e
-            finally:
-                self.last_transcript = "\n".join(f.transcript)
+        for attempt in (1, 2):
+            with self._session() as f:
+                try:
+                    tries = f.read(flipper.front_ends_for(p.family), self.attempts)
+                    break
+                except flipper.FlipperError as e:
+                    if attempt == 2:
+                        raise DeviceError("flipper: the rfid plugin still will not load after a "
+                                          "reboot — %s" % e) from e
+                    self._recover(e, "reading %s" % p.key)
+                finally:
+                    self.last_transcript = "\n".join(f.transcript)
         seen, hits = set(), []
         for t in tries:
             if t.decode and t.decode.line not in seen:
@@ -578,14 +618,21 @@ class Flipper:
                               "Flipper's own hex. Run `bench learn -r rd.flip` first." % p.key)
         self._armed = self._session()
         try:
-            self._armed.emulate(p.flip_key, p.flip_expect, seconds=0)
+            # ⛔ START, AND LEAVE IT RUNNING. This used to call `emulate(seconds=0)`, which starts
+            # and then stops in its own `finally` — so every reader that followed was listening to
+            # a Flipper that had already stopped.
+            self._armed.start_emulating(p.flip_key, p.flip_expect)
         except flipper.FlipperError as e:
             self.disarm()
             raise DeviceError("flipper: refused to emulate %s — %s" % (p.key, e)) from e
 
     def disarm(self) -> None:
+        """⚠ ETX FIRST, THEN CLOSE. Closing the port does not stop a running CLI command — the
+        Flipper would keep emitting into the next station's null sweep, which is the one reading
+        that must be able to prove the field is empty."""
         got, self._armed = getattr(self, "_armed", None), None
         if got is not None:
+            got.stop_emulating()
             got.close()
 
     def decode_marker(self, p: reg.Protocol) -> str:

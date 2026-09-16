@@ -341,3 +341,57 @@ class WhatAClonSaysAboutItsOwnWrite(unittest.TestCase):
         """⚠ An empty diagnostic is the failure mode this whole session kept hitting."""
         self.assertTrue(devices.clone_evidence(""))
         self.assertIn("nothing this filter recognises", devices.clone_evidence("")[0])
+
+
+class WhenTheFlipperPluginDiesMidRun(unittest.TestCase):
+    """⛔⛔ PROOF OF LIFE CANNOT SEE THIS COMING. `alive()` checks the heap once, at the start of a
+    run; C377 measured the cliff arriving twelve minutes in with 107,464 bytes still FREE, because
+    the loader needs 66KB CONTIGUOUS. A nine-station matrix reported 137,040 bytes at startup and
+    then refused the plugin two stations later, correctly aborting after two.
+
+    ⚠ ONLY THE FRAGMENTATION REFUSAL IS RETRIED. Every other rejection means we asked for something
+    wrong, and retrying a wrong question is how a phantom count gets made (M28).
+    """
+
+    def test_the_refusal_a_reboot_fixes_is_named(self):
+        from benchmatrix import flipper
+        self.assertIn(flipper.FRAGMENTED, flipper.REJECTED)
+
+    def test_a_wrong_question_is_not_retried(self):
+        from benchmatrix import flipper
+        f = devices.Flipper(port="/dev/null")
+        with self.assertRaises(DeviceError) as cm:
+            f._recover(flipper.FlipperError("the Flipper REJECTED `rfid read nope` — Unknown "
+                                            "protocol"), "reading nope")
+        self.assertIn("nothing measured against it would mean anything", str(cm.exception))
+
+    def test_but_the_plugin_refusal_reboots(self):
+        from benchmatrix import flipper
+        rebooted = []
+        real = flipper.reboot
+        flipper.reboot = lambda port: rebooted.append(port)
+        try:
+            devices.Flipper(port="/dev/tty.fake")._recover(
+                flipper.FlipperError("... %s ..." % flipper.FRAGMENTED), "reading em410x")
+        finally:
+            flipper.reboot = real
+        self.assertEqual(rebooted, ["/dev/tty.fake"], "C377: a reboot restores it in ~10 seconds")
+
+
+class ACrashMustSayWhatCrashed(unittest.TestCase):
+    """⛔ A TRACEBACK'S FIRST LINE CARRIES NO INFORMATION. Both Chameleons refused to write
+    `indala224` on the bench and reported it as `CLI exception: Traceback (most recent call last):`
+    — the one line of a traceback that is identical for every fault there has ever been."""
+
+    CRASH = ("CLI exception: Traceback (most recent call last):\n"
+             "  File \"cu.py\", line 120, in write\n    frame = build(raw)\n"
+             "ValueError: indala224 raw must be 28 bytes, got 7")
+
+    def test_the_exception_survives(self):
+        got = devices.Chameleon._refused(self.CRASH)
+        self.assertIn("ValueError", got)
+        self.assertIn("28 bytes", got)
+
+    def test_an_ordinary_refusal_is_unchanged(self):
+        self.assertEqual(devices.Chameleon._refused("WARNING: econfig writes the credential only"),
+                         "WARNING: econfig writes the credential only")

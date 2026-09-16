@@ -116,8 +116,23 @@ class Protocol:
         return self.expect
 
     def marker_for(self, reader: str) -> Optional[str]:
+        """⛔ THE SAME SILENT FALLBACK `expect_for` HAD, AND IT SURVIVED THE FIX TO THAT ONE. This
+        returned the PROXMARK's decode marker for `rd.flip` — so a perfectly good Flipper reading,
+        `EM4100 2244668800`, was checked against `EM 410x (XL )?ID` and found not to have decoded.
+
+        ⚠ IT WAS LATENT UNTIL THERE WERE FLIPPER CAPTURES TO REPLAY. `Flipper.decode_marker()`
+        overrides it correctly, so the RUNNER never took this path; `tests/test_archive.py` did, the
+        moment the first Flipper reading reached the fixture. Two methods, one mistake, one of them
+        fixed — which is why the guard reads the registry rather than trusting it.
+        """
         if reader in ("rd.cu1", "rd.cu2"):
             return self.cu_decode_marker
+        if reader == "rd.flip":
+            from .devices import FLIP_DECODE_MARKER
+            return FLIP_DECODE_MARKER
+        if reader != "rd.pm3":
+            raise RegistryError("no decode marker is defined for reader %r (known: rd.pm3, "
+                                "rd.flip, rd.cu1, rd.cu2)" % reader)
         return self.pm3_decode_marker
 
 

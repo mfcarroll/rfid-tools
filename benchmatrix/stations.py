@@ -57,7 +57,10 @@ STACK_ORDER = (PM3, FLIPPER, CU1, CU2, T5577, OEMTAG)
 #: to sit BETWEEN the devices that need to reach it — `CU1 ─ T55 ─ CU2`, never `T55 ─ CU1 ─ CU2`,
 #: where the second Chameleon would be working through the first. Two faces, two devices: a stack
 #: holding a tag can serve at most this many active devices however high `max_stack` is set.
-MAX_ACTIVE_AROUND_A_TAG = 2
+MAX_ACTIVE_IN_A_STACK = 2
+
+#: ⚠ The old name, when this was believed to be a rule about tags. Kept so nothing imports a hole.
+MAX_ACTIVE_AROUND_A_TAG = MAX_ACTIVE_IN_A_STACK
 
 SHORT = {PM3: "PM3", FLIPPER: "FLIP", CU1: "CU1", CU2: "CU2", T5577: "T55", OEMTAG: "OEM"}
 
@@ -208,11 +211,22 @@ def build_station(devices, bench: Bench | None = None) -> Station:
         raise StationError("a stack may hold at most one tag; both %s answer any field they are in"
                            % " and ".join(HUMAN[d] for d in tags))
     active = [d for d in STACK_ORDER if d in devs and d not in TAGS]
-    if tags and len(active) > MAX_ACTIVE_AROUND_A_TAG:
+    # ⛔⛔ THE CAP IS ABOUT FACES, NOT ABOUT TAGS, AND GATING IT ON `tags` LEFT A HOLE THE PLANNER
+    # WALKED STRAIGHT INTO. Every one of these devices reads and writes from a SINGLE FACE. With a
+    # tag the tag sits in the middle and two devices face it; with no tag the two devices face each
+    # other. Either way the number that can couple is two.
+    #
+    # ⚠ A THIRD DEVICE IS NOT WEAKLY COUPLED, IT IS A SPECTATOR. The planner built `FLIP+CU1+CU2`
+    # for the emulation cells — Chameleon 1 sandwiched between the Flipper and Chameleon 2, its one
+    # active face pointed at whichever neighbour it was stacked against and the other neighbour
+    # behind it. The operator refused to build it: "A Chameleon in the middle of the sandwich is
+    # meaningless." The cells it claimed to measure were never measurable from that arrangement.
+    if len(active) > MAX_ACTIVE_IN_A_STACK:
         raise StationError(
-            "%d active devices around one tag: %s. A Chameleon or a Flipper reaches a tag from one "
-            "face only, so at most %d can touch it — any more would be working through each other."
-            % (len(active), ", ".join(HUMAN[d] for d in active), MAX_ACTIVE_AROUND_A_TAG))
+            "%d active devices in one stack: %s. Each of them reaches a tag — or another device — "
+            "from ONE FACE only, so at most %d can couple; a third is stacked behind one of them "
+            "and takes no part in anything."
+            % (len(active), ", ".join(HUMAN[d] for d in active), MAX_ACTIVE_IN_A_STACK))
     if not tags:
         return Station(tuple(active))
     # ⭐ THE TAG GOES IN THE MIDDLE, so each active device faces it directly.
