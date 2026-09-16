@@ -45,6 +45,11 @@ class Earlier:
     stations: tuple           # stations that completed with both null sweeps agreeing
     cells: tuple              # raw cell dicts, as published
     licences: tuple
+    #: Whether the file records which stations completed at all. ⚠ Runs published before `--resume`
+    #: existed do not, and neither do their cells record the station that produced them — so there
+    #: is no way to tell a reading with a closing null sweep behind it from one taken at the station
+    #: that died. Saying that plainly beats guessing.
+    knows_stations: bool = True
 
     @property
     def usable_cells(self) -> tuple:
@@ -67,6 +72,7 @@ def load(path: str) -> Earlier:
                            firmware=got.get("firmware", {}), pad=got.get("bench", {}).get("pad", ""),
                            harness=got.get("harness", ""),
                            stations=tuple(got.get("completed_stations", [])),
+                           knows_stations=("completed_stations" in got),
                            cells=tuple(got.get("cells", [])),
                            licences=tuple(got.get("licences", [])))
     raise ResumeRefused("no published run found at %r — looked in ./ and ./runs/" % path)
@@ -86,7 +92,14 @@ def check(earlier: Earlier, firmware: dict, pad: str, harness: str) -> list[str]
     the same measurement, however still the bench was.
     """
     bad = []
-    if not earlier.stations:
+    if not earlier.knows_stations:
+        bad.append(
+            "%s was published before runs recorded which stations completed, and its cells do not "
+            "say which station produced them either. There is no way to tell a reading with a "
+            "closing null sweep behind it from one taken at the station that died, and guessing is "
+            "the one thing this harness does not do. Runs from here on record both."
+            % earlier.session)
+    elif not earlier.stations:
         bad.append("%s completed no station with both null sweeps agreeing — there is nothing in "
                    "it that carries its own controls" % earlier.session)
     for dev, was in sorted(earlier.firmware.items()):
@@ -100,11 +113,28 @@ def check(earlier: Earlier, firmware: dict, pad: str, harness: str) -> list[str]
     if earlier.pad != pad:
         bad.append("that run was taken on pad %r and this one is on %r; a licence is pad-scoped "
                    "because moving a reader invalidates it" % (earlier.pad, pad))
-    if earlier.harness != harness:
-        bad.append("that run was measured by harness %s and this is %s — a decode marker or an "
-                   "expectation may have changed under it, which has happened repeatedly"
-                   % (earlier.harness or "?", harness or "?"))
     return bad
+
+
+def harness_note(earlier: Earlier, harness: str) -> str:
+    """What to SAY about a different harness commit — not a reason to refuse.
+
+    ⛔⛔ THE COMMIT IS A PROXY, AND `rebuild` TESTS THE THING ITSELF. This used to refuse outright
+    when the commit differed, which made `--resume` unusable during exactly the work it was built
+    for: the first attempt at carrying a run forward was refused by a commit that had changed
+    because it ADDED the resume feature. Most commits here do not touch grading at all.
+
+    ⭐ AND THE REAL TEST IS STRICTLY BETTER. Every carried reading is re-graded from its stored
+    evidence under today's registry and today's matcher, and any outcome that moves refuses the
+    whole carry by name. A commit that changed a decode marker or an expectation shows up there, in
+    the cells it actually affected, instead of being guessed at from a hash.
+    """
+    if not harness or earlier.harness == harness:
+        return ""
+    return ("measured by harness %s, and this is %s. Not a refusal on its own — every carried "
+            "reading is re-graded below under TODAY's registry, and any that grades differently "
+            "stops the carry. A commit is a proxy; the re-grade is the test."
+            % (earlier.harness or "?", harness))
 
 
 def rebuild(earlier: Earlier, protocols, session: str):
