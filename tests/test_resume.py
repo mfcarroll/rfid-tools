@@ -14,7 +14,7 @@ import tempfile
 import unittest
 
 from tests.helpers import reg                                        # noqa: F401
-from benchmatrix import learned, registry, resume
+from benchmatrix import cli, learned, registry, resume
 
 FIRMWARE = {"rd.pm3": "os Iceman/x", "cu1": "CU v2.2", "rd.flip": "unknown"}
 
@@ -217,3 +217,46 @@ class ACarriedLicenceMustActuallyLicenseSomething(unittest.TestCase):
                         p.expect_for("rd.pm3"), p.marker_for("rd.pm3"),
                         session=self.e.session, pad="pad1")
         self.assertFalse(lic.licenses(moved))
+
+
+class AndTheRunLoopActuallyContinuesIt(unittest.TestCase):
+    """⚠ TESTING `Calibration.licenses` DIRECTLY PROVES THE RULE, NOT THAT `cmd_run` OBEYS IT. With
+    the session-continuation line disabled, every test above still passed — the same shape of gap
+    that let `_isolated_retry` be written, tested and never called. This drives the real command."""
+
+    def setUp(self):
+        import glob
+        self.tmp = tempfile.mkdtemp()
+        self.runs_before = set(glob.glob(os.path.join(cli.RUNS, "*_resumed_*")))
+        # A prior run whose firmware matches what the scripted bench reports.
+        self.path = _run_file(self.tmp, firmware={k: "scripted, no firmware"
+                                                  for k in ("pm3", "cu1")})
+
+    def tearDown(self):
+        import glob
+        for f in set(glob.glob(os.path.join(cli.RUNS, "*_resumed_*"))) - self.runs_before:
+            os.unlink(f)
+
+    def _run(self):
+        import contextlib
+        import io
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            cli.cmd_run(cli.build_parser().parse_args(
+                ["run", "--dry-run", "--no-prompt", "--no-flipper", "--no-cu2",
+                 "--resume", self.path, "-p", "em410x",
+                 "-s", "t55.pm3", "-s", "emu.cu1", "-r", "rd.pm3", "-r", "rd.cu1"]))
+        return buf.getvalue()
+
+    def test_the_published_run_carries_the_earlier_session_id(self):
+        out = self._run()
+        self.assertIn("continuing session 20260916_085441", out)
+
+    def test_and_writes_to_a_file_that_does_not_clobber_the_first(self):
+        """⚠ Two runs sharing a session id would overwrite each other in `runs/`, and the first of
+        them is the record that made the second possible."""
+        import glob
+        self._run()
+        made = set(glob.glob(os.path.join(cli.RUNS, "*_resumed_*"))) - self.runs_before
+        self.assertTrue(made, "a resumed run must be filed under its own name")
+        self.assertTrue(all("20260916_085441" in os.path.basename(f) for f in made))
