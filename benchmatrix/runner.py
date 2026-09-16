@@ -160,6 +160,35 @@ class Devices:
 _HARNESS_VERSION = None
 
 
+def _announce_refusals(plan: RunPlan, out) -> None:
+    """Say what is NOT being measured, BEFORE measuring anything.
+
+    ⛔ A PROTOCOL THAT NEVER APPEARS IN THE OUTPUT CANNOT BE TOLD FROM ONE THAT WAS FORGOTTEN. A
+    plan-time refusal produces no ops, so the operator watches seventeen protocols scroll past and
+    has no way to know the eighteenth was deliberate — the reason is in the written grid, at the
+    bottom, after the run is over. Naming them up front is also the last chance to notice that a
+    protocol you meant to measure has quietly dropped out of the plan.
+    """
+    if not plan.exclusions:
+        return
+    protocols = {}
+    for e in plan.exclusions:
+        protocols.setdefault(e.protocol, set()).add(e.rule)
+    whole = sorted(p for p in protocols
+                   if not any(c.protocol.key == p for c in plan.cells))
+    partial = sorted(set(protocols) - set(whole))
+    if whole:
+        out("    %s not measured at all: %s"
+            % (ui.mark("skip"), ", ".join("%s (%s)" % (p, ", ".join(sorted(protocols[p])))
+                                          for p in whole)))
+    if partial:
+        out("    %s partly refused: %s"
+            % (ui.mark("note"), ", ".join("%s (%s)" % (p, ", ".join(sorted(protocols[p])))
+                                          for p in partial)))
+    out("    %s   see \"refused at plan time\" in the grid for why, and what would change it"
+        % ui.mark("note"))
+
+
 def _harness_version() -> str:
     """The commit this harness is running from. A grid should say which rules produced it.
 
@@ -198,6 +227,7 @@ def run(plan: RunPlan, devices: Devices, *, interactive: bool = True,
 
     out("\n  run %s phase %d — %d cells, %d stations, %d operator interventions"
         % (session, plan.phase, len(plan.cells), len(plan.blocks), plan.interventions))
+    _announce_refusals(plan, out)
     try:
         # ⛔ PROOF OF LIFE IS INSIDE THE `finally` TOO. A device can be armed before the run starts —
         # a previous session that ended badly, an `econfig` run by hand — and aborting here without

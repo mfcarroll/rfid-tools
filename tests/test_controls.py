@@ -548,3 +548,45 @@ class AWrongCredentialIsLegibleOnOneReader(unittest.TestCase):
         kinds = [o.kind for b in plan.blocks for o in b.ops]
         self.assertEqual(kinds[0], "wipe", "the block must open by putting the tag in a known state")
         self.assertLess(kinds.index("wipe"), kinds.index("write"))
+
+
+class WhatIsNotMeasuredIsSaidBeforeTheRunNotAfter(unittest.TestCase):
+    """⛔ A PROTOCOL THAT NEVER APPEARS IN THE OUTPUT CANNOT BE TOLD FROM ONE THAT WAS FORGOTTEN.
+    A plan-time refusal produces no ops, so the operator watches seventeen protocols scroll past
+    with no way to know the eighteenth was deliberate — the reason was in the written grid, at the
+    bottom, after the bench work was over."""
+
+    def _run(self):
+        from benchmatrix import plan as planning
+        said = []
+        protos = reg.resolve(["em410x", "em410x_electra"])
+        plan = planning.build(protos, ["t55.pm3"], ["rd.pm3"], Bench())
+        runner.run(plan, make_devices(answers=answers_all_exact(protos)), interactive=False,
+                   session="S", out=lambda m="": said.append(str(m)))
+        return said, plan
+
+    def test_a_wholly_refused_protocol_is_named_up_front(self):
+        said, _ = self._run()
+        head = "\n".join(said[:6])
+        self.assertIn("em410x_electra", head)
+        self.assertIn("not measured at all", head)
+        self.assertIn("no-expectation", head, "and why")
+
+    def test_it_comes_before_any_measurement(self):
+        said, _ = self._run()
+        announced = next(i for i, m in enumerate(said) if "not measured at all" in m)
+        first_cell = next((i for i, m in enumerate(said) if "EXACT" in m), len(said))
+        self.assertLess(announced, first_cell,
+                        "the last chance to notice a protocol has dropped out of the plan is "
+                        "before the bench work, not after it")
+
+    def test_the_grid_marks_a_refused_cell_rather_than_leaving_it_blank(self):
+        from benchmatrix import grid
+        said, plan = self._run()
+        protos = reg.resolve(["em410x", "em410x_electra"])
+        res = runner.run(plan, make_devices(answers=answers_all_exact(protos)),
+                         interactive=False, session="S", out=quiet)
+        md = grid.render(res, protos)
+        row = [l for l in md.splitlines() if l.startswith("| em410x_electra")]
+        self.assertTrue(row)
+        self.assertIn("refsd", row[0], "a blank cell reads as missing data, not as a decision")
