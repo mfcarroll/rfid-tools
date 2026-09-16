@@ -16,7 +16,7 @@ import sys
 
 from . import (cues, firmware, grid, learned, outcomes, plan as planning, registry as reg,
                runner, setup, ui)
-from .devices import (Chameleon, DeviceError, Flipper, Pm3, obedient_operator,
+from .devices import (DEFAULT_PM3, Chameleon, DeviceError, Flipper, Pm3, obedient_operator,
                       scripted_bench)
 from .stations import CU1, CU2, FLIPPER, PM3, T5577, Bench, READERS, SOURCES, build_station
 
@@ -676,7 +676,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     sp = sub.add_parser("probe", help="ask every channel for proof of life; touch nothing else")
     common(sp, with_plan=False)
-    sp.add_argument("--pm3", default=os.environ.get("PM3", "pm3"))
+    sp.add_argument("--pm3", default=DEFAULT_PM3)
     sp.add_argument("--cu1-port", default=os.environ.get("CU1_PORT"))
     sp.add_argument("--cu2-port", default=os.environ.get("CU2_PORT"))
     sp.add_argument("--flipper-port", default=os.environ.get("FLIPPER_PORT"))
@@ -692,7 +692,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     sp = sub.add_parser("run", help="execute the matrix")
     common(sp)
-    sp.add_argument("--pm3", default=os.environ.get("PM3", "pm3"))
+    sp.add_argument("--pm3", default=DEFAULT_PM3)
     sp.add_argument("--cu1-port", default=os.environ.get("CU1_PORT"))
     sp.add_argument("--cu2-port", default=os.environ.get("CU2_PORT"))
     sp.add_argument("--flipper-port", default=os.environ.get("FLIPPER_PORT"))
@@ -714,7 +714,7 @@ def build_parser() -> argparse.ArgumentParser:
                     help="repeatable; default %s. `rd.cu2` shares `cu_expect` with `rd.cu1`, so "
                          "learning both records the same value twice"
                          % " ".join(DEFAULT_LEARN_READERS))
-    sp.add_argument("--pm3", default=os.environ.get("PM3", "pm3"))
+    sp.add_argument("--pm3", default=DEFAULT_PM3)
     sp.add_argument("--flipper-port", default=os.environ.get("FLIPPER_PORT"))
     sp.add_argument("--relearn", action="store_true", help="re-learn values the registry already has")
     sp.add_argument("--no-prompt", action="store_true",

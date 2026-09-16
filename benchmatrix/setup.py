@@ -52,8 +52,9 @@ CHIPID_RE = _CHIPID_RE
 BLINK_READS = 4
 
 
-def load_env(path: str = ENV_PATH) -> dict:
+def load_env(path: str | None = None) -> dict:
     """Read `.env` into a dict. Missing file is not an error — nothing is configured yet."""
+    path = path or ENV_PATH
     out: dict[str, str] = {}
     if not os.path.exists(path):
         return out
@@ -67,19 +68,27 @@ def load_env(path: str = ENV_PATH) -> dict:
     return out
 
 
-def apply_env(path: str = ENV_PATH) -> dict:
+def apply_env(path: str | None = None) -> dict:
     """Populate os.environ from `.env` WITHOUT overriding anything already set.
 
     ⚠ AN EXPLICIT VALUE ALWAYS WINS. A one-off `CU1_PORT=... ./bench run` must not be silently
     overwritten by a stale file, or the override does the opposite of what it looks like.
     """
+    path = path or ENV_PATH
     values = load_env(path)
     for k, v in values.items():
         os.environ.setdefault(k, v)
     return values
 
 
-def write_env(values: dict, path: str = ENV_PATH) -> None:
+def write_env(values: dict, path: str | None = None) -> None:
+    """⛔ `ENV_PATH` IS RESOLVED AT CALL TIME, NOT CAPTURED AS A DEFAULT. `path: str = ENV_PATH`
+    binds the module constant once, when the function is DEFINED — so pointing `setup.ENV_PATH` at
+    a scratch file changes nothing and every write still lands on the operator's real `.env`. A
+    test doing exactly that overwrote this bench's live configuration with `CU1_PORT=/dev/tty.moved`
+    and `CU1_CHIPID=AAAA`, and passed its first assertion while doing it, because the return value
+    was right and only the file was wrong."""
+    path = path or ENV_PATH
     order = ("PM3", "CU1_PORT", "CU1_CHIPID", "CU2_PORT", "CU2_CHIPID", "FLIPPER_PORT")
     with open(path, "w", encoding="utf-8") as fh:
         fh.write("# Written by `bench setup` on %s. Not tracked by git.\n"
@@ -146,7 +155,7 @@ def find_pm3(existing: str | None = None) -> str:
 
 
 def resolve_chameleons(known: dict, cli: str = DEFAULT_CU_PY, out=print,
-                       write_back: bool = True) -> dict:
+                       write_back: bool = True, env_path: str | None = None) -> dict:
     """label -> port, resolved by CHIP ID. The port in `.env` is a cache, not the identity.
 
     ⭐⭐ THIS IS WHY A REPLUG IS A NON-EVENT. The identity of a Chameleon is its silicon; the port is
@@ -188,11 +197,19 @@ def resolve_chameleons(known: dict, cli: str = DEFAULT_CU_PY, out=print,
         changed = True
 
     if changed and write_back:
-        # Keep the cache warm so the next session takes the fast path.
-        values = dict(known)
+        # ⛔⛔ SEEDED FROM THE FILE, NOT FROM `known`. `write_env` REPLACES `.env` wholesale, and
+        # `known` is only the caller's `CU1_*`/`CU2_*` view — so refreshing a moved port silently
+        # DELETED `PM3` and `FLIPPER_PORT` from the operator's configuration. It is a cache update
+        # that quietly discards everything outside the cache.
+        #
+        # ⚠ AND THE DAMAGE SURFACED SOMEWHERE ELSE ENTIRELY. With `PM3` gone the CLI fell back to a
+        # bare `pm3`, which on this bench is a SHELL ALIAS and invisible to `subprocess` — so the
+        # next command died at proof of life with "[pm3 error running", four minutes and one
+        # unrelated command after the write that caused it.
+        values = {**load_env(env_path), **known}
         for label, port in found.items():
             values["%s_PORT" % label.upper()] = port
-        write_env(values)
+        write_env(values, env_path)
     return found
 
 

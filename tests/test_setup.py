@@ -243,3 +243,53 @@ class EveryActionProvesItsOwnIdentity(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class RefreshingAPortMustNotDiscardTheRestOfTheFile(unittest.TestCase):
+    """⛔⛔ A CACHE UPDATE THAT DELETED EVERYTHING OUTSIDE THE CACHE. `resolve_chameleons` writes a
+    re-resolved port back so the next session takes the fast path, and it built the new file from
+    `known` — the caller's `CU1_*`/`CU2_*` view of the environment. `write_env` REPLACES the file,
+    so `PM3` and `FLIPPER_PORT` were dropped every time a Chameleon moved.
+
+    ⚠ AND IT SURFACED SOMEWHERE ELSE ENTIRELY, which is what made it hard to see. With `PM3` gone
+    the CLI fell back to a bare `pm3` — a SHELL ALIAS on this bench, invisible to `subprocess` — so
+    the failure was "[pm3 error running" at proof of life, in a later command, minutes after the
+    write that caused it. Nothing connected the two.
+    """
+
+    def setUp(self):
+        import tempfile
+        from benchmatrix import setup
+        self.setup = setup
+        self.path = os.path.join(tempfile.mkdtemp(), ".env")
+        setup.write_env({"PM3": "/repo/proxmark3/pm3", "FLIPPER_PORT": "/dev/tty.flip",
+                         "CU1_PORT": "/dev/tty.stale", "CU1_CHIPID": "AAAA"}, self.path)
+        # ⚠ THE REAL WRITE-BACK PATH, with only the bus stubbed: CU1's chip now answers on a
+        # different port, which is the one condition that triggers a write.
+        # ⚠ THE PATH IS PASSED, NOT REBOUND. Rebinding `setup.ENV_PATH` looked like it worked and
+        # did nothing: the write landed on the real `.env` and this test's first assertion still
+        # passed, because the return value was right and only the file was wrong.
+        self._was = (setup.serial_ports, setup.chip_id, setup.classify)
+        setup.serial_ports = lambda: ["/dev/tty.moved"]
+        setup.classify = lambda ports: ([], [], list(ports))
+        setup.chip_id = lambda port, cli=None, timeout=15: "AAAA" if port == "/dev/tty.moved" else None
+
+    def tearDown(self):
+        (self.setup.serial_ports, self.setup.chip_id, self.setup.classify) = self._was
+
+    def _resolve(self):
+        return self.setup.resolve_chameleons(
+            {"CU1_PORT": "/dev/tty.stale", "CU1_CHIPID": "AAAA"}, out=lambda *a: None,
+            env_path=self.path)
+
+    def test_the_moved_port_is_re_resolved(self):
+        """The fixture is only interesting if the write-back actually fires."""
+        self.assertEqual(self._resolve().get("cu1"), "/dev/tty.moved")
+        self.assertEqual(self.setup.load_env(self.path)["CU1_PORT"], "/dev/tty.moved")
+
+    def test_and_the_keys_it_does_not_own_survive(self):
+        self._resolve()
+        got = self.setup.load_env(self.path)
+        self.assertEqual(got.get("PM3"), "/repo/proxmark3/pm3",
+                         "losing this breaks the NEXT command, not this one")
+        self.assertEqual(got.get("FLIPPER_PORT"), "/dev/tty.flip")
