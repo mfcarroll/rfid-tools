@@ -30,7 +30,7 @@ import datetime as _dt
 import os as _os
 from dataclasses import dataclass, field
 
-from . import cues, identity, ui
+from . import cues, identity, registry as reg, ui
 from .devices import DeviceError, WrongDevice
 from .identity import IdentityFault, NullSweep, null_sweep, sweeps_agree
 from .outcomes import (Calibration, CalibrationRefused, Cell, Outcome, grade, observe, screened,
@@ -538,6 +538,19 @@ def _settle(pending: list, state, tag_state: TagState, report: BlockReport, devi
     verified = tag_state.verified
     graded = [(op, obs) for op, obs in pending if op.cell is not None]
 
+    # ⛔⛔ A PARKING WRITE THAT TOOK MUST SAY SO, AND FOR A LONG TIME NOTHING DID. `cleared` was set
+    # in exactly one place — `_wipe` — so a park could be written, read back byte-exact, and still
+    # leave `cleared` False. The next write then saw `parked=False` and every cell behind it was
+    # published UNPARKED. Since parking is what a station does when the PROXMARK IS NOT IN THE
+    # STACK, that means no Chameleon-only or Flipper-only station has ever graded a single cell.
+    #
+    # ⚠ AND IT LOOKED LIKE A DEVICE FAULT. Two runs reported "the parking write did not take" at a
+    # station whose transcript showed no failure, which reads as the Chameleon refusing to write a
+    # tag left in another protocol's configuration — a plausible story, and the wrong one. The
+    # harness had no path to record the success.
+    if state and state[0].key == reg.PARK_KEY and verified:
+        tag_state.cleared = True
+
     # ⛔⛔ A BYTE-EXACT READ AFTER AN UNPARKED WRITE PROVES NOTHING ABOUT THE WRITER. Every writer in
     # the registry puts the same credential on the tag for a given protocol, so if the tag was not
     # first put into a state known to differ, what comes back is exactly what a write that did
@@ -546,8 +559,10 @@ def _settle(pending: list, state, tag_state: TagState, report: BlockReport, devi
         why = ("the tag was not first put into a state differing from this credential, so a "
                "byte-exact read here cannot tell a successful write from no write at all — the "
                "parking write did not take (RULES.md §10).")
+        # ⚠ NOT TRUNCATED. The reason is the entire content of the line — cutting it at 90 left
+        # the operator with "so a byte-exact rea" and nothing to act on.
         out("      %s %-10s UNPARKED — %s"
-            % (ui.mark("skip"), state[0].key if state else "?", why[:90]))
+            % (ui.mark("skip"), state[0].key if state else "?", why))
         for op, obs in graded:
             c = op.cell
             res.cells.append(ungraded(c.protocol.key, c.source, c.reader, why,
@@ -696,9 +711,25 @@ def _wipe(op: Op, devices: Devices, out, tag_state: TagState) -> None:
 
 
 def _write(op: Op, devices: Devices, out) -> bool:
+    """⚠ A SUCCESSFUL WRITE ANNOUNCES ITSELF. It used to print only on failure, which is fine at a
+    station that goes on to read something — the reads are the output. It is not fine at a
+    write-only station: the isolation phase writes a tag at one station and carries it to the next,
+    so phase 2's first station showed the operator a prompt, nothing at all, and another prompt.
+    Two bench runs in a row looked like a station that had hung or been skipped.
+
+    ⛔ AND IT IS NOT A RESULT, SO IT MUST NOT LOOK LIKE ONE. `Done!` means the commands went out on
+    the air; whether the credential landed is settled later by something reading it (RULES.md §10).
+    Hence "issued", and no outcome glyph.
+    """
     writer = devices.by_dev(op.device)
     try:
         writer.write_t55(op.protocol)
+        if op.protocol.key != reg.PARK_KEY:
+            out("      %s %-10s write issued by %s — not yet verified by anything"
+                % (ui.mark("write"), op.protocol.key, HUMAN[op.device]))
+        else:
+            out("      %s parking the tag on a different credential first (%s writes it)"
+                % (ui.mark("wipe"), HUMAN[op.device]))
         return True
     except DeviceError as e:
         # A refused write is a registered or new firmware gap, not an abort. The reads that depended
