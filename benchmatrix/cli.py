@@ -516,7 +516,9 @@ def build_parser() -> argparse.ArgumentParser:
                     help="exercise the control logic with no hardware; every cell will be UNGRADED")
     sp.set_defaults(func=cmd_run)
 
-    sp = sub.add_parser("learn", help="learn a reader's expectation from a Proxmark-written tag")
+    sp = sub.add_parser("learn",
+                        help="learn the FLIPPER's expectations from a Proxmark-written tag "
+                             "(rd.flip only — it cannot learn pm3 or Chameleon expectations)")
     common(sp, with_plan=False)
     sp.add_argument("--pm3", default=os.environ.get("PM3", "pm3"))
     sp.add_argument("--flipper-port", default=os.environ.get("FLIPPER_PORT"))

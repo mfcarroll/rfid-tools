@@ -241,11 +241,18 @@ def _refuse(p: reg.Protocol, source: str, reader: str, bench: Bench) -> Exclusio
         return Exclusion(p.key, source, reader, "no-judge",
                          "the Proxmark has no command for %s, so it cannot judge it." % p.key)
     if reader == "rd.pm3" and not p.expect:
+        # ⛔ NOT "run `bench learn`". That command writes with the Proxmark and reads with the
+        # FLIPPER — `rd.flip` is the only reader it can learn for (`learned.apply`). Pointing the
+        # operator at it for a pm3 pair sends them to a command that cannot produce the value, and
+        # this message did exactly that for em410x_electra.
         return Exclusion(p.key, source, reader, "no-expectation",
                          "what the Proxmark prints for a %s written on this bench has never been "
                          "observed, so there is no byte-exact token to compare against. This is a "
-                         "thing to go and measure, not a limit of the bench — run "
-                         "`bench learn -p %s`." % (p.key, p.key))
+                         "thing to go and measure, not a limit of the bench: write one with "
+                         "`%s`, run `%s`, and record the token it prints in the registry with that "
+                         "transcript as its provenance. `bench learn` cannot do it — it learns the "
+                         "Flipper's expectations only."
+                         % (p.key, p.pm3_write or "the clone command", p.pm3_read or "the reader"))
     if source == "t55.pm3" and not p.can("pm3_write"):
         return Exclusion(p.key, source, reader, "no-gold-writer",
                          "the Proxmark has no recorded clone signature for %s, so it cannot produce "
@@ -263,8 +270,10 @@ def _refuse(p: reg.Protocol, source: str, reader: str, bench: Bench) -> Exclusio
                          "the Chameleon renders %s in its own wording and what a pass looks like "
                          "has never been observed. The Proxmark's expectation is not "
                          "interchangeable — comparing one client's output against another's "
-                         "reports a working decoder as silent. Learn it from a real tag first."
-                         % p.key)
+                         "reports a working decoder as silent. Write one from the Proxmark, read "
+                         "it back with `%s`, and record what the Chameleon printed. `bench learn` "
+                         "cannot do it — it learns the Flipper's expectations only."
+                         % (p.key, p.cu_read or "the Chameleon's read command"))
     try:
         devices_to_measure(source, reader)
     except StationError as e:
