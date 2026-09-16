@@ -12,9 +12,23 @@ therefore not sufficient evidence of a decoder gap, and the gap register was abo
 
 ⚠ IT IS NOT A VOTE, AND THE MAJORITY DOES NOT WIN. Two readings that disagree are not resolved by
 counting them; they are a finding in their own right, and the honest thing is to withhold the gap
-and say the cell is unstable. RULES.md §11 still applies — a cell is a claim about a FIRMWARE — so
+and say the readings disagree. RULES.md §11 still applies — a cell is a claim about a FIRMWARE — so
 only runs whose firmware matches device-for-device are compared at all. A reflashed device makes an
 earlier reading a claim about a different instrument, not a contradiction of this one.
+
+⛔⛔ AND "DISAGREED" IS NOT "INTERMITTENT" — THIS IS THE TRAP, AND IT WAS WALKED INTO THE DAY THIS
+MODULE WAS WRITTEN. Intermittent means VARIES UNDER IDENTICAL CONDITIONS, and matching firmware is
+not identical conditions: run order, how much work a device had already done, the station before
+this one and the temperature of everything are all uncontrolled. The three readings of
+`em410x emu.pm3 -> rd.cu1` were called "confirmed intermittent" when no two of them shared a
+condition — the failure was the only one preceded by fifty cells of T5577 work, which is a
+DETERMINISTIC dependency if it holds, not noise.
+
+⇒ THE DIFFERENCE DECIDES WHAT HAPPENS NEXT, which is why it is worth this much text. "Intermittent"
+says the reading is noise and the cell should be repeated until it settles. "Disagreed" says there
+is an uncontrolled variable and somebody should go and find it. The first conclusion retires a
+cause that has not been looked for; only a repeat that holds the conditions fixed can license it,
+and this module has never seen one.
 """
 
 from __future__ import annotations
