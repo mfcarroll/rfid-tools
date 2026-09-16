@@ -262,6 +262,12 @@ the tool returns cheerfully and nothing says whether it worked:
 ⚠ The flash always runs on the host, even when the build ran in Docker: Docker Desktop on macOS
 passes no USB through.
 
+The DFU flow is a port of `enterdfu.py` by Matthew Carroll, from the ChameleonUltra project
+(`research/indala-psk-read/enterdfu.py`), as is the build recipe in `firmware.toml`. It lives here
+rather than being called there so that this repository does not depend on one project's research
+directory — see the header of [`dfu.py`](benchmatrix/dfu.py) for what was carried over and what this
+version adds.
+
 ## Provenance
 
 Every run records what each device reported at proof of life, and publishes it with the grid —
