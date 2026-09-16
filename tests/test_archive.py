@@ -26,7 +26,23 @@ import re
 import unittest
 
 from tests.helpers import reg                                        # noqa: F401
-from benchmatrix import registry
+from benchmatrix import learned, outcomes, registry
+
+
+def effective():
+    """The registry AS A RUN SEES IT — learned expectations folded in.
+
+    ⛔ THE GUARD READ THE RAW REGISTRY AND SO COULD NOT CHECK HALF THE BENCH. Fourteen expectations
+    live in `learned.json`, not in `registry.py`, because they were measured rather than written
+    down; a run folds them in before grading. Checking captures against the raw registry reported
+    those cells as having "no expectation registered" — a guard failing for want of the values it
+    exists to guard.
+
+    ⚠ `check_independence` IS NOT BYPASSED, it is irrelevant here: this compares a stored reading
+    against a stored expectation, and grades nothing.
+    """
+    protos, _ = learned.apply(registry.resolve(None), learned.load(), "ARCHIVE-REPLAY")
+    return {p.key: p for p in protos}
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 RUNS = os.path.join(os.path.dirname(HERE), "runs")
@@ -70,8 +86,9 @@ class EveryRecordedReadStillAgreesWithTheRegistry(unittest.TestCase):
     def test_the_decode_marker_fires_on_what_the_device_said(self):
         """⛔ THE fdxb FAULT, CAUGHT FROM THE ARCHIVE. A marker that never matches reports a wrong
         decode as SILENT, which is the merge the four outcomes exist to forbid."""
+        table = effective()
         for run, c in captures():
-            p = registry.ALL[c["protocol"]]
+            p = table[c["protocol"]]
             marker = p.marker_for(c["reader"])
             with self.subTest(run=run, protocol=c["protocol"], reader=c["reader"]):
                 self.assertIsNotNone(marker, "no decode marker registered")
@@ -82,13 +99,18 @@ class EveryRecordedReadStillAgreesWithTheRegistry(unittest.TestCase):
         """⛔ AND THE OTHER HALF. `expect_for` is a substring test, so an expectation the device
         never prints can never match — which is how a block image came to be compared against a
         decoded credential."""
+        table = effective()
         for run, c in captures():
-            p = registry.ALL[c["protocol"]]
+            p = table[c["protocol"]]
             want = p.expect_for(c["reader"])
             with self.subTest(run=run, protocol=c["protocol"], reader=c["reader"]):
-                self.assertTrue(want, "no expectation registered")
-                self.assertIn(want.lower(), c["evidence"].lower(),
-                              "the registered expectation is not in what the device printed")
+                self.assertTrue(want, "no expectation registered or learned")
+                # ⚠ THE MATCHER'S OWN TEST, not a literal `in`. A credential can span lines —
+                # `hidprox` on the Chameleon is FC and CN on two of them — and `observe` collapses
+                # whitespace to find it. A guard that checks differently from the thing it guards
+                # will eventually disagree with it about something real.
+                self.assertIn(outcomes._flat(want), outcomes._flat(c["evidence"]),
+                              "the expectation is not in what the device printed")
 
 
 if __name__ == "__main__":

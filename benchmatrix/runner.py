@@ -130,6 +130,9 @@ class RunResult:
     aborted: str = ""
     finished: str = ""
     provenance: str = "bench"
+    #: Session whose completed stations were carried into this run, if any. ⚠ PUBLISHED: a composite
+    #: that does not admit to being one is worse than re-measuring.
+    carried_from: str = ""
     #: device id -> what that device says it is running. Recorded at proof of life, published in
     #: the grid and the JSON: a cell is a claim about a firmware, not about a device in general.
     firmware: dict = field(default_factory=dict)
@@ -688,7 +691,16 @@ def _grade_one(op: Op, obs, report: BlockReport, res: RunResult, out, issued: li
         graded = grade(obs, licence, crowding=op.crowding)
         out("      %s %-10s %-9s %-7s %s" % (graded.glyph, cell.protocol.key, cell.source,
                                              cell.reader, graded.outcome))
-    res.cells.append(graded)
+    # ⭐ STAMPED HERE, WHERE EVERY GRADED CELL PASSES, rather than at each of the paths above —
+    # a field that some branches set and others do not is the same hole as a rule written in a
+    # comment. `dataclasses.replace` keeps `Cell` frozen-in-spirit: one construction site, one stamp.
+    res.cells.append(_at(graded, report.block.station.name))
+
+
+def _at(cell: Cell, station: str) -> Cell:
+    """The same cell, knowing where it was measured."""
+    import dataclasses
+    return dataclasses.replace(cell, station=station) if not cell.station else cell
 
 
 def _wipe(op: Op, devices: Devices, out, tag_state: TagState) -> None:
