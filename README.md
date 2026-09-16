@@ -108,7 +108,7 @@ the one place where swapping tags beats rearranging the bench.
 ./bench scope                      # the registry, and what it can and cannot grade
 ./bench plan                       # the cells, the station script, and what is refused
 ./bench run --dry-run --no-prompt  # rehearse the whole thing with no hardware
-./runtests                         # 204 tests, no hardware, no network
+./runtests                         # 221 tests, no hardware, no network
 ```
 
 ### Setup: which device is on which port
@@ -192,7 +192,7 @@ benchmatrix/
   dfu.py              Nordic DFU: trigger and program in one process
   learned.py          expectations learned from a real tag, and the self-licensing guard
   grid.py             the published grid, the exclusion list, the gap register
-tests/                204 tests — mostly on the scripted bench, plus `test_channels.py`,
+tests/                221 tests — mostly on the scripted bench, plus `test_channels.py`,
                       which exercises the REAL device classes with only the subprocess
                       layer stubbed. A fake that substitutes for the thing under test
                       proves nothing about it: `Chameleon.read` raised on every call and
@@ -289,12 +289,15 @@ firmware and not about a device in general.
 
 ## Status
 
-**The instrument is built; the bench run has not happened.** The registry, the station planner, the
+**The instrument is built, and the gold column has run.** On 2026-09-15 the
+`(t55.pm3, rd.pm3)` calibration was measured for all 18 tier-0 arms: **12 EXACT**, four registry
+faults (viking, jablotron, awid, noralsy — `pm3.write` and `expect` wrote different credentials,
+since corrected from what the Proxmark actually produced), one open question (fdxb decoded nothing,
+and with a single reader that cannot be told from a Proxmark that will not decode it), and one
+refused for want of an expectation (em410x_electra). The registry, the station planner, the
 runner, the controls and the isolation phase are complete and tested. What remains needs hardware:
 
-1. **Verify the gold column.** `./bench run -s t55.pm3 -r rd.pm3` confirms every tier-0 protocol has
-   a working `(t55.pm3, rd.pm3)` calibration. Anything that fails there is a *bench* problem and
-   must be fixed before any emulation is graded. **This alone is worth the project.**
+1. ✅ **The gold column** — done, see above. Re-run it to confirm the four corrections.
 2. **`bench learn`** the ten missing Flipper expectations, in a session of its own.
 3. **The full matrix.** Publish the grid.
 4. **Populate the gap register** from it, with captures attached.

@@ -230,3 +230,41 @@ class TheRecordKeepsWhatADiagnosisNeeds(unittest.TestCase):
         got = observe("viking", "t55.pm3", "rd.pm3", self.REAL, "1A337195", r"Viking - Card")
         self.assertTrue(got.summary)
         self.assertIn("Raw", got.summary[0])
+
+
+class BenchDerivedValuesArePinned(unittest.TestCase):
+    """⭐ These four came off the bench on 2026-09-15 (run 20260915_191849) after the gold column
+    found that `pm3.write` and `expect` disagreed for each. They are the only entries in the
+    registry promoted from "read out of the client's usage text" to "observed on hardware", and a
+    silent edit back to a plausible-looking guess would cost another bench session to find."""
+
+    OBSERVED = {
+        # protocol      what the Proxmark actually wrote and read back
+        "viking":    "1A337102",                    # Raw: F20000001A337102
+        "jablotron": "0899AABBCC",                  # Raw: FFFF0899AABBCCE8
+        "awid":      "011d87dd148e281111111111",
+        "noralsy":   "BB0214FF0110002233070000",
+    }
+
+    def test_each_is_what_the_proxmark_produced(self):
+        for key, value in self.OBSERVED.items():
+            with self.subTest(key):
+                self.assertEqual(reg.ALL[key].expect, value)
+
+    def test_every_writer_puts_the_same_credential_on_the_tag(self):
+        """⛔ THE FAULT THE GOLD COLUMN FOUND. `expect` came from the Chameleon's arm while
+        `pm3.write` wrote something else, so the gold row could never match. Aligning only the
+        expectation would fix the gold row and break `t55.cu*` instead."""
+        for key in self.OBSERVED:
+            with self.subTest(key):
+                p = reg.ALL[key]
+                self.assertEqual(p.expect.lower(), p.cu_expect.lower())
+                self.assertIn(p.cu_expect.lower(), p.cu_write.lower())
+                self.assertIn(p.cu_expect.lower(), p.cu_emulate.lower())
+
+    def test_a_flipper_expectation_derived_from_the_old_credential_is_withdrawn(self):
+        """⚠ viking and jablotron had one, derived from the credential that turned out to be wrong.
+        It cannot be right for the new one, and a stale expectation is worse than none."""
+        for key in ("viking", "jablotron"):
+            with self.subTest(key):
+                self.assertIsNone(reg.ALL[key].flip_expect)
