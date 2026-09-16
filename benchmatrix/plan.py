@@ -25,7 +25,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 
 from . import registry as reg
-from .stations import (Bench, EMULATED_SOURCES, GOLD_SOURCES, HUMAN, READERS, SOURCES, STACK_ORDER,
+from .stations import (Bench, EMULATED_SOURCES, GOLD_SOURCES, HUMAN, PM3, READERS, SOURCES,
+                       STACK_ORDER,
                        Station, StationError, TAGS, TAG_SOURCES, T5577, build_station,
                        devices_to_measure,
                        devices_to_produce, move_cost, plan_move, station_admits)
@@ -76,6 +77,10 @@ class Op:
     protocol: reg.Protocol
     cell: PlannedCell | None = None
     crowding: frozenset[str] = frozenset()
+    #: True when this write was preceded by a parking write, so a byte-exact read after it can only
+    #: have come from THIS writer. Gold writes do not need it — the tag already holds a different
+    #: protocol, and what a gold row claims is only that the tag carries the credential.
+    after_park: bool = False
     #: Which physical tag this op uses. Only phase 2 uses more than one, and only because writing a
     #: batch of tags at one station and reading the batch at the next is what turns two
     #: interventions per protocol into two per batch.
@@ -99,8 +104,12 @@ class Block:
 
     @property
     def protocols(self) -> list[reg.Protocol]:
+        """The real protocols measured here. Internal ones (parking, identity) are not cells and
+        have no business in a null sweep."""
         seen, out = set(), []
         for o in self.ops:
+            if o.protocol.key.startswith("__"):
+                continue
             if o.protocol.key not in seen:
                 seen.add(o.protocol.key)
                 out.append(o.protocol)
@@ -154,6 +163,8 @@ class RunPlan:
             for o in b.ops:
                 if o.kind == "write":
                     held = (o.protocol.key, o.device)
+                elif o.kind == "verify":
+                    pass
                 elif o.kind == "place":
                     held = (o.protocol.key, None)
                 elif o.kind == "arm":
@@ -412,7 +423,10 @@ def _routine(station: Station, cells: list[PlannedCell]) -> list[Op]:
                 todo = reads_for(p, source)
                 if not todo or writer not in station.devices:
                     continue
-                ops.append(Op("write", writer, p))
+                parked = source not in GOLD_SOURCES
+                if parked:
+                    ops += _park_ops(station, writer)
+                ops.append(Op("write", writer, p, after_park=parked))
                 ops += _verify_ops(p, writer, station, todo)
                 for c in todo:
                     ops.append(Op("read", READERS[c.reader], p, c,
@@ -434,6 +448,25 @@ def _routine(station: Station, cells: list[PlannedCell]) -> list[Op]:
                     ops.append(Op("read", READERS[c.reader], p, c,
                                   station.crowding(devices_to_measure(c.source, c.reader))))
                 ops.append(Op("disarm", dev, p))
+    return ops
+
+
+def _park_ops(station: Station, writer: str, tag: int = 0) -> list:
+    """Put the tag into a state that differs from what is about to be written, and prove it took.
+
+    ⛔⛔ WITHOUT THIS, A WRITER UNDER TEST IS CREDITED WITH THE GOLD WRITER'S WORK. Both write the
+    same credential for a given protocol, so a byte-exact read after the second write is exactly
+    what a write that did nothing would leave behind.
+
+    ⭐ THE GOLD WRITER PARKS WHERE IT CAN, which keeps the question narrow: "can this device write
+    protocol P" rather than "can it write anything at all". Where it is not in the stack the writer
+    parks itself, which is still sound — the tag demonstrably changed, and only that device touched
+    it — but a failure then says nothing about P specifically.
+    """
+    park = reg.park_protocol()
+    parker = PM3 if PM3 in station.devices else writer
+    ops = [Op("write", parker, park, tag=tag)]
+    ops += _verify_ops(park, parker, station, [], tag=tag)
     return ops
 
 
@@ -543,7 +576,10 @@ def isolate(screened: list, bench: Bench) -> RunPlan:
             batch = protos[i:i + batch_size]
             here = []
             for n, p in enumerate(batch):
-                here.append(Op("write", writer, p, tag=n))
+                parked = WRITER_SOURCE[writer] not in GOLD_SOURCES
+                if parked:
+                    here += _park_ops(write_station, writer, tag=n)
+                here.append(Op("write", writer, p, tag=n, after_park=parked))
                 wanted_here = [c for (src, rdr), cs in routes.items() for c in cs
                                if c.protocol == p.key and READERS[rdr] == writer]
                 here += _verify_ops(p, writer, write_station, wanted_here, tag=n)

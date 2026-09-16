@@ -412,3 +412,29 @@ def resolve(names: list[str] | tuple[str, ...] | None) -> list[Protocol]:
                             % (", ".join(unknown), ", ".join(TIER0_ORDER)))
     wanted = set(names)
     return [TIER0[k] for k in TIER0_ORDER if k in wanted]
+
+
+#: ⛔⛔ YOU CANNOT VERIFY A WRITE THAT WRITES WHAT IS ALREADY THERE. Every writer in this registry
+#: puts the SAME credential on the tag for a given protocol, so after the Proxmark has written it, a
+#: byte-exact read following the Chameleon's write proves nothing about the Chameleon: a write that
+#: did nothing at all leaves exactly the same reading behind. The `t55.cu*` and `t55.flip` columns
+#: would have measured the Proxmark's work and credited it to the device under test.
+#:
+#: ⇒ Before a writer under test is asked to write P, the tag is put into a state known to DIFFER
+#: from P, and that parking write is itself verified. Then a read of P afterwards can only have come
+#: from the writer under test. EM410X is the parking protocol because it is the one arm every reader
+#: on the bench is known to decode.
+PARK_ID = "5A5A5A5A5A"
+PARK_KEY = "__park__"
+
+
+def park_protocol(protocols: dict[str, Protocol] | None = None) -> Protocol:
+    """A credential distinct from every entry in the registry, used to clear the tag."""
+    base = (protocols or TIER0)["em410x"]
+    return Protocol(**{**base.__dict__,
+                       "key": PARK_KEY,
+                       "expect": PARK_ID,
+                       "cu_expect": PARK_ID,
+                       "flip_expect": PARK_ID,
+                       "pm3_write": "lf em 410x clone --id %s" % PARK_ID,
+                       "cu_write": "lf em 410x write --id %s" % PARK_ID.lower()})

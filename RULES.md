@@ -191,6 +191,20 @@ set up, and without it a tag carried to a single deaf reader is unfalsifiable.
 often read at the next — that is the whole point of carrying a tag. Scoping it to a block would make
 every carried tag look like a write that never landed.
 
+**You cannot verify a write that writes what is already there.** Every writer in the registry puts
+the *same* credential on the tag for a given protocol, so once the Proxmark has written it, a
+byte-exact read after the Chameleon's write is exactly what a write that did nothing would leave
+behind — the `t55.cu*` and `t55.flip` columns would measure the Proxmark's work and credit it to the
+device under test.
+
+So before a writer **under test** writes protocol P, the tag is put into a state known to differ from
+P, and that parking write is itself verified. A read of P afterwards can then only have come from the
+writer under test. The gold writer needs no parking: the tag already holds a different protocol, and
+what a gold row claims is only that the tag *carries* the credential, not who put it there.
+
+⚠ A parking write that cannot be verified blocks the write it was meant to protect. The reads go
+UNGRADED saying so, rather than being scored against a tag whose state is unknown.
+
 ⚠ **With only one reader, a failed read-back is ambiguous and is reported as ambiguous.** The
 harness does not pick between "the write did not land" and "this reader is deaf"; it says a second
 reader on the same tag would separate them, and leaves the cell UNGRADED.
