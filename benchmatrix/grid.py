@@ -57,6 +57,7 @@ def merge(phase1, phase2):
 def render(result, protocols: list[reg.Protocol]) -> str:
     """The terminal/markdown grid: one table per reader, protocols down, sources across."""
     cells = _by_cell(result.cells)
+    refused = {(e.protocol, e.source, e.reader) for e in result.plan.exclusions}
     sources = [s for s in SOURCE_ORDER
                if any(c.source == s for c in result.cells)]
     readers = [r for r in READER_ORDER if any(c.reader == r for c in result.cells)]
@@ -81,7 +82,8 @@ def render(result, protocols: list[reg.Protocol]) -> str:
                      "the abort and are kept only so the point of failure is visible.")
     lines.append("")
     lines.append("legend  " + "   ".join("%s %s" % (GLYPH[o], o.value) for o in Outcome)
-                 + "   ◌ screened in a crowded stack — not a verdict (RULES.md §7)")
+                 + "   ◌ screened in a crowded stack — not a verdict (RULES.md §7)"
+                 + "   – refused at plan time, with a reason below")
     lines.append("")
     lines.append("stations: " + " → ".join(b.block.station.name for b in result.blocks))
     lines.append("")
@@ -97,7 +99,9 @@ def render(result, protocols: list[reg.Protocol]) -> str:
             for s in sources:
                 c = cells.get((p.key, s, rdr))
                 if c is None:
-                    row.append("%-8s" % "")
+                    # ⚠ A BLANK CELL READS AS MISSING DATA. A refused cell is a decision with a
+                    # reason, and the grid should not make it look like an omission.
+                    row.append("%-8s" % ("– refsd" if (p.key, s, rdr) in refused else ""))
                 else:
                     mark = "%s %s" % (c.glyph, _short(c.outcome))
                     # ◌ marks a reading that is still only a screening result.
