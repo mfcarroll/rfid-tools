@@ -149,8 +149,9 @@ class EveryChannelAnswersWhatTheRunnerCalls(unittest.TestCase):
     ALWAYS = ("alive", "read", "disarm", "decode_marker")
     #: Only a device that can put a credential on a tag.
     WRITERS = {Pm3, Chameleon, Flipper}
-    #: Only a device that can pretend to BE a card. The Proxmark never does in this harness.
-    EMITTERS = {Chameleon, Flipper}
+    #: Only a device that can pretend to BE a card — which the Proxmark now does too, as the gold
+    #: EMITTER. Until it did, no emulation cell had a control of its own.
+    EMITTERS = {Pm3, Chameleon, Flipper}
 
     def test_every_channel_answers_the_common_calls(self):
         for cls in (Pm3, Chameleon, Flipper, devices.Scripted):
@@ -169,9 +170,17 @@ class EveryChannelAnswersWhatTheRunnerCalls(unittest.TestCase):
             with self.subTest(cls=cls.__name__):
                 self.assertTrue(callable(getattr(cls, "arm", None)))
 
-    def test_the_proxmark_is_deliberately_not_an_emitter(self):
-        """There is no `emu.pm3` source, and adding `arm()` here would invite one."""
-        self.assertFalse(hasattr(Pm3, "arm"))
+    def test_the_proxmark_is_an_emitter_now_and_holds_it(self):
+        """⭐ IT WAS DELIBERATELY NOT ONE, AND THE REASON HAS EXPIRED. The grid had no gold EMITTER,
+        so a reader that decoded no emulation at all was indistinguishable from every emitter being
+        bad — the calibration rule licenses a reader from a gold TAG row, which proves its decoder
+        against silicon and says nothing about an emulated waveform.
+
+        ⛔ AND IT MUST BE A HOLD. `lf <proto> sim` loops until the button or Enter, so `arm` and
+        `disarm` have to be separate — the same shape as the Flipper, where collapsing them into
+        one call made every emulation cell read an emitter that had already stopped."""
+        for name in ("arm", "disarm"):
+            self.assertTrue(callable(getattr(Pm3, name, None)), name)
 
 
 if __name__ == "__main__":

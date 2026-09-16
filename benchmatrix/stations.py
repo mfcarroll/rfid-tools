@@ -78,6 +78,7 @@ SOURCES: dict[str, tuple[str, str | None]] = {
     "t55.flip": (T5577, FLIPPER),
     "t55.cu1":  (T5577, CU1),
     "t55.cu2":  (T5577, CU2),
+    "emu.pm3":  (PM3, None),
     "emu.flip": (FLIPPER, None),
     "emu.cu1":  (CU1, None),
     "emu.cu2":  (CU2, None),
@@ -89,6 +90,8 @@ SOURCE_NOTE = {
     "t55.flip": "real T5577, written by the Flipper",
     "t55.cu1":  "real T5577, written by Chameleon 1 — tests our writer",
     "t55.cu2":  "real T5577, written by Chameleon 2 — tests our writer",
+    "emu.pm3":  "the Proxmark emulating — the GOLD EMITTER, and the only control the emulation "
+                "half of the grid has",
     "emu.flip": "Flipper emulating — an independent second opinion on our own emulator",
     "emu.cu1":  "Chameleon 1 emulating",
     "emu.cu2":  "Chameleon 2 emulating",
@@ -105,7 +108,7 @@ REAL_SOURCES = frozenset({"t55.pm3", "t55.flip", "t55.cu1", "t55.cu2", "oem"})
 GOLD_SOURCES = frozenset({"t55.pm3", "oem"})
 
 #: Sources that are a device emulating. The subcarrier rule refuses these against a Chameleon.
-EMULATED_SOURCES = frozenset({"emu.flip", "emu.cu1", "emu.cu2"})
+EMULATED_SOURCES = frozenset({"emu.pm3", "emu.flip", "emu.cu1", "emu.cu2"})
 
 #: Which tag source a given writer produces. The inverse of SOURCES' writer field.
 WRITER_SOURCE_BY_DEV = {w: src for src, (_, w) in SOURCES.items() if w is not None}

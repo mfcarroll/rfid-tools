@@ -69,6 +69,18 @@ class Protocol:
     family: str                  # ask | fsk | psk — the modulation actually on the coil
     t55_capable: bool
     subcarrier: bool                    # subcarrier-dependent ⇒ (emu.*, rd.cu) is refused, never "failed"
+    #: ⭐ `emu.pm3` — THE REFERENCE INSTRUMENT AS AN EMITTER, and the control the emulation half of
+    #: the grid never had. A reader is licensed from a gold TAG row, which proves its decoder
+    #: against silicon and says nothing about an emulated waveform; without a known-good emitter, a
+    #: reader that decodes NO emulation is indistinguishable from every emitter being bad.
+    #:
+    #: ⚠ CLASS 2 — READ OUT OF SOURCE, NOT OBSERVED. Each of these is the client's OWN documented
+    #: example for that protocol's `sim`, with our credential substituted; they are not the `clone`
+    #: line with a word swapped, because the two do not always take the same arguments (`lf hid
+    #: clone -w H10301` versus `lf hid sim -r <raw>`, both documented). They have never been run.
+    #: A wrong one fails at ARM time — "the source was never armed" — which scores no cell and
+    #: misattributes nothing, but they need a bench pass before anything is read into their results.
+    pm3_emulate: Optional[str] = None
     cu_read: Optional[str] = None       # the Chameleon's own decoder — `lf <proto> read`
     cu_write: Optional[str] = None      # the Chameleon's own T5577 writer — `lf <proto> write`
     cu_decode_marker: Optional[str] = None   # "a demod happened", in the Chameleon's own wording
@@ -161,6 +173,7 @@ def _p(**kw) -> Protocol:
 ALL: dict[str, Protocol] = {p.key: p for p in [
     _p(key="em410x", tier=0, family="ask", t55_capable=True,
        pm3_write="lf em 410x clone --id 2244668800",
+       pm3_emulate='lf em 410x sim --id 2244668800',
        pm3_read="lf em 410x reader",
        pm3_decode_marker=r"EM 410x (XL )?ID",
        expect="2244668800",
@@ -185,6 +198,7 @@ ALL: dict[str, Protocol] = {p.key: p for p in [
        # something other than `expect` and is reported as a registry fault, which is the correct
        # outcome and precisely why that path exists.
        pm3_write="lf viking clone --cn 1A3371",
+       pm3_emulate='lf viking sim --cn 1A3371',
        pm3_read="lf viking reader",
        pm3_decode_marker=r"Viking - Card",
        # ⭐ BENCH-DERIVED 2026-09-15 (run 20260915_191849). The registry's value came from the Chameleon's own arm and the Proxmark writes a different credential; this is what the Proxmark actually put on the tag and read back. The 4-byte Chameleon id is the card number and checksum: 1A3371 + 02.
@@ -202,6 +216,7 @@ ALL: dict[str, Protocol] = {p.key: p for p in [
        # ⭐ BENCH-DERIVED 2026-09-15 (run 20260915_191849). The registry's value came from the Chameleon's own arm and the Proxmark writes a different credential; this is what the Proxmark actually put on the tag and read back. `--cn 8899aabbcc` exceeds the 39-bit field and the client masks it; passing the
        # masked value writes the same frame without depending on that truncation.
        pm3_write="lf jablotron clone --cn 0899aabbcc",
+       pm3_emulate='lf jablotron sim --cn 0899aabbcc',
        pm3_read="lf jablotron reader",
        pm3_decode_marker=r"Jablotron - Card",
        expect="0899AABBCC",
@@ -216,6 +231,7 @@ ALL: dict[str, Protocol] = {p.key: p for p in [
 
     _p(key="pac", tier=0, family="ask", t55_capable=True,
        pm3_write="lf pac clone --cn CARD0042",
+       pm3_emulate='lf pac sim --cn CARD0042',
        pm3_read="lf pac reader",
        pm3_decode_marker=r"PAC/Stanley - Card",
        expect="CARD0042",
@@ -231,6 +247,7 @@ ALL: dict[str, Protocol] = {p.key: p for p in [
 
     _p(key="hidprox", tier=0, family="fsk", t55_capable=True,
        pm3_write="lf hid clone -w H10301 --fc 123 --cn 4567",
+       pm3_emulate='lf hid sim -w H10301 --fc 123 --cn 4567',
        pm3_read="lf hid reader",
        pm3_decode_marker=r"^.*\braw:\s*[0-9a-f]{24}\b",
        expect="FC: 123  CN: 4567",
@@ -246,6 +263,7 @@ ALL: dict[str, Protocol] = {p.key: p for p in [
 
     _p(key="ioprox", tier=0, family="fsk", t55_capable=True,
        pm3_write="lf io clone --vn 1 --fc 83 --cn 1337",
+       pm3_emulate='lf io sim --vn 1 --fc 83 --cn 1337',
        pm3_read="lf io reader",
        pm3_decode_marker=r"IO Prox - ",
        expect="XSF(01)53:01337",
@@ -264,6 +282,7 @@ ALL: dict[str, Protocol] = {p.key: p for p in [
        # with fc 1 / cn 1 is the nearest published example; the calibration row decides whether it
        # matches, and says so as a registry fault if it does not.
        pm3_write="lf awid clone --fmt 26 --fc 123 --cn 1337",
+       pm3_emulate='lf awid sim --fmt 26 --fc 123 --cn 1337',
        pm3_read="lf awid reader",
        pm3_decode_marker=r"AWID - len:",
        # ⭐ BENCH-DERIVED 2026-09-15 (run 20260915_191849). The registry's value came from the Chameleon's own arm and the Proxmark writes a different credential; this is what the Proxmark actually put on the tag and read back.
@@ -280,6 +299,7 @@ ALL: dict[str, Protocol] = {p.key: p for p in [
 
     _p(key="indala", tier=0, family="psk", t55_capable=True,
        pm3_write="lf indala clone -r a0000000e6bd0e92",
+       pm3_emulate='lf indala sim --raw a0000000e6bd0e92',
        pm3_read="lf indala reader",
        pm3_decode_marker=r"Indala \(len",
        expect="a0000000e6bd0e92",
@@ -295,6 +315,7 @@ ALL: dict[str, Protocol] = {p.key: p for p in [
 
     _p(key="keri", tier=0, family="psk", t55_capable=True,
        pm3_write="lf keri clone -t i --cn 12345",
+       pm3_emulate='lf keri sim --cn 12345',
        pm3_read="lf keri reader",
        pm3_decode_marker=r"KERI - Internal ID|Descrambled MS - FC:|probably KERI",
        expect="80003039",
@@ -310,6 +331,7 @@ ALL: dict[str, Protocol] = {p.key: p for p in [
 
     _p(key="nexwatch", tier=0, family="psk", t55_capable=True,
        pm3_write="lf nexwatch clone --cn 87654321 -m 2 --nc",
+       pm3_emulate='lf nexwatch sim --cn 87654321 -m 2 --nc',
        pm3_read="lf nexwatch reader",
        pm3_decode_marker=r"NexWatch raw id|88bit id",
        expect="87654321",
@@ -325,6 +347,7 @@ ALL: dict[str, Protocol] = {p.key: p for p in [
 
     _p(key="idteck", tier=0, family="psk", t55_capable=True,
        pm3_write="lf idteck clone --raw 4944544B55667788",
+       pm3_emulate='lf idteck sim --raw 4944544B55667788',
        pm3_read="lf idteck reader",
        pm3_decode_marker=r"IDTECK Tag Found: Card ID",
        expect="4944544B55667788",
@@ -339,6 +362,7 @@ ALL: dict[str, Protocol] = {p.key: p for p in [
 
     _p(key="gallagher", tier=0, family="ask", t55_capable=True,
        pm3_write="lf gallagher clone --raw 7feaa31e76d86c6d868cc249",
+       pm3_emulate='lf gallagher sim --raw 7feaa31e76d86c6d868cc249',
        pm3_read="lf gallagher reader",
        pm3_decode_marker=r"GALLAGHER - Region:",
        expect="7feaa31e76d86c6d868cc249",
@@ -353,6 +377,7 @@ ALL: dict[str, Protocol] = {p.key: p for p in [
 
     _p(key="securakey", tier=0, family="ask", t55_capable=True,
        pm3_write="lf securakey clone --raw 7fcb400001adea5344300000",
+       pm3_emulate='lf securakey sim --raw 7fcb400001adea5344300000',
        pm3_read="lf securakey reader",
        pm3_decode_marker=r"Securakey - len:",
        expect="7fcb400001adea5344300000",
@@ -369,6 +394,7 @@ ALL: dict[str, Protocol] = {p.key: p for p in [
 
     _p(key="noralsy", tier=0, family="ask", t55_capable=True,
        pm3_write="lf noralsy clone --cn 112233",
+       pm3_emulate='lf noralsy sim --cn 112233',
        pm3_read="lf noralsy reader",
        pm3_decode_marker=r"Noralsy - Card:",
        # ⭐ BENCH-DERIVED 2026-09-15 (run 20260915_191849). The registry's value came from the Chameleon's own arm and the Proxmark writes a different credential; this is what the Proxmark actually put on the tag and read back.
@@ -384,6 +410,7 @@ ALL: dict[str, Protocol] = {p.key: p for p in [
 
     _p(key="gproxii", tier=0, family="ask", t55_capable=True,
        pm3_write="lf gproxii clone --xor 141 --fmt 26 --fc 123 --cn 1337",
+       pm3_emulate='lf gproxii sim --xor 141 --fmt 26 --fc 123 --cn 1337',
        pm3_read="lf gproxii reader",
        pm3_decode_marker=r"G-Prox-II - (Unknown )?[Ll]en:",
        expect="fac2a38c2b081af0210b12c2",
@@ -398,6 +425,7 @@ ALL: dict[str, Protocol] = {p.key: p for p in [
 
     _p(key="fdxb", tier=0, family="ask", t55_capable=True,
        pm3_write="lf fdxb clone --country 999 --national 1337",
+       pm3_emulate='lf fdxb sim --country 999 --national 1337',
        pm3_read="lf fdxb reader",
        # ⛔⛔ TWO FAULTS HERE AT ONCE, AND THEY HID EACH OTHER. Corrected 2026-09-15 from the
        # operator's own `lf fdxb reader` against the tag this harness had just written.
@@ -490,6 +518,7 @@ ALL: dict[str, Protocol] = {p.key: p for p in [
 
     _p(key="indala224", tier=0, family="psk", t55_capable=True,
        pm3_write="lf indala clone -r 80000001b23523a6c2e31eba3cbee4afb3c6ad1fcf649393928c14e5",
+       pm3_emulate='lf indala sim --raw 80000001b23523a6c2e31eba3cbee4afb3c6ad1fcf649393928c14e5',
        pm3_read="lf indala reader",
        pm3_decode_marker=r"Indala \(len",
        expect="80000001b23523a6c2e31eba3cbee4afb3c6ad1fcf649393928c14e5",

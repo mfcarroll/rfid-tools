@@ -37,6 +37,14 @@ from .stations import (Bench, EMULATED_SOURCES, GOLD_SOURCES, HUMAN, PM3, READER
 WRITER_ORDER = ("pm3", "flipper", "cu1", "cu2")
 WRITER_SOURCE = {"pm3": "t55.pm3", "flipper": "t55.flip", "cu1": "t55.cu1", "cu2": "t55.cu2"}
 
+#: Emulated sources, in the order a routine arms them. ⚠ ORDERED, because a set would make the op
+#: sequence — and therefore every station's transcript — vary between runs. Derived from
+#: `EMULATED_SOURCES` so a new emitter cannot be added to one and forgotten in the other.
+EMULATED_ORDER = tuple(s for s in ("emu.pm3", "emu.flip", "emu.cu1", "emu.cu2")
+                       if s in EMULATED_SOURCES)
+assert set(EMULATED_ORDER) == set(EMULATED_SOURCES), (
+    "EMULATED_ORDER is missing %s" % (set(EMULATED_SOURCES) - set(EMULATED_ORDER)))
+
 
 @dataclass(frozen=True)
 class PlannedCell:
@@ -150,9 +158,21 @@ class RunPlan:
             yield plan_move(prev, b.station), b
             prev = b.station
 
+    #: Cells `_cells` produced, for `audit` to check the routines actually measure. Set by `build`.
+    requested: list = field(default_factory=list)
+
     def audit(self) -> list[str]:
         """The invariants, checked independently of the builder that is meant to guarantee them."""
         bad = []
+        # ⛔⛔ A CELL MAY BE REFUSED OR MEASURED, NEVER LOST. `_routine` walked a hardcoded tuple of
+        # emulated sources, so `emu.pm3` cells were created, covered by a station, and then never
+        # given a read op — gone from the plan with no exclusion to say why. A refusal is a
+        # published decision; a disappearance is a hole in the grid that nothing names.
+        planned = {c.key for c in self.cells}
+        for c in self.requested:
+            if c.key not in planned:
+                bad.append("(%s) was planned and then never measured — no read op was generated "
+                           "for it, and no refusal explains its absence" % " / ".join(c.key))
         for p, r in sorted(self.pairs):
             if self.calibration_for(p, r) is None:
                 bad.append("(%s, %s) is in the plan with no calibration row" % (p, r))
@@ -284,6 +304,11 @@ def _refuse(p: reg.Protocol, source: str, reader: str, bench: Bench,
                          "transcript as its provenance. `bench learn` cannot do it — it learns the "
                          "Flipper's expectations only."
                          % (p.key, p.pm3_write or "the clone command", p.pm3_read or "the reader"))
+    if source == "emu.pm3" and not p.pm3_emulate:
+        return Exclusion(p.key, source, reader, "no-emitter",
+                         "no Proxmark simulation command is registered for %s. `lf %s sim` may not "
+                         "exist, or its arguments have not been established — either way nothing "
+                         "here may guess at one." % (p.key, p.key))
     if source == "t55.pm3" and not p.can("pm3_write"):
         return Exclusion(p.key, source, reader, "no-gold-writer",
                          "the Proxmark has no recorded clone signature for %s, so it cannot produce "
@@ -542,7 +567,12 @@ def _routine(station: Station, cells: list[PlannedCell]) -> list[Op]:
                     ops.append(Op("read", READERS[c.reader], p, c,
                                   station.crowding(devices_to_measure(c.source, c.reader))))
         else:
-            for source in ("emu.flip", "emu.cu1", "emu.cu2"):
+            # ⛔ FROM THE ONE DEFINITION, NOT A TUPLE WRITTEN OUT AGAIN. This was
+            # `("emu.flip", "emu.cu1", "emu.cu2")`, so adding `emu.pm3` as a source produced cells
+            # that `_cells` created, `choose_stations` covered, and this loop then silently never
+            # generated a read for — they vanished between the plan and the routine with no
+            # refusal and no cell. Same shape as `marker_for`'s hardcoded reader list.
+            for source in EMULATED_ORDER:
                 todo = reads_for(p, source)
                 if not todo:
                     continue
@@ -626,7 +656,8 @@ def build(protocols: list[reg.Protocol], sources: list[str], readers: list[str],
     if cells:
         for station in order_stations(choose_stations(cells, bench), cells):
             blocks.append(Block(station, _routine(station, cells)))
-    plan = RunPlan(bench=bench, blocks=_coalesce(blocks), exclusions=exclusions, phase=phase)
+    plan = RunPlan(bench=bench, blocks=_coalesce(blocks), exclusions=exclusions, phase=phase,
+                   requested=cells)
     bad = plan.audit()
     if bad:
         raise AssertionError("plan.build produced an ungradeable plan:\n  " + "\n  ".join(bad))
