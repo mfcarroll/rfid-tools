@@ -177,12 +177,42 @@ class Pm3:
         self.reported = _pm3_version(out)
         return True, "pm3: alive — %s" % self.reported
 
+    def _fault(self, out: str, doing: str) -> Optional[str]:
+        """Why this invocation is not evidence, or None if it reached the device.
+
+        ⛔⛔ THE LIVENESS RULE APPLIES TO EVERY COMMAND, NOT JUST PROOF OF LIFE (RULES.md §5).
+        `PM3_FAIL` was checked in `alive()` and NOWHERE ELSE, so a read whose client never got the
+        port returned its own error text and was scored as a reader that decoded nothing — SILENT,
+        a verdict about the Proxmark, from an invocation that never reached the Proxmark.
+        `_summarise` then filtered the error line out, so the operator saw `device (nothing)`.
+        """
+        low = (out or "").lower()
+        for m in PM3_FAIL:
+            if m in low:
+                return "%s: the client did not reach the device — %s" % (doing, m)
+        if "[timed out" in low:
+            return "%s: the client timed out" % doing
+        if not low.strip():
+            return "%s: the client produced no output at all" % doing
+        return None
+
     def read(self, p: reg.Protocol) -> str:
-        return self.exec(p.pm3_read)
+        """⛔ A FAILED INVOCATION IS NOT A SILENCE. It raises, and a raising reader aborts the block
+        rather than being scored — because a silent reader and a silent emitter produce IDENTICAL
+        numbers, and so does a client that never opened the port."""
+        out = self.exec(p.pm3_read)
+        fault = self._fault(out, "reading %s" % p.key)
+        if fault:
+            raise DeviceError("pm3: %s. Tail: %s"
+                              % (fault, " / ".join((out or "").strip().splitlines()[-3:])[:200]))
+        return out
 
     def write_t55(self, p: reg.Protocol) -> str:
         """Write the gold reference onto a real T5577, and refuse to pretend it happened."""
         out = self.exec(p.pm3_write, timeout=max(self.timeout, 120))
+        fault = self._fault(out, "writing %s" % p.key)
+        if fault:
+            raise DeviceError("pm3: %s" % fault)
         if not any(m in (out or "").lower() for m in PM3_WROTE):
             tail = " / ".join(l.strip() for l in (out or "").strip().splitlines()[-3:])
             raise DeviceError(
@@ -206,6 +236,9 @@ class Pm3:
         a connect (RULES.md §10).
         """
         out = self.exec("lf t55xx wipe", "lf t55xx detect", timeout=max(self.timeout, 120))
+        fault = self._fault(out, "wiping the tag")
+        if fault:
+            return False, fault
         low = (out or "").lower()
         if not any(m in low for m in T55_PRESENT):
             return False, "no tag answered `lf t55xx detect` after the wipe"

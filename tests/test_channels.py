@@ -248,3 +248,66 @@ class TheScriptedBenchMustBeWrongInTheSameWaysTheRealOneIs(unittest.TestCase):
         air, p = self._air_with_tag_holding("fdxb")
         self.assertIsNone(p.expect_for("rd.flip"), "fdxb's Flipper encoding is still unknown")
         self.assertEqual(Scripted(id="flipper", role="flipper", air=air).read(p), "")
+
+
+class AFailedInvocationIsNotASilence(unittest.TestCase):
+    """⛔⛔ THE LIVENESS RULE APPLIES TO EVERY COMMAND, NOT JUST PROOF OF LIFE (RULES.md §5).
+    `PM3_FAIL` was checked in `alive()` and nowhere else, so a read whose client never got the port
+    returned its own error text and was scored SILENT — a verdict about the Proxmark, from an
+    invocation that never reached the Proxmark.
+
+    ⚠ AND IT WAS INVISIBLE. `_summarise` keeps lines matching the expectation, the decode marker or
+    "raw"; a client error matches none of them, so the operator saw `device (nothing)` — which is
+    what a reader that decoded nothing looks like. Seven protocols failed their read-back that way
+    in one learning session, none of them reproducible afterwards, while a pm3 CLI was open on the
+    same port.
+    """
+
+    CLAIMED = "\n[pm3 ERROR running 'pm3 -c lf indala reader': claimed by another process]\n"
+
+    def _pm3(self, reply):
+        """⚠ THE REAL `Pm3`, with only `_run` stubbed — the same discipline as the rest of this
+        file. Stubbing `exec` would skip the very code path under test."""
+        rec = Recorder(reply)
+        self.rec = rec
+        p = Pm3(binary="pm3")
+        devices._run = rec
+        return p
+
+    def setUp(self):
+        self._real_run = devices._run
+
+    def tearDown(self):
+        devices._run = self._real_run
+
+    def test_a_port_claimed_by_something_else_raises(self):
+        with self.assertRaises(DeviceError) as cm:
+            self._pm3(self.CLAIMED).read(reg.ALL["indala"])
+        self.assertIn("did not reach the device", str(cm.exception))
+        self.assertIn("claimed by another process", str(cm.exception))
+
+    def test_a_timeout_raises(self):
+        with self.assertRaises(DeviceError):
+            self._pm3("\n[TIMED OUT after 90s running pm3 -c]\n").read(reg.ALL["indala"])
+
+    def test_silence_from_the_client_itself_raises(self):
+        with self.assertRaises(DeviceError):
+            self._pm3("").read(reg.ALL["indala"])
+
+    def test_but_a_genuine_empty_read_is_returned_and_scored(self):
+        """⭐ THE DISTINCTION THAT MATTERS. A client that ran and a tag that said nothing IS a
+        reading; only an invocation that never got there is not."""
+        real = ("[+] Using UART port /dev/tty.usbmodemiceman1\n"
+                "[+] Communicating with PM3 over USB-CDC\n"
+                "[usb] pm3 --> lf indala reader\n")
+        self.assertEqual(self._pm3(real).read(reg.ALL["indala"]), real)
+
+    def test_a_write_that_never_reached_the_device_raises_too(self):
+        with self.assertRaises(DeviceError) as cm:
+            self._pm3(self.CLAIMED).write_t55(reg.ALL["indala"])
+        self.assertIn("did not reach the device", str(cm.exception))
+
+    def test_and_a_wipe_reports_it_rather_than_claiming_a_clean_tag(self):
+        ok, why = self._pm3(self.CLAIMED).wipe_t55()
+        self.assertFalse(ok)
+        self.assertIn("did not reach the device", why)

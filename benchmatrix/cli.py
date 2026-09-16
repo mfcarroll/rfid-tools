@@ -656,9 +656,16 @@ def cmd_learn(a) -> int:
                         done("      %s the Proxmark cannot read back what it just wrote"
                              % ui.mark("bad"))
                         print("          expected  %r" % p.expect)
-                        for line in outcomes.observe(p.key, "t55.pm3", "rd.pm3", back, p.expect,
-                                                     p.pm3_decode_marker).summary or ["(nothing)"]:
-                            print("          device    %s" % line[:110])
+                        said = outcomes.observe(p.key, "t55.pm3", "rd.pm3", back, p.expect,
+                                                p.pm3_decode_marker).summary
+                        # ⚠ AN EMPTY SUMMARY IS EXACTLY WHEN THE RAW TEXT IS NEEDED. `_summarise`
+                        # keeps lines that match the expectation, the marker, or "raw" — so a
+                        # client error matches none of them and prints as `device (nothing)`,
+                        # which is indistinguishable from a reader that decoded nothing. That is
+                        # what `(nothing)` meant on the bench: the pm3 client had not reached the
+                        # device at all.
+                        for line in said or (back or "").strip().splitlines()[-4:] or ["(no output)"]:
+                            print("          device    %s" % line.strip()[:110])
                         print("      · not learning from this tag. The write, the registry entry "
                               "and the stack are all still candidates — the lines above say which.")
                         continue
