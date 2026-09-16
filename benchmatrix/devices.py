@@ -116,7 +116,8 @@ def _run(argv: list[str], timeout: int) -> str:
         # ⛔ errors="replace" IS LOAD-BEARING. `lf t55xx dump` puts raw credential bytes in the
         # stream and strict UTF-8 raises; a bare except then returns only the error string, and a
         # DECODE ERROR MUST NEVER BE REPORTABLE AS A HARDWARE VERDICT.
-        r = subprocess.run(argv, capture_output=True, text=True, errors="replace", timeout=timeout)
+        r = subprocess.run(argv, capture_output=True, text=True, errors="replace",
+                           timeout=timeout, stdin=subprocess.DEVNULL)
         return (r.stdout or "") + (r.stderr or "")
     except subprocess.TimeoutExpired:
         return "\n[TIMED OUT after %ss running %s]\n" % (timeout, shlex.join(argv[:3]))
@@ -373,7 +374,7 @@ class Flipper:
         argv = [self._py(), self.script] + (["--port", self.port] if self.port else []) + list(args)
         try:
             r = subprocess.run(argv, capture_output=True, text=True, errors="replace",
-                               timeout=self.timeout)
+                               timeout=self.timeout, stdin=subprocess.DEVNULL)
             return r.returncode, (r.stdout or "") + (r.stderr or "")
         except subprocess.TimeoutExpired:
             return 3, "[flipper.py TIMED OUT after %ss]" % self.timeout

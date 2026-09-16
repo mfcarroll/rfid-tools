@@ -69,7 +69,7 @@ def _play(sound: str) -> None:
     sys.stdout.flush()
     try:
         subprocess.Popen(["afplay", "/System/Library/Sounds/%s.aiff" % sound],
-                         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                         stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     except Exception:
         pass
 
@@ -104,9 +104,11 @@ def _say(words: str, block: bool = False) -> None:
     argv = ["say", "-r", str(RATE), _spoken(words)]
     try:
         if block:
-            subprocess.run(argv, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=25)
+            subprocess.run(argv, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
+                           stderr=subprocess.DEVNULL, timeout=25)
         else:
-            _TALKING = subprocess.Popen(argv, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            _TALKING = subprocess.Popen(argv, stdin=subprocess.DEVNULL,
+                                        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     except Exception:
         pass
 
@@ -148,10 +150,37 @@ def cue_done(words: str, ok: bool = True, partial: bool = False) -> None:
     _say(words, block=True)
 
 
+#: The terminal as it was before any child process ran. See `_sane`.
+_TTY = None
+try:
+    import termios
+    if sys.stdin.isatty():
+        _TTY = termios.tcgetattr(sys.stdin)
+except Exception:                                          # noqa: BLE001 - not a tty, or no termios
+    termios = None
+
+
+def _sane() -> None:
+    """⛔⛔ PUT THE TERMINAL BACK BEFORE ASKING FOR A KEYPRESS. The Proxmark client initialises
+    readline, and a child that inherits a tty on stdin can leave it out of canonical mode — at which
+    point Enter arrives as a literal ^M, the prompt never returns, and the operator's only way out
+    of a run is Ctrl-C. Device-observed at the first station of a real run.
+
+    ⚠ Every subprocess in this package is now launched with `stdin=DEVNULL`, which is the actual
+    fix. This is the guard for the next tool that is added and forgets.
+    """
+    if _TTY is not None and termios is not None:
+        try:
+            termios.tcsetattr(sys.stdin, termios.TCSADRAIN, _TTY)
+        except Exception:                                  # noqa: BLE001
+            pass
+
+
 def ask(prompt: str, spoken: str = "", sound: str = SND_MOVE) -> None:
     """Blocking confirmation with a cue. Returns when the operator presses Enter."""
     _play(sound)
     _say(spoken or prompt)
+    _sane()
     try:
         input(prompt)
     except EOFError:
@@ -168,6 +197,7 @@ def ask_choice(prompt: str, choices: str, default: str, spoken: str = "",
     if sound:
         _play(sound)
     _say(spoken or prompt)
+    _sane()
     while True:
         try:
             r = input(prompt).strip().lower()

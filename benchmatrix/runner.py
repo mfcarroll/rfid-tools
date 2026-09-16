@@ -30,7 +30,7 @@ import datetime as _dt
 import os as _os
 from dataclasses import dataclass, field
 
-from . import cues, identity
+from . import cues, identity, ui
 from .devices import DeviceError, WrongDevice
 from .identity import IdentityFault, NullSweep, null_sweep, sweeps_agree
 from .outcomes import (Calibration, CalibrationRefused, Cell, Outcome, grade, observe, screened,
@@ -168,7 +168,8 @@ def _harness_version() -> str:
         here = _os.path.dirname(_os.path.dirname(_os.path.abspath(__file__)))
         try:
             r = subprocess.run(["git", "-C", here, "describe", "--always", "--dirty", "--tags"],
-                               capture_output=True, text=True, timeout=10)
+                               capture_output=True, text=True, timeout=10,
+                               stdin=subprocess.DEVNULL)
             _HARNESS_VERSION = (r.stdout or "").strip() or "unknown"
         except Exception:                                  # noqa: BLE001
             _HARNESS_VERSION = "unknown"
@@ -201,7 +202,7 @@ def run(plan: RunPlan, devices: Devices, *, interactive: bool = True,
         res.harness = _harness_version()
         for dev in devices.all():
             ok, why = dev.alive()
-            out("    %s %s" % ("✓" if ok else "⛔", why))
+            out("    %s %s" % (ui.mark("ok" if ok else "bad"), why))
             res.firmware[getattr(dev, "name", None) or dev.id] = getattr(
                 dev, "reported", "not reported")
             if not ok:
@@ -265,14 +266,14 @@ def _measure(plan: RunPlan, devices: Devices, res: RunResult, interactive: bool,
         pad = plan.bench.pad
         empty = null_station(b.station)
 
-        out("\n  ══ %s ══  %s" % (b.station.name, b.station.describe()))
-        _goto(prev, empty, interactive, devices, out)
+        out("\n  %s  %s" % (ui.banner(b.station.name), ui.paint(b.station.describe(), "dim")))
+        _goto(prev, empty, interactive, devices, out, plan.bench)
         prev = empty
 
         if identity.identifiable(empty):
             _identity(report, devices, res, out, empty)
         elif any(d in (CU1, CU2) for d in empty.stack):
-            out("    · no radio identity check here — the only Chameleon in the stack is the one "
+            out("    %s no radio identity check here" if False else "    · no radio identity check here — the only Chameleon in the stack is the one "
                 "reading, and its port already says which device that is")
 
         report.before = _sweep("NULL BEFORE", empty, b, devices, out)
@@ -283,7 +284,7 @@ def _measure(plan: RunPlan, devices: Devices, res: RunResult, interactive: bool,
             raise RunAborted(res.aborted, res)
 
         if empty != b.station:
-            _goto(prev, b.station, interactive, devices, out)
+            _goto(prev, b.station, interactive, devices, out, plan.bench)
             prev = b.station
 
         try:
@@ -296,12 +297,12 @@ def _measure(plan: RunPlan, devices: Devices, res: RunResult, interactive: bool,
             raise RunAborted(str(e), res) from e
 
         if empty != b.station:
-            _goto(prev, empty, interactive, devices, out)
+            _goto(prev, empty, interactive, devices, out, plan.bench)
             prev = empty
 
         report.after = _sweep("NULL AFTER", empty, b, devices, out)
         agree, why = sweeps_agree(report.before, report.after)
-        out("    %s %s" % ("✓" if agree else "⛔", why))
+        out("    %s %s" % (ui.mark("ok" if agree else "bad"), why))
         if not agree:
             report.void, report.void_why = True, why
             _void(res, report, issued, out)
@@ -400,8 +401,8 @@ def _routine(report: BlockReport, devices: Devices, res: RunResult, session: str
             res.cells.append(ungraded(cell.protocol.key, cell.source, cell.reader,
                                       "the source was never armed — the command was refused",
                                       crowding=op.crowding))
-            out("      ▒ %-10s %-9s %-7s not measured: source not armed"
-                % (cell.protocol.key, cell.source, cell.reader))
+            out("      %s %-10s %-9s %-7s not measured: source not armed"
+                % (ui.mark("skip"), cell.protocol.key, cell.source, cell.reader))
             continue
 
         obs = _read(op, devices, session, pad, out)
@@ -456,7 +457,8 @@ def _settle(pending: list, state, tag_state: TagState, report: BlockReport, devi
         why = ("the tag was not first put into a state differing from this credential, so a "
                "byte-exact read here cannot tell a successful write from no write at all — the "
                "parking write did not take (RULES.md §10).")
-        out("      ▒ %-10s UNPARKED — %s" % (state[0].key if state else "?", why[:90]))
+        out("      %s %-10s UNPARKED — %s"
+            % (ui.mark("skip"), state[0].key if state else "?", why[:90]))
         for op, obs in graded:
             c = op.cell
             res.cells.append(ungraded(c.protocol.key, c.source, c.reader, why,
@@ -468,8 +470,8 @@ def _settle(pending: list, state, tag_state: TagState, report: BlockReport, devi
         return
     if not graded:
         what = state[0].key if state else "?"
-        out("      ▒ %s: the write was issued and the writer could not read it back"
-            % ("the parking credential" if what.startswith("__") else what))
+        out("      %s %s: the write was issued and the writer could not read it back"
+            % (ui.mark("skip"), "the parking credential" if what.startswith("__") else what))
         return
 
     protocol = state[0].key if state else pending[0][0].protocol.key
@@ -483,7 +485,7 @@ def _settle(pending: list, state, tag_state: TagState, report: BlockReport, devi
         why = ("the write was issued and none of %s read it back, so the credential is not on the "
                "tag. This is a WRITE failure, not a reader one (RULES.md §10)."
                % ", ".join(readers))
-    out("      ▒ %-10s write NOT VERIFIED — %s" % (protocol, why))
+    out("      %s %-10s write NOT VERIFIED — %s" % (ui.mark("skip"), protocol, why))
     for op, obs in graded:
         c = op.cell
         res.cells.append(ungraded(c.protocol.key, c.source, c.reader, why, crowding=op.crowding))
@@ -499,8 +501,8 @@ def _grade_one(op: Op, obs, report: BlockReport, res: RunResult, out, issued: li
             why = res.refusals.get(cell.pair, "no calibration row has passed for this pair")
             res.cells.append(ungraded(cell.protocol.key, cell.source, cell.reader, why,
                                       crowding=op.crowding))
-            out("      ▒ %-10s %-9s %-7s UNGRADED: %s"
-                % (cell.protocol.key, cell.source, cell.reader, why[:52]))
+            out("      %s %-10s %-9s %-7s UNGRADED: %s"
+                % (ui.mark("skip"), cell.protocol.key, cell.source, cell.reader, why[:52]))
             return
 
     if cell.is_calibration:
@@ -514,8 +516,9 @@ def _grade_one(op: Op, obs, report: BlockReport, res: RunResult, out, issued: li
             res.screened_pairs.add(cell.pair)
             res.refusals[cell.pair] = ("the calibration row was screened %s in a crowded stack and "
                                        "awaits isolation" % obs.outcome_if_licensed.value)
-            out("      ◌ %-10s %-9s %-7s screened %s — queued for isolation"
-                % (cell.protocol.key, cell.source, cell.reader, obs.outcome_if_licensed.value))
+            out("      %s %-10s %-9s %-7s screened %s — queued for isolation"
+                % (ui.mark("screen"), cell.protocol.key, cell.source, cell.reader,
+                   obs.outcome_if_licensed.value))
             return
         else:
             try:
@@ -523,16 +526,17 @@ def _grade_one(op: Op, obs, report: BlockReport, res: RunResult, out, issued: li
             except CalibrationRefused as e:
                 res.refusals[cell.pair] = str(e)
                 res.cells.append(grade(obs, None, note=str(e)))
-                out("      ▒ %-10s %-9s %-7s CALIBRATION REFUSED"
-                    % (cell.protocol.key, cell.source, cell.reader))
+                out("      %s %-10s %-9s %-7s CALIBRATION REFUSED"
+                    % (ui.mark("bad"), cell.protocol.key, cell.source, cell.reader))
                 out("          %s" % str(e))
                 return
 
     licence = res.licences.get(cell.pair)
     if op.crowded and (obs.outcome_if_licensed is not Outcome.EXACT or licence is None):
         graded = screened(obs, op.crowding, report.block.station.name)
-        out("      ◌ %-10s %-9s %-7s screened %s — queued for isolation"
-            % (cell.protocol.key, cell.source, cell.reader, obs.outcome_if_licensed.value))
+        out("      %s %-10s %-9s %-7s screened %s — queued for isolation"
+            % (ui.mark("screen"), cell.protocol.key, cell.source, cell.reader,
+               obs.outcome_if_licensed.value))
     else:
         graded = grade(obs, licence, crowding=op.crowding)
         out("      %s %-10s %-9s %-7s %s" % (graded.glyph, cell.protocol.key, cell.source,
@@ -560,7 +564,7 @@ def _wipe(op: Op, devices: Devices, out, tag_state: TagState) -> None:
     tag_state.protocol, tag_state.writer = None, None
     tag_state.verified, tag_state.witnesses = False, set()
     tag_state.cleared = bool(ok)
-    out("      %s tag wiped — %s" % ("⌫" if ok else "⛔", detail))
+    out("      %s tag wiped — %s" % (ui.mark("wipe" if ok else "bad"), detail))
 
 
 def _write(op: Op, devices: Devices, out) -> bool:
@@ -571,7 +575,8 @@ def _write(op: Op, devices: Devices, out) -> bool:
     except DeviceError as e:
         # A refused write is a registered or new firmware gap, not an abort. The reads that depended
         # on it are skipped rather than filed as the readers' failures.
-        out("      ⛔ %s could not write %s — %s" % (HUMAN[op.device], op.protocol.key, e))
+        out("      %s %s could not write %s — %s"
+            % (ui.mark("bad"), HUMAN[op.device], op.protocol.key, e))
         return False
 
 
@@ -580,7 +585,8 @@ def _arm(op: Op, devices: Devices, out) -> bool:
         devices.by_dev(op.device).arm(op.protocol)
         return True
     except DeviceError as e:
-        out("      ⛔ %s could not emulate %s — %s" % (HUMAN[op.device], op.protocol.key, e))
+        out("      %s %s could not emulate %s — %s"
+            % (ui.mark("bad"), HUMAN[op.device], op.protocol.key, e))
         return False
 
 
@@ -610,16 +616,28 @@ def _read(op: Op, devices: Devices, session: str, pad: str, out, protocol=None, 
 
 # ------------------------------------------------------------------ controls
 
-def _goto(frm, to, interactive: bool, devices: Devices, out) -> None:
-    """One operator instruction, computed from the difference between two stacks."""
+def _goto(frm, to, interactive: bool, devices: Devices, out, bench=None) -> None:
+    """Show the bench as a picture, say the arrangement, wait.
+
+    ⛔ THE PICTURE IS THE INSTRUCTION, and the voice says the same thing in one sentence. A delta
+    ("take the tag out, then add Chameleon 1") is only meaningful against a state the operator is
+    holding in their head; an arrangement can be checked against the bench in front of them. What
+    must NOT be there is named under "set aside", because the forgotten device is the one that
+    ruins a run and a removal spoken aloud is the easiest thing to miss.
+    """
     move = plan_move(frm, to)
     if move.is_noop:
         return
-    out("     %s" % move.text())
+    idle = sorted(bench.devices - to.devices) if bench is not None else []
+    out("")
+    for line in ui.diagram([to], idle):
+        out(line)
+    out("")
     if interactive:
-        cues.ask("       press Enter when the stack is as described: ", spoken=move.spoken())
+        cues.ask("     press Enter when the bench looks like that: ",
+                 spoken=ui.spoken_arrangement([to]))
     else:
-        cues.cue_move(move.spoken())
+        cues.cue_move(ui.spoken_arrangement([to]))
     if devices.operator is not None:
         devices.operator(to)
 
@@ -652,7 +670,7 @@ def _sweep(label: str, empty, b: Block, devices: Devices, out) -> NullSweep:
     emitters = devices.present(empty)
     sw = null_sweep(label, readers, b.protocols, emitters)
     out("    %s %s — %d reader(s) x %d decoders, %s"
-        % ("✓" if sw.clean else "⛔", label, len(readers), len(b.protocols),
+        % (ui.mark("ok" if sw.clean else "bad"), label, len(readers), len(b.protocols),
            "no hits" if sw.clean else "HITS: " + ", ".join(sorted(sw.hits))))
     return sw
 

@@ -193,7 +193,7 @@ def run(cfg):
             "--traits", "nordicDfu"]
     if cfg.get("options"):
         argv += ["--options", ",".join(cfg["options"])]
-    r = subprocess.run(argv, capture_output=True, text=True)
+    r = subprocess.run(argv, capture_output=True, text=True, stdin=subprocess.DEVNULL)
     records = []
     for line in (r.stdout or "").splitlines():
         try:

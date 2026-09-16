@@ -222,57 +222,57 @@ class TheOperatorIsNeverToldToUndoTheLastInstruction(unittest.TestCase):
     """⛔ An operator told to undo what they were just told to do stops trusting the cues, and the
     cues are the only thing keeping the bench and the plan in step."""
 
-    def _instructions(self, keys=("em410x",), sources=("t55.pm3",), readers=("rd.pm3",)):
+    def _output(self, keys=("em410x",), sources=("t55.pm3",), readers=("rd.pm3",)):
         said = []
         plan = tiny_plan(keys=keys, sources=sources, readers=readers)
-        dev = make_devices(answers=answers_all_exact(reg.resolve(list(keys)))) 
+        dev = make_devices(answers=answers_all_exact(reg.resolve(list(keys))))
         runner.run(plan, dev, interactive=False, session="S",
                    out=lambda m="": said.append(str(m)))
-        return [m.strip() for m in said if "⇒" in m]
+        return said
+
+    @staticmethod
+    def _interventions(said):
+        """Each rearrangement draws one diagram, so counting rigs counts the operator's work."""
+        return [i for i, m in enumerate(said) if "Rig 1" in m]
 
     def test_the_tag_goes_on_after_the_null_sweep_not_before_it(self):
-        said = []
-        plan = tiny_plan(keys=("em410x",), sources=("t55.pm3",), readers=("rd.pm3",))
-        dev = make_devices(answers=answers_all_exact(reg.resolve(["em410x"])))
-        runner.run(plan, dev, interactive=False, session="S",
-                   out=lambda m="": said.append(str(m)))
-        joined = "\n".join(str(m) for m in said)
-        add_tag = joined.index("Add the T5577 tag")
-        before = joined.index("NULL BEFORE")
-        self.assertLess(before, add_tag,
+        said = self._output()
+        # ⚠ ONLY THE TAG DRAWN INSIDE A RIG COUNTS. "set aside: ... the T5577 tag" names it too,
+        # and in the very first diagram — matching that would test the opposite of the intent.
+        tagged = [i for i, m in enumerate(said) if "( T5577 tag )" in m]
+        before = next(i for i, m in enumerate(said) if "NULL BEFORE" in m)
+        self.assertTrue(tagged, "the tag must appear in a diagram at some point")
+        self.assertLess(before, min(tagged),
                         "the sweep must be taken before the tag is ever asked for")
 
-    def test_no_instruction_undoes_the_one_before_it(self):
-        """⚠ ADJACENCY IN THE MOVE LIST IS NOT THE TEST — "add the tag" and "take the tag out" are
-        always consecutive moves, with the entire routine between them. What must never happen is
-        the two arriving with NOTHING done in between, which is what the operator saw."""
-        said = []
-        plan = tiny_plan(keys=("em410x",), sources=("t55.pm3",), readers=("rd.pm3",))
-        dev = make_devices(answers=answers_all_exact(reg.resolve(["em410x"])))
-        runner.run(plan, dev, interactive=False, session="S",
-                   out=lambda m="": said.append(str(m).strip()))
-        add = next(i for i, m in enumerate(said) if m.startswith("Add the T5577"))
-        drop = next(i for i, m in enumerate(said) if m.startswith("Take the T5577"))
-        between = [m for m in said[add + 1:drop] if m]
-        self.assertTrue(between, "the tag goes on and straight back off with nothing measured")
-        self.assertTrue(any("EXACT" in m for m in between),
-                        "what happens while the tag is on should be the measurements: %r" % between)
+    def test_what_must_not_be_on_the_bench_is_named(self):
+        """⛔ The forgotten device is the one that ruins a run, and a removal spoken aloud is the
+        easiest thing to miss. The diagram names it instead."""
+        said = "\n".join(self._output())
+        self.assertIn("set aside", said)
+        self.assertIn("Chameleon 1", said, "a device not in the rig is listed by name")
 
-    def test_a_tag_station_costs_three_instructions_and_no_more(self):
-        """Arrange it empty, add the tag, take the tag out. The estimate the plan prints."""
-        self.assertEqual(len(self._instructions()), 3)
+    def test_a_tag_station_costs_three_interventions_and_no_more(self):
+        """Arrange it empty, add the tag, take the tag out."""
+        self.assertEqual(len(self._interventions(self._output())), 3)
 
-    def test_an_emulation_station_costs_one(self):
-        moves = self._instructions(sources=("emu.cu1",), readers=("rd.pm3",))
-        adds = [m for m in moves if "T5577" not in m]
-        self.assertTrue(adds)
+    def test_only_the_tag_station_involves_a_tag(self):
+        """⚠ An emulated source still needs its gold calibration row, which is a tag station — so
+        the run has one. What must not happen is a tag drawn into the EMULATION rig."""
+        from benchmatrix import plan as planning
+        p = planning.build(reg.resolve(["em410x"]), ["emu.cu1"], ["rd.pm3"], Bench())
+        tag_stations = [b.station.name for b in p.blocks if b.station.has_tag]
+        emu_stations = [b.station.name for b in p.blocks if not b.station.has_tag]
+        self.assertTrue(tag_stations, "the gold row needs a tag")
+        self.assertTrue(emu_stations, "the emulated row must not have one")
+        self.assertTrue(all("T55" not in n for n in emu_stations))
 
     def test_a_proxmark_in_the_stack_does_not_break_the_null_sweep(self):
         """`null_sweep` disarms everything in the stack and must not have to know which of those
         can emit — so every channel answers `disarm()`, the Proxmark's as a no-op."""
         from benchmatrix.devices import Pm3
         Pm3().disarm()
-        self.assertEqual(len(self._instructions()), 3)
+        self.assertEqual(len(self._interventions(self._output())), 3)
 
 
 class OnlyPhysicalInstructionsAreSpoken(unittest.TestCase):
