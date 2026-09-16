@@ -286,6 +286,36 @@ in the banner.
 a cell the run actually graded — a grid missing measured cells is the fault this command exists to
 repair.
 
+### `bench state`: what the bench believes NOW
+
+A run answers *"what happened that afternoon"*. Nobody wants to know that — they want *"can the
+Chameleon on my desk read gproxii today"*, and that answer is spread across runs of different
+shapes: one that skipped the Flipper, one that only did em410x, one that aborted at station three.
+
+```bash
+./bench state
+```
+
+Touches no device. Firmware is taken from the most recent run, so it works with nothing plugged in;
+`--probe` reads it off the hardware instead, which is the honest option when the devices are present
+and may have been reflashed.
+
+⭐ **A cell is a claim about the devices IN it** (RULES.md §11, read exactly). `em410x t55.pm3 →
+rd.cu1` is a claim about the Proxmark that wrote the tag and the Chameleon that read it. Reflash
+either and the reading retires; reflash the Flipper, or leave it in a drawer, and the reading
+stands. That is what lets runs of different shapes combine — and it is **stricter** than the
+whole-bench rule `--resume` uses, not looser: a reading is retired the moment anything it actually
+depended on changed.
+
+⛔ **The newest reading does not automatically win.** Where readings on the same devices and the
+same firmware disagree, the cell is `⁇ DISPUTED` and no verdict is published. Taking the newest
+would turn contradictory evidence into "it works now" — the same mistake as locking an old bad run
+into the current picture, pointing the other way.
+
+⚠ **`–` and `▫` are different kinds of empty.** `–` was refused by a rule and always will be
+(`covered`, `self-judging`, `subcarrier`); `▫` is work nobody has done on the devices currently
+attached. Conflating them sends someone off to measure cells the planner refuses on purpose.
+
 ### Cells that disagree with an earlier run
 
 Every other control here defends a **single** run — calibration licenses a reader, null sweeps prove

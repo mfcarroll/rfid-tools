@@ -10,12 +10,14 @@ from __future__ import annotations
 
 import argparse
 import datetime as _dt
+import glob as _glob
+import json as _json
 import os
 import os as _os
 import sys
 
 from . import (cues, firmware, grid, history, learned, outcomes, plan as planning, registry as reg,
-               republish,
+               republish, state,
                runner, setup, ui)
 from . import devices as devices_mod
 from .devices import (DEFAULT_PM3, Chameleon, DeviceError, Flipper, Pm3, obedient_operator,
@@ -134,6 +136,59 @@ def _scripted(a) -> runner.Devices:
 
 
 # ------------------------------------------------------------------ commands
+
+def cmd_state(a) -> int:
+    """What the bench believes NOW, across every run. ⛔ TOUCHES NO DEVICE unless asked to.
+
+    ⚠ THE FIRMWARE HAS TO COME FROM SOMEWHERE, and by default it comes from the most recent run
+    rather than from the devices — so this works with nothing plugged in, which is most of the time
+    somebody wants to look at it. `--probe` asks the hardware instead, which is the honest option
+    when the devices are present and may have been reflashed since.
+    """
+    protos, _ = learned.apply(reg.resolve(a.protocol), learned.load(a.learned), "STATE")
+    now, whence = _firmware_now(a)
+    found = state.gather(RUNS, now)
+    if not found:
+        print("\n  ⛔ no published run has a reading about the devices currently recorded.\n"
+              "     firmware taken from %s:\n%s\n     Run `./bench run ...` first, or pass "
+              "--probe if the devices have been reflashed since." 
+              % (whence, "\n".join("       %s = %s" % kv for kv in sorted(now.items())) or "       (none)"))
+        return 2
+    md = state.render(found, now, protos, list(grid.SOURCE_ORDER), list(grid.READER_ORDER),
+                      refused=state.refusals(RUNS))
+    if a.out:
+        with open(a.out, "w", encoding="utf-8") as fh:
+            fh.write(md + "\n")
+        print("  written: %s" % a.out)
+    else:
+        print("\n" + md)
+    return 0
+
+
+def _firmware_now(a) -> tuple:
+    """Today's firmware table, and where it came from. ⛔ NEVER GUESSED — an empty table would make
+    every reading match nothing, which reads identically to "the bench has never been measured"."""
+    if getattr(a, "probe", False):
+        devs = _devices(a)
+        out = {}
+        for dev in devs.all():
+            ok, why = dev.alive()
+            if not ok:
+                raise DeviceError("%s — cannot report state against a device that is not answering"
+                                  % why)
+            out[runner.firmware_key(dev)] = getattr(dev, "reported", "not reported")
+        return out, "the devices themselves"
+    newest, when = {}, ""
+    for path in sorted(_glob.glob(os.path.join(RUNS, "*.json"))):
+        try:
+            with open(path) as fh:
+                doc = _json.load(fh)
+        except (OSError, ValueError):
+            continue
+        if doc.get("firmware") and doc.get("started", "") > when:
+            newest, when = doc["firmware"], doc["started"]
+    return newest, "the most recent run (%s)" % (when or "none")
+
 
 def cmd_report(a) -> int:
     """Draw a published run's grid again, from its own JSON. ⛔ TOUCHES NO DEVICE.
@@ -987,6 +1042,16 @@ def build_parser() -> argparse.ArgumentParser:
                                  "physically repositioned, which invalidates earlier licences")
             sp.add_argument("--no-cu2", action="store_true")
             sp.add_argument("--no-flipper", action="store_true")
+
+    sp = sub.add_parser("state", help="what the bench believes NOW, amalgamated across every run")
+    sp.add_argument("-p", "--protocol", action="append")
+    sp.add_argument("--probe", action="store_true",
+                    help="read the firmware off the devices instead of from the newest run")
+    sp.add_argument("-o", "--out", help="write here instead of printing")
+    sp.add_argument("--learned", default=learned.DEFAULT_PATH)
+    sp.add_argument("--pm3", default=DEFAULT_PM3)
+    sp.add_argument("--flipper-port", default=os.environ.get("FLIPPER_PORT"))
+    sp.set_defaults(func=cmd_state)
 
     sp = sub.add_parser("report", help="draw a published run's grid again from its JSON; "
                                        "touches no device")
