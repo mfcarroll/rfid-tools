@@ -286,6 +286,26 @@ in the banner.
 a cell the run actually graded — a grid missing measured cells is the fault this command exists to
 repair.
 
+### Cells that disagree with an earlier run
+
+Every other control here defends a **single** run — calibration licenses a reader, null sweeps prove
+the field was quiet, the crowded-stack rule refuses a failure taken beside a bystander. None of them
+can tell you that the silence you are about to publish as a firmware gap read byte-exact half an
+hour ago.
+
+⛔ **One did.** `em410x emu.pm3 → rd.cu1` decoded `EM410X/64: 2244668800` at 11:19 and answered
+`LF tag not found` at 11:52 — same firmware, same registry entry, same command.
+
+So every run and every `bench report` now checks its cells against earlier published runs **on the
+same firmware, device for device** (RULES.md §11: a reflash makes the earlier reading a claim about
+a different instrument, not a contradiction). A cell that grades two ways gets its own section, and
+**no finding is built on it** — the gap register withholds the claim rather than asserting one of
+the two answers.
+
+⚠ **It is not a vote.** Two readings that disagree are not settled by counting them. What settles
+one is a cause — a timing, a settle period, an arrangement that differed — and until there is one,
+"this cell is unstable" is a more useful statement than either verdict would have been.
+
 ## How it is built
 
 ```
