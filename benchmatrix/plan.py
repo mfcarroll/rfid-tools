@@ -27,7 +27,7 @@ from dataclasses import dataclass, field
 from . import registry as reg
 from .stations import (Bench, EMULATED_SOURCES, GOLD_SOURCES, HUMAN, PM3, READERS, SOURCES,
                        STACK_ORDER,
-                       MAX_ACTIVE_AROUND_A_TAG, Station, StationError, TAGS,
+                       MAX_ACTIVE_IN_A_STACK, Station, StationError, TAGS,
                        TAG_SOURCES, T5577, build_station,
                        devices_to_measure,
                        devices_to_produce, move_cost, plan_move, station_admits)
@@ -393,7 +393,7 @@ def choose_stations(cells: list[PlannedCell], bench: Bench) -> list[Station]:
                     trial = frozenset(cand | {dev})
                     if len(trial) > bench.max_stack or len(trial & TAGS) > 1:
                         continue
-                    if trial & TAGS and len(trial - TAGS) > MAX_ACTIVE_AROUND_A_TAG:
+                    if len(trial - TAGS) > MAX_ACTIVE_IN_A_STACK:
                         continue        # only two faces on a tag
                     hits = len(_covered(trial, uncovered))
                     if gain is None or hits > gain[0]:

@@ -71,6 +71,12 @@ SUCCESS = re.compile(r"^([A-Za-z][A-Za-z0-9 ]*?) ((?:[0-9A-F]{2}){2,})$")
 REJECTED = ("Available protocols:", "rfid <write | emulate>", "Unknown protocol",
             "failed to load external command")
 
+#: ⭐ THE ONE REFUSAL A REBOOT FIXES. The others mean we asked for something wrong; this one means
+#: the loader could not place the .fap, and C377 measured that back to fragmentation — largest block
+#: 118,304 at boot, 63,880 twelve minutes later with 107,464 still free. A reboot restores it in
+#: about ten seconds.
+FRAGMENTED = "failed to load external command"
+
 #: ⛔⛔⛔ THE `rfid` PLUGIN DIES OF HEAP FRAGMENTATION (C377). It is a 66,304-byte .fap the loader
 #: must place in ONE contiguous block. Measured across a session: 118,304 bytes largest-block at
 #: boot, 63,880 after ~12 minutes and six emulate arms — with 107,464 bytes still FREE. So it is
@@ -227,9 +233,20 @@ class FlipperCLI:
                     return out
         return out
 
-    def emulate(self, protocol: str, data: str, seconds: int = 30) -> None:
-        """`rfid emulate` — a HOLD. It blocks like `read`, so the port is kept open for the
-        duration and released with ETX."""
+    def start_emulating(self, protocol: str, data: str) -> None:
+        """Begin `rfid emulate` and LEAVE IT RUNNING. Stop it with `stop_emulating`.
+
+        ⛔⛔ STARTING AND STOPPING MUST BE SEPARATE CALLS, and collapsing them into one is how every
+        `emu.flip` cell came back SILENT. `arm()` called `emulate(..., seconds=0)`; the sleep
+        returned at once and the `finally` sent ETX, so the Flipper began emitting and was stopped
+        in the same breath, microseconds before the reader was asked to listen. The operator
+        demonstrated all three EM4100 bit-rate variants emulating perfectly from the Flipper's own
+        UI while this harness scored the column silent.
+
+        ⚠ THE FIELD LIVES AS LONG AS THE SESSION. `rfid emulate` blocks the CLI exactly like `rfid
+        read`, so what keeps the emission alive is this port staying open and unterminated — which
+        makes `arm` / `disarm` the natural shape, and a hold with a timer the special case.
+        """
         self.s.reset_input_buffer()
         self.s.write(("rfid emulate %s %s\r\n" % (protocol, data)).encode())
         lines, _ = self._drain("Emulating RFID...", time.time() + 3.0)
@@ -238,11 +255,22 @@ class FlipperCLI:
                 raise FlipperError("the Flipper REJECTED the emulation: %r" % line)
         if not any("Emulating" in line for line in lines):
             raise FlipperError("no 'Emulating RFID...' — it never started. Saw: %r" % lines)
+
+    def stop_emulating(self) -> None:
+        """ETX, which is the only thing `rfid emulate` listens for."""
+        try:
+            self.s.write(ETX)
+            time.sleep(0.3)
+        except Exception:                                # noqa: BLE001 - stopping must not raise
+            pass
+
+    def emulate(self, protocol: str, data: str, seconds: int = 30) -> None:
+        """Start, hold for `seconds`, stop. ⚠ For use as a TOOL; the harness arms and disarms."""
+        self.start_emulating(protocol, data)
         try:
             time.sleep(seconds)
         finally:
-            self.s.write(ETX)
-            time.sleep(0.3)
+            self.stop_emulating()
 
     def write_tag(self, protocol: str, data: str) -> list[str]:
         """`rfid write` — the `t55.flip` writer."""

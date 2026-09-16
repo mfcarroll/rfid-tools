@@ -2,7 +2,7 @@
 
 import unittest
 
-from benchmatrix.stations import (Bench, CU1, CU2, PM3, T5577, Station, StationError,
+from benchmatrix.stations import (Bench, CU1, CU2, FLIPPER, PM3, T5577, Station, StationError,
                                   build_station, devices_to_measure, devices_to_produce,
                                   move_cost, null_station, plan_move, station_admits)
 
@@ -120,9 +120,49 @@ class TheNullArrangement(unittest.TestCase):
         self.assertEqual(null_station(st).stack, (PM3, CU1))
 
     def test_a_station_with_no_tag_is_swept_as_it_stands(self):
-        st = build_station({PM3, CU1, CU2}, B)
+        st = build_station({PM3, CU1}, B)
         self.assertEqual(null_station(st), st)
 
+class TwoFacesTwoDevices(unittest.TestCase):
+    """⛔⛔ THE CAP IS ABOUT FACES, NOT ABOUT TAGS, AND GATING IT ON TAGS LEFT A HOLE THE PLANNER
+    WALKED INTO. Every device here reads and writes from a SINGLE FACE. With a tag, the tag sits in
+    the middle and two devices face it; with no tag, two devices face each other. Either way two is
+    the limit — and a station with no tag had no limit at all.
+
+    ⚠ IT REACHED THE BENCH. The planner built `FLIP+CU1+CU2` for the emulation cells and the
+    operator refused to build it: "A Chameleon in the middle of the sandwich is meaningless. All the
+    electronic rfid devices read and write from a single face." A third device is not weakly
+    coupled — it is stacked behind one of the other two and takes no part in anything.
+    """
+
+    def test_three_active_devices_with_a_tag_are_refused(self):
+        with self.assertRaises(StationError):
+            build_station({PM3, T5577, CU1, CU2}, B)
+
+    def test_and_three_without_one_are_refused_too(self):
+        """⛔ THE CASE THAT WAS ALLOWED. Removing the tag does not add a face to anything."""
+        with self.assertRaises(StationError) as cm:
+            build_station({FLIPPER, CU1, CU2}, B)
+        self.assertIn("ONE FACE", str(cm.exception))
+        self.assertIn("takes no part", str(cm.exception))
+
+    def test_two_with_a_tag_between_them_is_the_sandwich(self):
+        self.assertEqual(build_station({PM3, T5577, CU1}, B).stack, (PM3, T5577, CU1))
+
+    def test_two_facing_each_other_with_no_tag_is_fine(self):
+        self.assertEqual(build_station({FLIPPER, CU1}, B).stack, (FLIPPER, CU1))
+
+    def test_the_planner_never_proposes_one_it_could_not_build(self):
+        """⚠ `choose_stations` had its own copy of the rule, gated the same way, so the planner and
+        the builder disagreed — and the planner is what the operator is asked to obey."""
+        from benchmatrix import learned, plan as planning, registry as reg
+        from benchmatrix.stations import TAGS, MAX_ACTIVE_IN_A_STACK
+        protos, _ = learned.apply(reg.resolve(["em410x"]), learned.load(), "LATER")
+        p = planning.build(protos, ["t55.pm3", "emu.cu1", "emu.cu2", "emu.flip"],
+                           ["rd.pm3", "rd.cu1", "rd.cu2", "rd.flip"], B)
+        for b in p.blocks:
+            active = [d for d in b.station.stack if d not in TAGS]
+            self.assertLessEqual(len(active), MAX_ACTIVE_IN_A_STACK, b.station.name)
 
 if __name__ == "__main__":
     unittest.main()
