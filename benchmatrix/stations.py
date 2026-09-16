@@ -92,6 +92,9 @@ GOLD_SOURCES = frozenset({"t55.pm3", "oem"})
 #: Sources that are a device emulating. The subcarrier rule refuses these against a Chameleon.
 EMULATED_SOURCES = frozenset({"emu.flip", "emu.cu1", "emu.cu2"})
 
+#: Which tag source a given writer produces. The inverse of SOURCES' writer field.
+WRITER_SOURCE_BY_DEV = {w: src for src, (_, w) in SOURCES.items() if w is not None}
+
 #: Sources that are a physical tag in the stack.
 TAG_SOURCES = frozenset(s for s, (dev, _) in SOURCES.items() if dev in TAGS)
 

@@ -29,13 +29,14 @@ def pm3_wrong(p: reg.Protocol) -> str:
         "FC: 123  CN: 4567", "FC: 999  CN: 1")
 
 
-def make_devices(answers=None, pm3_answers=None, flip_answers=None, alive=True, air=None,
-                 operator=None):
+def make_devices(answers=None, pm3_answers=None, flip_answers=None, cu1_answers=None,
+                 cu2_answers=None, alive=True, air=None, operator=None):
     """All four devices share one Air, so an emitter armed on one is heard by the reader.
 
     `answers` goes to EVERY reader, which is what a real bench looks like: a tag that will not read
-    will not read for anyone. `pm3_answers` / `flip_answers` override it for one device, which is
-    how you model a decoder gap in one reader and not the others.
+    will not read for anyone. The per-device overrides model a DECODER GAP — one reader missing what
+    the others can see — which is a different thing entirely from a write that never landed, and the
+    two must be scripted differently or the test is not about what it says it is.
 
     `operator` defaults to someone who builds every stack exactly as cued. Pass a callable of your
     own to model an operator who does something else — which is the only way to test that the
@@ -48,8 +49,8 @@ def make_devices(answers=None, pm3_answers=None, flip_answers=None, alive=True, 
                      alive_ok=alive, air=air),
         flipper=Scripted(id="flipper", role="flipper", answers={**shared, **(flip_answers or {})},
                          alive_ok=alive, air=air),
-        cu1=Scripted(id="cu1", role="cu1", answers=dict(shared), air=air),
-        cu2=Scripted(id="cu2", role="cu2", answers=dict(shared), air=air),
+        cu1=Scripted(id="cu1", role="cu1", answers={**shared, **(cu1_answers or {})}, air=air),
+        cu2=Scripted(id="cu2", role="cu2", answers={**shared, **(cu2_answers or {})}, air=air),
     )
     d.air = air
     d.operator = operator or obedient_operator(air)

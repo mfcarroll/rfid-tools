@@ -35,7 +35,7 @@ from .identity import IdentityFault, NullSweep, null_sweep, sweeps_agree
 from .outcomes import (Calibration, CalibrationRefused, Cell, Outcome, grade, observe, screened,
                        ungraded)
 from .plan import Block, Op, RunPlan
-from .stations import (CU1, CU2, FLIPPER, GOLD_SOURCES, HUMAN, PM3, READERS, T5577,
+from .stations import (CU1, CU2, FLIPPER, GOLD_SOURCES, HUMAN, PM3, READERS, TAG_SOURCES, T5577,
                        null_station, plan_move)
 
 
@@ -50,6 +50,23 @@ class RunAborted(Exception):
     def __init__(self, why: str, result=None):
         super().__init__(why)
         self.result = result
+
+
+@dataclass
+class TagState:
+    """What the tag is believed to hold, and whether anything has actually seen it.
+
+    ⛔⛔ THIS OUTLIVES THE STATION IT WAS WRITTEN AT (RULES.md §10). A credential is written at one
+    station and may not be read until the next one — the whole point of carrying a tag. So whether a
+    write was ever witnessed is a property of the TAG, not of the block that issued it: verifying at
+    the write station and then reading somewhere else must count as verified, or every carried tag
+    would look like a write that never landed.
+    """
+
+    protocol: object | None = None
+    writer: str | None = None
+    verified: bool = False
+    tag: int = 0
 
 
 @dataclass
@@ -195,6 +212,7 @@ def _measure(plan: RunPlan, devices: Devices, res: RunResult, interactive: bool,
     close the controls. The tag never goes on before it is wanted.
     """
     prev = None
+    tag_state = TagState()
     for report in (BlockReport(b) for b in plan.blocks):
         b = report.block
         res.blocks.append(report)
@@ -223,7 +241,7 @@ def _measure(plan: RunPlan, devices: Devices, res: RunResult, interactive: bool,
             prev = b.station
 
         try:
-            issued = _routine(report, devices, res, session, pad, out)
+            issued = _routine(report, devices, res, session, pad, out, tag_state)
         except WrongDevice as e:
             # ⛔ Caught at the exact action it would have corrupted. Everything measured at this
             # station is about to be attributed to a device we can no longer vouch for.
@@ -246,103 +264,193 @@ def _measure(plan: RunPlan, devices: Devices, res: RunResult, interactive: bool,
 # ------------------------------------------------------------------ the routine
 
 def _routine(report: BlockReport, devices: Devices, res: RunResult, session: str, pad: str,
-             out) -> list:
-    """Run one station's routine. Everything here is hands-off except a phase-2 tag swap."""
+             out, tag_state: TagState) -> list:
+    """Run one station's routine. Everything here is hands-off except a phase-2 tag swap.
+
+    ⭐⭐ A WRITE IS NOT DONE BECAUSE IT RETURNED. `Done!` from the Proxmark means the commands went
+    out on the air; a T5577 does not acknowledge a write, so nothing in that reply says the
+    credential landed. The only thing that can say so is something reading it back. So the reads
+    that follow a write are BUFFERED and settled together, once the tag's state is finished with —
+    see `_settle`.
+    """
     b = report.block
     issued: list = []
-    tag_ok = True                       # did the last write read back?
-    current_tag = None
+    armed_ok = True                     # did the last write or arm even get issued?
+    current_tag = tag_state.tag
+    pending: list = []                  # (op, observation) for the tag state being read now
+    state = ((tag_state.protocol, tag_state.writer) if tag_state.protocol else None)
+
+    def settle():
+        nonlocal pending
+        if pending:
+            _settle(pending, state, tag_state, report, devices, res, out, issued)
+            pending = []
+
     for op in b.ops:
         if b.station.has_tag and op.tag != current_tag:
             # ⚠ A TAG SWAP IS AN OPERATOR INTERVENTION LIKE ANY OTHER and is cued as one. It only
             # happens in the isolation phase, where writing a batch at one station and reading it at
             # the next is cheaper than rearranging the bench per protocol.
+            settle()
             if current_tag is not None:
                 cues.ask("      swap to tag %d and press Enter: " % (op.tag + 1),
                          spoken="swap to tag %d" % (op.tag + 1))
             current_tag = op.tag
+            tag_state.tag = op.tag
+            tag_state.verified = False
+
         if op.kind == "write":
-            tag_ok = _write(op, devices, out)
+            settle()
+            armed_ok = _write(op, devices, out)
+            state = (op.protocol, op.device)
+            tag_state.protocol, tag_state.writer = op.protocol, op.device
+            tag_state.verified = False          # a fresh credential has been witnessed by nothing
             continue
         if op.kind == "arm":
-            tag_ok = _arm(op, devices, out)
+            settle()
+            armed_ok = _arm(op, devices, out)
+            state = None
             continue
         if op.kind == "disarm":
+            settle()
             devices.by_dev(op.device).disarm()
             continue
         if op.kind == "place":
+            settle()
             cues.ask("      place the %s OEM card and press Enter: " % op.protocol.key,
                      spoken="place the %s card" % op.protocol.key)
-            tag_ok = True
+            armed_ok = True
+            state = (op.protocol, None)
+            continue
+
+        if op.kind == "verify":
+            # ⭐ A read that produces no cell. Its only job is to witness that the write landed.
+            if armed_ok:
+                obs = _read(op, devices, session, pad, out, protocol=op.protocol,
+                            source=_source_of(state), reader=_reader_id(op.device))
+                if obs is not None:
+                    pending.append((op, obs))
             continue
 
         cell = op.cell
         assert cell is not None
-        if not tag_ok:
-            # ⛔ RULE 4. The credential is not on the tag (or the emitter refused to arm), so this
-            # read is not about this protocol at all.
+        if not armed_ok:
+            # The command was refused outright, so nothing was put anywhere. Different from a write
+            # that was issued and may or may not have landed — that one is settled below.
             res.cells.append(ungraded(cell.protocol.key, cell.source, cell.reader,
-                                      "the source was not armed — nothing to read",
+                                      "the source was never armed — the command was refused",
                                       crowding=op.crowding))
             out("      ▒ %-10s %-9s %-7s not measured: source not armed"
                 % (cell.protocol.key, cell.source, cell.reader))
             continue
-        if not cell.is_calibration and cell.pair not in res.licences:
-            # ⭐ A PAIR WHOSE CALIBRATION WAS ONLY *SCREENED* IS UNDECIDED, NOT REFUSED, so its
-            # dependent cells are still measured. The reads are hands-off and cost nothing, and
-            # skipping them would mean phase 2 rescues the calibration only to find the cells it
-            # licenses were never read — which needs a third phase to fix.
-            if cell.pair not in res.screened_pairs:
-                why = res.refusals.get(cell.pair, "no calibration row has passed for this pair")
-                res.cells.append(ungraded(cell.protocol.key, cell.source, cell.reader, why,
-                                          crowding=op.crowding))
-                out("      ▒ %-10s %-9s %-7s UNGRADED: %s"
-                    % (cell.protocol.key, cell.source, cell.reader, why[:52]))
-                continue
 
         obs = _read(op, devices, session, pad, out)
         if obs is None:
             continue
+        if cell.source in TAG_SOURCES:
+            pending.append((op, obs))          # graded once the whole tag state has been read
+        else:
+            _grade_one(op, obs, report, res, out, issued)
+    settle()
+    return issued
 
-        if cell.is_calibration:
-            if obs.outcome_if_licensed is Outcome.EXACT:
-                res.licences[cell.pair] = Calibration.from_row(obs, GOLD_SOURCES)
-                issued.append(cell.pair)
-            elif op.crowded:
-                # ⛔ A CROWDED CALIBRATION FAILURE IS NOT "THIS READER CANNOT JUDGE". It is unknown
-                # until the pair is isolated, and saying otherwise would publish the crowding as a
-                # finding about the reader.
-                res.cells.append(screened(obs, op.crowding, report.block.station.name))
-                res.screened_pairs.add(cell.pair)
-                res.refusals[cell.pair] = ("the calibration row was screened %s in a crowded stack "
-                                           "and awaits isolation"
-                                           % obs.outcome_if_licensed.value)
-                out("      ◌ %-10s %-9s %-7s screened %s — queued for isolation"
-                    % (cell.protocol.key, cell.source, cell.reader,
-                       obs.outcome_if_licensed.value))
-                continue
-            else:
-                try:
-                    Calibration.from_row(obs, GOLD_SOURCES)
-                except CalibrationRefused as e:
-                    res.refusals[cell.pair] = str(e)
-                    res.cells.append(grade(obs, None, note=str(e)))
-                    out("      ▒ %-10s %-9s %-7s CALIBRATION REFUSED"
-                        % (cell.protocol.key, cell.source, cell.reader))
-                    out("          %s" % str(e))
-                    continue
 
-        licence = res.licences.get(cell.pair)
-        if op.crowded and (obs.outcome_if_licensed is not Outcome.EXACT or licence is None):
-            graded = screened(obs, op.crowding, report.block.station.name)
+def _settle(pending: list, state, tag_state: TagState, report: BlockReport, devices: Devices,
+            res: RunResult, out, issued: list) -> None:
+    """Decide what a tag's reads are worth, now that every reader has had its turn at it.
+
+    ⛔⛔ THE VERIFICATION RULE (RULES.md §10). A write is certain only once something has observed
+    its effect. If NO reader read back what was written, the tag is not known to hold it, and none
+    of those reads may be attributed to their readers — a silence there is as likely to be a write
+    that never landed as a decoder that cannot see it.
+
+    ⭐ AND ANY ONE BYTE-EXACT READ SETTLES IT FOR ALL OF THEM. A credential we chose cannot be
+    conjured out of a tag that does not hold it, so one reader seeing it proves the write landed —
+    which turns every OTHER reader's silence on the same tag from an ambiguity into a genuine
+    finding about that reader. Two readers at a station are worth far more than twice one.
+    """
+    # ⚠ STICKY ACROSS STATIONS. Once anything has read this credential back, it stays verified for
+    # as long as the tag holds it — including at the next station, which is where a carried tag is
+    # usually read.
+    if any(obs is not None and obs.matched for _, obs in pending):
+        tag_state.verified = True
+    verified = tag_state.verified
+    graded = [(op, obs) for op, obs in pending if op.cell is not None]
+    if verified:
+        for op, obs in graded:
+            _grade_one(op, obs, report, res, out, issued)
+        return
+    if not graded:
+        out("      ▒ %s: the write was issued and the writer could not read it back"
+            % (state[0].key if state else "?"))
+        return
+
+    protocol = state[0].key if state else pending[0][0].protocol.key
+    readers = sorted({op.cell.reader if op.cell else _reader_id(op.device) for op, _ in pending})
+    if len(readers) == 1:
+        why = ("the write was issued but nothing read it back. With only %s in the stack this "
+               "cannot be told apart from %s being unable to decode %s — a second reader on the "
+               "same tag would separate them (RULES.md §10)."
+               % (readers[0], readers[0], protocol))
+    else:
+        why = ("the write was issued and none of %s read it back, so the credential is not on the "
+               "tag. This is a WRITE failure, not a reader one (RULES.md §10)."
+               % ", ".join(readers))
+    out("      ▒ %-10s write NOT VERIFIED — %s" % (protocol, why))
+    for op, obs in graded:
+        c = op.cell
+        res.cells.append(ungraded(c.protocol.key, c.source, c.reader, why, crowding=op.crowding))
+
+
+def _grade_one(op: Op, obs, report: BlockReport, res: RunResult, out, issued: list) -> None:
+    """Score one observation, now that the tag state behind it is known to be real."""
+    cell = op.cell
+    if not cell.is_calibration and cell.pair not in res.licences:
+        # ⭐ A PAIR WHOSE CALIBRATION WAS ONLY *SCREENED* IS UNDECIDED, NOT REFUSED, so its dependent
+        # cells are still graded from the reading already taken.
+        if cell.pair not in res.screened_pairs:
+            why = res.refusals.get(cell.pair, "no calibration row has passed for this pair")
+            res.cells.append(ungraded(cell.protocol.key, cell.source, cell.reader, why,
+                                      crowding=op.crowding))
+            out("      ▒ %-10s %-9s %-7s UNGRADED: %s"
+                % (cell.protocol.key, cell.source, cell.reader, why[:52]))
+            return
+
+    if cell.is_calibration:
+        if obs.outcome_if_licensed is Outcome.EXACT:
+            res.licences[cell.pair] = Calibration.from_row(obs, GOLD_SOURCES)
+            issued.append(cell.pair)
+        elif op.crowded:
+            # ⛔ A CROWDED CALIBRATION FAILURE IS NOT "THIS READER CANNOT JUDGE". It is unknown until
+            # the pair is isolated, and saying otherwise publishes the crowding as a finding.
+            res.cells.append(screened(obs, op.crowding, report.block.station.name))
+            res.screened_pairs.add(cell.pair)
+            res.refusals[cell.pair] = ("the calibration row was screened %s in a crowded stack and "
+                                       "awaits isolation" % obs.outcome_if_licensed.value)
             out("      ◌ %-10s %-9s %-7s screened %s — queued for isolation"
                 % (cell.protocol.key, cell.source, cell.reader, obs.outcome_if_licensed.value))
+            return
         else:
-            graded = grade(obs, licence, crowding=op.crowding)
-            out("      %s %-10s %-9s %-7s %s" % (graded.glyph, cell.protocol.key, cell.source,
-                                                 cell.reader, graded.outcome))
-        res.cells.append(graded)
-    return issued
+            try:
+                Calibration.from_row(obs, GOLD_SOURCES)
+            except CalibrationRefused as e:
+                res.refusals[cell.pair] = str(e)
+                res.cells.append(grade(obs, None, note=str(e)))
+                out("      ▒ %-10s %-9s %-7s CALIBRATION REFUSED"
+                    % (cell.protocol.key, cell.source, cell.reader))
+                out("          %s" % str(e))
+                return
+
+    licence = res.licences.get(cell.pair)
+    if op.crowded and (obs.outcome_if_licensed is not Outcome.EXACT or licence is None):
+        graded = screened(obs, op.crowding, report.block.station.name)
+        out("      ◌ %-10s %-9s %-7s screened %s — queued for isolation"
+            % (cell.protocol.key, cell.source, cell.reader, obs.outcome_if_licensed.value))
+    else:
+        graded = grade(obs, licence, crowding=op.crowding)
+        out("      %s %-10s %-9s %-7s %s" % (graded.glyph, cell.protocol.key, cell.source,
+                                             cell.reader, graded.outcome))
+    res.cells.append(graded)
 
 
 def _write(op: Op, devices: Devices, out) -> bool:
@@ -366,17 +474,28 @@ def _arm(op: Op, devices: Devices, out) -> bool:
         return False
 
 
-def _read(op: Op, devices: Devices, session: str, pad: str, out):
-    cell = op.cell
-    reader = devices.by_dev(op.device)
+def _source_of(state) -> str:
+    from .stations import WRITER_SOURCE_BY_DEV
+    return WRITER_SOURCE_BY_DEV.get(state[1], "t55.pm3") if state else "t55.pm3"
+
+
+def _reader_id(dev: str) -> str:
+    return next(r for r, d in READERS.items() if d == dev)
+
+
+def _read(op: Op, devices: Devices, session: str, pad: str, out, protocol=None, source=None,
+          reader=None):
+    p = protocol or op.cell.protocol
+    src = source or op.cell.source
+    rid = reader or op.cell.reader
+    dev = devices.by_dev(op.device)
     try:
-        text = reader.read(cell.protocol)
+        text = dev.read(p)
     except DeviceError as e:
         cues.cue_fault("reader failed. aborting.")
-        raise RunAborted("reader %s failed mid-routine: %s" % (cell.reader, e)) from e
-    return observe(cell.protocol.key, cell.source, cell.reader, text,
-                   cell.protocol.expect_for(cell.reader) or cell.protocol.expect,
-                   reader.decode_marker(cell.protocol), session=session, pad=pad)
+        raise RunAborted("reader %s failed mid-routine: %s" % (rid, e)) from e
+    return observe(p.key, src, rid, text, p.expect_for(rid) or p.expect,
+                   dev.decode_marker(p), session=session, pad=pad)
 
 
 # ------------------------------------------------------------------ controls
