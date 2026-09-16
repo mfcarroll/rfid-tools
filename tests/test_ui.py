@@ -134,7 +134,48 @@ class APureRemovalIsSaidAsARemoval(unittest.TestCase):
         self.assertTrue(move.remove and not move.place, "this is the pure-removal case")
         self.assertEqual(ui.spoken_removal(move.remove), "take out the tag")
 
-    def test_but_an_addition_is_still_said_as_an_arrangement(self):
+
+class APureAdditionIsSaidAsAnAddition(unittest.TestCase):
+    """⚠ THE MIRROR OF A PURE REMOVAL, AND THE PRINCIPLE WAS ONLY HALF APPLIED. "Put Chameleon one
+    on the Proxmark, with a tag in between" describes a rig that is already built except for the
+    tag, so the one word that is an instruction is buried in a sentence about things that have not
+    moved. Operator, on the bench: same principle as "take out the tag"."""
+
+    def _cue(self, frm, to):
+        """Exactly the branch `_move` takes, so the test cannot pass while the runner says
+        something else."""
         from benchmatrix.stations import plan_move
-        move = plan_move(build_station({PM3, CU1}, B), build_station({PM3, T5577, CU1}, B))
-        self.assertTrue(move.place, "something is being added, so the arrangement is the cue")
+        move = plan_move(frm, to)
+        if move.remove and not move.place:
+            return ui.spoken_removal(move.remove)
+        if move.place and not move.remove and frm is not None:
+            return ui.spoken_addition(move.place, to)
+        return ui.spoken_arrangement([to])
+
+    def test_a_tag_going_into_an_unchanged_rig(self):
+        self.assertEqual(self._cue(build_station({PM3, CU1}, B),
+                                   build_station({PM3, T5577, CU1}, B)),
+                         "put the tag in between")
+
+    def test_and_it_is_the_exact_inverse_of_taking_it_out(self):
+        bare, full = build_station({PM3, CU1}, B), build_station({PM3, T5577, CU1}, B)
+        self.assertEqual(self._cue(bare, full), "put the tag in between")
+        self.assertEqual(self._cue(full, bare), "take out the tag")
+
+    def test_a_device_added_on_top_says_on_top(self):
+        """⭐ The position comes from the stack, not from what the thing is — so this needed no
+        second rule. A tag lands in the middle because devices read from one face."""
+        self.assertEqual(self._cue(build_station({PM3, T5577}, B),
+                                   build_station({PM3, T5577, CU1}, B)),
+                         "put Chameleon one on top")
+
+    def test_the_first_station_still_gets_the_whole_arrangement(self):
+        """⛔ There is no previous state for a delta to be a delta against, and an arrangement is
+        the only thing the operator can check against the bench in front of them."""
+        self.assertEqual(self._cue(None, build_station({PM3, T5577, CU1}, B)),
+                         "put Chameleon one on the Proxmark, with a tag in between")
+
+    def test_a_rebuild_is_still_an_arrangement(self):
+        """⚠ Something on AND something off is not a delta anyone can follow."""
+        said = self._cue(build_station({PM3, CU2}, B), build_station({PM3, T5577, CU1}, B))
+        self.assertEqual(said, "put Chameleon one on the Proxmark, with a tag in between")

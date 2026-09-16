@@ -240,6 +240,27 @@
    "reader": "rd.pm3",
    "source": "t55.pm3",
    "evidence": "[=] Session log /Users/matthew.carroll.personal/.proxmark3/logs/log_20260916034433.txt\n[+] loaded `/Users/matthew.carroll.personal/.proxmark3/preferences.json`\n[+] execute command from commandline: lf fdxb reader\n\n[+] Using UART port /dev/tty.usbmodemiceman1\n[+] Communicating with PM3 over USB-CDC\n[+] Max frame size: 624 bytes\n[usb|script] pm3 --> lf fdxb reader\n\n[+] FDX-B / ISO 11784/5 Animal\n[+] Animal ID......... 999-000000001337\n[+] National Code..... 000000001337 ( 0x539 )\n[+] Country Code...... 999 - Test range\n[+] Reserved/RFU...... 0 (0x0000)\n[+] Animal bit set?... False\n[+] Data block?....... False  ( 0x0 )\n[+] RUDI bit?......... False\n[+] User Info?........ 0 ( RFU )\n[+] Replacement No?... 0 ( RFU )\n[+] CRC-16............ 0x9ADB ( ok )\n[+] Raw............... 9C A0 00 00 03 9F 00 00 DB 59 00 00 00 \n\n"
+  },
+  {
+   "run": "run_20260915_210111.json",
+   "protocol": "fdxb",
+   "reader": "rd.pm3",
+   "source": "t55.pm3",
+   "evidence": "[=] Session log /Users/matthew.carroll.personal/.proxmark3/logs/log_20260916040254.txt\n[+] loaded `/Users/matthew.carroll.personal/.proxmark3/preferences.json`\n[+] execute command from commandline: lf fdxb reader\n\n[+] Using UART port /dev/tty.usbmodemiceman1\n[+] Communicating with PM3 over USB-CDC\n[+] Max frame size: 624 bytes\n[usb|script] pm3 --> lf fdxb reader\n\n[+] FDX-B / ISO 11784/5 Animal\n[+] Animal ID......... 999-000000001337\n[+] National Code..... 000000001337 ( 0x539 )\n[+] Country Code...... 999 - Test range\n[+] Reserved/RFU...... 0 (0x0000)\n[+] Animal bit set?... False\n[+] Data block?....... False  ( 0x0 )\n[+] RUDI bit?......... False\n[+] User Info?........ 0 ( RFU )\n[+] Replacement No?... 0 ( RFU )\n[+] CRC-16............ 0x9ADB ( ok )\n[+] Raw............... 9C A0 00 00 03 9F 00 00 DB 59 00 00 00 \n\n"
+  },
+  {
+   "run": "run_20260915_210111.json",
+   "protocol": "fdxb",
+   "reader": "rd.cu1",
+   "source": "t55.pm3",
+   "evidence": " { Chameleon Ultra connected: v2.2 }\nSwitch to {  Tag Reader  } mode successfully.\nFDX-B ASK/biphase (ISO 11784/5)\n   Raw (128 bits): 00339a080402079f80403b7598040201\n   Country: 999  National: 1337  Animal: False\n   note: the CRC covers the first 8 bytes only \u2014 the last 40 bits of that raw are NOT protected.\n   Read at sample phase 20 ticks, bit position 8, 2 captures taken (inverted)\n"
+  },
+  {
+   "run": "run_20260915_210111.json",
+   "protocol": "fdxb",
+   "reader": "rd.pm3",
+   "source": "t55.cu1",
+   "evidence": "[=] Session log /Users/matthew.carroll.personal/.proxmark3/logs/log_20260916040303.txt\n[+] loaded `/Users/matthew.carroll.personal/.proxmark3/preferences.json`\n[+] execute command from commandline: lf fdxb reader\n\n[+] Using UART port /dev/tty.usbmodemiceman1\n[+] Communicating with PM3 over USB-CDC\n[+] Max frame size: 624 bytes\n[usb|script] pm3 --> lf fdxb reader\n\n[+] FDX-B / ISO 11784/5 Animal\n[+] Animal ID......... 999-000000001337\n[+] National Code..... 000000001337 ( 0x539 )\n[+] Country Code...... 999 - Test range\n[+] Reserved/RFU...... 0 (0x0000)\n[+] Animal bit set?... False\n[+] Data block?....... False  ( 0x0 )\n[+] RUDI bit?......... False\n[+] User Info?........ 0 ( RFU )\n[+] Replacement No?... 0 ( RFU )\n[+] CRC-16............ 0x9ADB ( ok )\n[+] Raw............... 9C A0 00 00 03 9F 00 00 DB 59 00 00 00 \n\n"
   }
  ]
 }

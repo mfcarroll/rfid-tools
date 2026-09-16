@@ -45,6 +45,34 @@ def spoken_removal(devices) -> str:
     return "take out %s" % names[0]
 
 
+def spoken_addition(added, station) -> str:
+    """The mirror of `spoken_removal`: nothing is coming off, so say only what goes on.
+
+    ⚠ THE SAME PRINCIPLE, AND IT WAS ONLY HALF APPLIED. "Put Chameleon 1 on the Proxmark, with a tag
+    in between" describes a rig that is already built except for the tag, so the operator has to
+    read the whole sentence, compare it against the bench, and work out that the one word that
+    matters is "tag". "Put a tag in between" is the instruction.
+
+    ⛔ ONLY WHEN NOTHING ELSE MOVES, and only when there IS a previous arrangement to add to — at
+    the first station of a run the full description is what the operator needs, because there is no
+    state to be a delta against. The caller enforces both; this just words it.
+
+    ⭐ THE POSITION COMES FROM THE STACK, not from what the thing is. A tag usually goes in the
+    middle because devices read from one face, but it is the index that knows that, and a device
+    added on top should say "on top" without a second rule being written for it.
+    """
+    stack = list(station.stack)
+    where = {}
+    for d in added:
+        i = stack.index(d)
+        where[d] = ("in between" if 0 < i < len(stack) - 1
+                    else "on top" if i == len(stack) - 1 else "underneath")
+    said = ["put %s %s" % (SPOKEN[d], where[d]) for d in added]
+    if len(said) > 1:
+        return "%s, and %s" % (", ".join(said[:-1]), said[-1].replace("put ", ""))
+    return said[0]
+
+
 def spoken_arrangement(stations) -> str:
     """One sentence per rig, describing where things go. Nothing about what comes off.
 
