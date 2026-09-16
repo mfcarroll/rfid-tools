@@ -118,30 +118,42 @@ should be split; do not open anything.
 ⚠ `mins*` is **minutes until that window RESETS**, not minutes used. Verified working 2026-09-16
 16:24 (the cookie had been stale since 11 Sep and was rotated by the operator).
 
-**Read it at the START of every tick.** Two gates, and the second one changes at a fixed moment:
+**Read it at the START of every tick.** Two stop conditions. **Both are terminal — neither is a
+pause, and there is no second phase after either one.**
 
-| when | stop working at |
+| stop when | meaning |
 |---|---|
-| before **Sun 2026-09-20 00:00** | `util7 >= 98` |
-| from Sun 2026-09-20 00:00 | `util7 >= 10` |
+| `util7 >= 98` | the week's allowance is spent |
+| the clock passes **Sun 2026-09-20 00:00** | the round is over regardless of the figure |
 
-The 7-day window resets at exactly that moment — `mins7` counted down to it, so the boundary is the
-reset itself and not a calendar guess. The last 2% is reserved so the routine and its wakeups cannot
-themselves fail for want of capacity.
+The last 2% is reserved so the routine and its wakeups cannot themselves fail for want of capacity.
+
+⛔⛔ **THE SECOND CONDITION IS NOT BOOKKEEPING — WITHOUT IT THE FIRST ONE RE-ARMS.** The 7-day
+window RESETS at exactly Sun 2026-09-20 00:00 (`mins7` counts down to it). A round that stopped on
+Thursday at 98% would, on the next tick after that moment, read a healthy `util7` and start again —
+spending the capacity the operator is keeping for their return. A cap alone cannot express "and
+stay stopped" across a reset, so the clock does.
+
+⇒ On either condition: commit whatever is finished, write the work list forward for a human to pick
+up, say in one line which condition stopped it, and stand down. **Do not wait for more capacity and
+do not check again.**
 
 ⚠ **`util5` can stop you while `util7` is healthy.** The 5-hour window is a separate quota. If
 `util5` is near its ceiling, work stalls no matter what the weekly figure says — report it as a
 5-hour stall, which passes, never as the weekly cap, which does not.
 
-⛔ **If the script stops answering** (it returns `HTTP 403` when the cookie expires), the caps are
-unenforceable. Pace to the **10%** figure, not the 98%, and say so once per tick. An unenforceable
-98% ceiling is not a ceiling. Only the operator can rotate the cookie.
+⛔ **If the script stops answering** (it returns `HTTP 403` once the cookie expires — it had been
+stale since 11 Sep before the operator rotated it), the weekly ceiling cannot be measured. **Keep
+working and say so once per tick.** The ceiling is the operator's own and they have said that
+running out is fine; the thing that actually needs protecting is next week's capacity, and the
+**clock condition protects that without the script**. ⛔ Do not invent a substitute figure to pace
+against — a number nobody measured is worse than an honest "unmeasured" on every tick.
 
-⭐ **LOG `util7` IN EVERY TICK'S COMMIT OR REPORT.** The burn rate is unknown until it is measured,
-and a cold session cannot remember the last reading (§6). At the observed 18.5 points/day the 30
-points of headroom is about 1.6 days — so this is a **ceiling that will be reached early, not a
-budget spread across the absence**, and the round should expect a long idle period before Sunday
-rather than treat the silence as a fault.
+⭐ **LOG `util7` IN EVERY TICK'S COMMIT OR REPORT.** A cold session cannot remember the last
+reading (§6), so the burn rate is only visible if each tick writes it down. At the rate observed on
+2026-09-16 the 30 points of headroom is roughly 1.6 days — so the round is expected to reach the
+ceiling well before Sunday. **That is the intended outcome, not a fault**: the operator's decision
+is that running out is fine and the remainder is theirs for next week.
 
 ## 4. Non-negotiables
 
