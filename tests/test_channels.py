@@ -311,3 +311,33 @@ class AFailedInvocationIsNotASilence(unittest.TestCase):
         ok, why = self._pm3(self.CLAIMED).wipe_t55()
         self.assertFalse(ok)
         self.assertIn("did not reach the device", why)
+
+
+class WhatAClonSaysAboutItsOwnWrite(unittest.TestCase):
+    """⭐ `Done!` AND `Data written and verified` ARE NOT THE SAME CLAIM. The first says the commands
+    went out; the second says the client read the blocks back and they matched. `write_t55` checks
+    only the weaker one and discards the transcript — so when a read-back later disagrees, the one
+    line that separates "the write did not land" from "it landed and the reader cannot see it" has
+    already been thrown away. Both look identical without it, and both happened this session.
+    """
+
+    CLONE = ("[=] Preparing to clone Indala 64 bit to T55x7 raw A0000000E6BD0E92\n"
+             "[+] Blk | Data \n[+]  00 | 00081040\n[+]  01 | A0000000\n"
+             "[+] Data written and verified\n[+] Done!\n")
+
+    def test_the_stronger_confirmation_is_recognised(self):
+        self.assertTrue(devices.clone_verified(self.CLONE))
+
+    def test_and_done_alone_is_not_it(self):
+        self.assertFalse(devices.clone_verified("[+] Done!\n"),
+                         "a T5577 does not acknowledge a write (RULES.md §10)")
+
+    def test_the_evidence_keeps_the_lines_that_decide(self):
+        got = " | ".join(devices.clone_evidence(self.CLONE))
+        self.assertIn("Data written and verified", got)
+        self.assertIn("00081040", got, "the config block the clone claims to have set")
+
+    def test_and_says_so_rather_than_returning_nothing(self):
+        """⚠ An empty diagnostic is the failure mode this whole session kept hitting."""
+        self.assertTrue(devices.clone_evidence(""))
+        self.assertIn("nothing this filter recognises", devices.clone_evidence("")[0])
