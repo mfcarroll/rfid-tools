@@ -14,7 +14,7 @@ import os
 import os as _os
 import sys
 
-from . import (cues, firmware, grid, learned, outcomes, plan as planning, registry as reg,
+from . import (cues, firmware, grid, history, learned, outcomes, plan as planning, registry as reg,
                republish,
                runner, setup, ui)
 from . import devices as devices_mod
@@ -144,6 +144,11 @@ def cmd_report(a) -> int:
     """
     protos, _ = learned.apply(reg.resolve(a.protocol), learned.load(a.learned), "REPORT")
     r = republish.republish(a.run, protos, regrade=a.regrade)
+    # ⚠ A REDRAW GETS THE SAME SCRUTINY AS A RUN. A finding withheld live and asserted on redraw
+    # would make the command a way to launder one.
+    earlier = history.load(RUNS, dict(r.firmware), exclude=r.session)
+    r.disagreements = history.disagreements(r.cells, earlier)
+    r.unstable = history.unstable(r.cells, earlier)
     md = "\n".join(republish.banner(r, runner._harness_version())) + grid.render(r, protos)
     if a.stdout:
         print(md)
@@ -369,6 +374,7 @@ def cmd_run(a) -> int:
             r2 = runner.run(p2, _devices(a), interactive=not a.no_prompt, session=session,
                             licences=result.licences)
             result = grid.merge(result, r2)
+    _compare_with_earlier(result)
     md = grid.render(result, protos)
     stem = _write(result, protos, suffix=stem_suffix)
     print("\n" + md)
@@ -524,6 +530,26 @@ def cmd_probe(a) -> int:
               "     emitter produce identical numbers (RULES.md §5), so nothing is run until this\n"
               "     is fixed.")
     return 0 if ok else 2
+
+
+def _compare_with_earlier(result) -> None:
+    """Ask what earlier runs on this firmware said about the same cells, and attach the answer.
+
+    ⛔⛔ THE CHECK NO CONTROL IN THIS HARNESS PERFORMED. Calibration, null sweeps and the
+    crowded-stack rule all defend a SINGLE run, and none of them can tell you that the silence you
+    are about to publish as a firmware gap decoded byte-exact half an hour ago. One did:
+    `em410x emu.pm3 -> rd.cu1`, EXACT at 11:19 and `LF tag not found` at 11:52.
+
+    ⚠ ATTACHED, NOT ENFORCED HERE. `grid` withholds any gap built on an unstable cell and lists the
+    disagreements in their own section; this only supplies the evidence, so the rule lives in one
+    place and a report drawn from a file gets the same treatment as a live run.
+    """
+    earlier = history.load(RUNS, dict(result.firmware), exclude=result.session)
+    result.disagreements = history.disagreements(result.cells, earlier)
+    result.unstable = history.unstable(result.cells, earlier)
+    for proto, source, reader, now, other in result.disagreements:
+        print("  %s %s %s → %s is %s here and %s in %s — no finding will be built on it"
+              % (ui.mark("warn"), proto, source, reader, now, other[0].outcome, other[0].session))
 
 
 def _write(result, protos, suffix: str = "") -> str:

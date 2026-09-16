@@ -21,7 +21,7 @@ from collections import OrderedDict
 from . import registry as reg
 from .outcomes import GLYPH, Cell, Outcome
 from .plan import Exclusion
-from .stations import EMULATED_SOURCES, READER_NOTE, REAL_SOURCES
+from .stations import EMULATED_SOURCES, GOLD_SOURCES, READER_NOTE, REAL_SOURCES
 
 #: Sources across the top of every table, left to right. ⚠ ORDERED, so the grid reads the same way
 #: in every run and two runs can be diffed.
@@ -196,11 +196,38 @@ def render(result, protocols: list[reg.Protocol]) -> str:
     lines.extend(_tallies(result, readers))
     lines.extend(_exclusions(result.plan.exclusions))
     lines.extend(_voids(result))
+    lines.extend(_unstable(result))
     lines.extend(gap_register(result, protocols))
     lines.extend(_bad_markers(result))
     lines.extend(_unparsed(result))
     lines.extend(_open_questions(result))
     return "\n".join(lines)
+
+
+def _unstable(result) -> list[str]:
+    """Cells that disagree with an earlier run on the same firmware.
+
+    ⭐⭐ THE STRONGEST THING THIS BENCH CAN SAY, and it could not say it until now. Every other
+    control here defends ONE run — calibration, null sweeps, the crowded-stack rule — and none of
+    them can tell you that the null you are about to publish as a firmware gap read byte-exact
+    half an hour ago. A cell that contradicts itself is not a gap and is not a pass; it is an
+    instability, and naming it is worth more than either verdict would have been.
+    """
+    rows = getattr(result, "disagreements", ())
+    if not rows:
+        return []
+    out = ["## ⚠ cells that disagree with an earlier run", "",
+           "Same firmware on every device, same registry, different answer. **No finding is built "
+           "on these** — a single reading is not evidence when the same bench has already "
+           "contradicted it, and two readings are not settled by counting them. What settles one is "
+           "a cause: a timing, a settle period, a bench arrangement that differs between the runs.",
+           "",
+           "| protocol | source | reader | now | earlier |", "|---|---|---|---|---|"]
+    for proto, source, reader, now, other in rows:
+        was = "; ".join("`%s` %s" % (r.session, r.outcome) for r in other[:3])
+        out.append("| `%s` | `%s` | `%s` | **%s** | %s |" % (proto, source, reader, now, was))
+    out.append("")
+    return out
 
 
 def _bad_markers(result) -> list[str]:
@@ -389,15 +416,39 @@ def gap_register(result, protocols: list[reg.Protocol]) -> list[str]:
     return out
 
 
+#: device suffix -> whose firmware a finding about it belongs to.
+_OWNER_OF = {"pm3": "Proxmark", "flip": "Flipper", "cu1": "ChameleonUltra", "cu2": "ChameleonUltra"}
+
+
 def _observed_gaps(result) -> list[tuple[str, str, str]]:
-    """Gaps this run is entitled to assert. Licensed cells only, and one (protocol, reader) each."""
+    """Gaps this run is entitled to assert. Licensed cells only, and one (protocol, reader) each.
+
+    ⛔⛔ AND NOT ONE THE SAME BENCH HAS ALREADY CONTRADICTED. `result.unstable` holds every cell that
+    an earlier run on THIS firmware graded differently, and no claim may be built on one. A single
+    SILENT is not sufficient evidence of a decoder gap: `em410x emu.pm3 -> rd.cu1` decoded
+    byte-exact at 11:19 and answered `LF tag not found` at 11:52, and this register was the thing
+    about to write that up as a Proxmark firmware gap.
+
+    ⚠ NOT A VOTE. Two readings that disagree are not settled by counting them — the cell is withheld
+    and reported as unstable, which is its own finding and a more useful one.
+    """
     owner = {"rd.pm3": "Proxmark", "rd.flip": "Flipper",
              "rd.cu1": "ChameleonUltra", "rd.cu2": "ChameleonUltra"}
-    emitter_owner = {"emu.cu1": "ChameleonUltra", "emu.cu2": "ChameleonUltra",
-                     "emu.flip": "Flipper", "t55.flip": "Flipper",
-                     "t55.cu1": "ChameleonUltra", "t55.cu2": "ChameleonUltra"}
+    # ⛔⛔ DERIVED, BECAUSE THE HAND-KEPT VERSION COULD NOT SEE THE PROXMARK'S EMITTER AT ALL. This
+    # was a FOURTH copy of the source list — after SOURCE_ORDER in this same file — and `emu.pm3`
+    # was never added to it. A cell with no owner falls through every branch below, so a failure of
+    # the gold emitter was not suppressed deliberately, it was unrepresentable: `emu.pm3` is the one
+    # source in the registry that could never be the subject of a finding.
+    #
+    # ⚠ THE GOLD SOURCES ARE ABSENT ON PURPOSE and that is a different thing. A silence from a real
+    # tag the calibration passed on is a fact about the READER, handled by its own branch above.
+    emitter_owner = {s: _OWNER_OF[s.split(".", 1)[1]]
+                     for s in (REAL_SOURCES | EMULATED_SOURCES) - GOLD_SOURCES}
+    shaky = getattr(result, "unstable", frozenset())
     gaps: list[tuple[str, str, str]] = []
     for c in result.cells:
+        if (c.protocol, c.source, c.reader) in shaky:
+            continue
         if c.outcome is Outcome.UNGRADED or c.observation is None:
             continue
         # ⛔ ONLY AN ISOLATED READING MAY BECOME A GAP. A success in a crowded stack is a success,

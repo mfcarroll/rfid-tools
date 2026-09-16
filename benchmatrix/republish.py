@@ -87,6 +87,11 @@ class Republished:
     carried_from: str
     unparsed: dict
     bad_markers: dict
+    #: Filled in by the caller from `history`: cells an earlier run on this firmware graded
+    #: differently, and the keys no finding may be built on. ⚠ Supplied rather than computed here,
+    #: so a redraw and a live run are judged by the same code.
+    disagreements: tuple = ()
+    unstable: frozenset = frozenset()
     mode: str = "verbatim"
     #: Cells whose outcome changed under today's code. Empty in verbatim mode by construction.
     moved: tuple = ()
