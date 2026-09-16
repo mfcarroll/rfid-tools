@@ -104,6 +104,16 @@ class RunResult:
     cells: list[Cell] = field(default_factory=list)
     licences: dict = field(default_factory=dict)
     refusals: dict = field(default_factory=dict)
+    #: (protocol, reader) pairs where that reader has decoded that protocol at least once in this
+    #: session, from ANY source. ⛔ This is the only thing that makes a later SILENCE from the same
+    #: reader mean anything — see `_settle`. It is deliberately weaker than a licence: a licence
+    #: needs a GOLD source, while "can this reader see this protocol at all" is answered by any
+    #: source that worked.
+    decoded_by: set = field(default_factory=set)
+    #: Cells holding a silence nothing could attribute when it was taken. ⭐ THE READING IS FIXED;
+    #: THE INTERPRETATION IS NOT. A reader that decodes this protocol later in the run — from any
+    #: source — retrospectively licenses these, so they are revisited once the corpus is complete.
+    unattributed: list = field(default_factory=list)
     #: (protocol, reader) pairs whose decode marker did not fire on a byte-exact read. The cell is
     #: still correct; the REGISTRY is not, and would misreport a wrong decode as silence.
     bad_markers: dict = field(default_factory=dict)
@@ -257,8 +267,42 @@ def run(plan: RunPlan, devices: Devices, *, interactive: bool = True,
         raise
     finally:
         _restore(devices, out)
+    _reattribute(res, out)
     res.finished = _dt.datetime.now().isoformat(timespec="seconds")
     return res
+
+
+def _reattribute(res: RunResult, out) -> None:
+    """Re-read the run's silences now that the whole corpus is in.
+
+    ⭐⭐ SILENCE IS A RESULT WHEN, AND ONLY WHEN, SOMETHING BACKS IT UP — and what backs it up may
+    arrive AFTER it. A reader that says nothing about a protocol at step three is uninterpretable
+    there; if the same reader decodes that protocol at step forty, from any source, the step-three
+    silence becomes a statement about that tag. The reading never changes. Its interpretation does,
+    and it does so as the corpus grows.
+
+    ⚠ THIS IS A WITHIN-RUN PASS ONLY. The same logic holds across runs — a reader shown to decode a
+    protocol last week can license a silence recorded today — but only while that reader is running
+    the same firmware, since a cell is a claim about a firmware and not about a device (RULES.md
+    §11). Persisting the corpus is the natural next step and is deliberately not half-built here.
+    """
+    promoted = 0
+    for index, protocol, reader, state in res.unattributed:
+        if (protocol, reader) not in res.decoded_by:
+            continue
+        cell = res.cells[index]
+        res.cells[index] = ungraded(
+            cell.protocol, cell.source, cell.reader,
+            "the write was issued and %s read nothing back. %s decoded %s later in this run, so it "
+            "CAN see this protocol and its silence here is about the tag: the credential is not on "
+            "it. (Read as unattributable when taken; licensed retrospectively by a later decode.)"
+            % (reader, reader, protocol),
+            crowding=cell.crowding)
+        promoted += 1
+    if promoted:
+        out("\n    %s %d silence(s) became attributable once the whole run was in — a reader that "
+            "said nothing early decoded that protocol later, from another source."
+            % (ui.mark("ok"), promoted))
 
 
 def _restore(devices: Devices, out) -> None:
@@ -470,6 +514,8 @@ def _settle(pending: list, state, tag_state: TagState, report: BlockReport, devi
     for op, obs in pending:
         if obs is None:
             continue
+        if obs.decoded:
+            res.decoded_by.add((obs.protocol, obs.reader))
         if obs.matched:
             tag_state.verified = True
             tag_state.witnesses.add(op.device)
@@ -510,19 +556,34 @@ def _settle(pending: list, state, tag_state: TagState, report: BlockReport, devi
 
     protocol = state[0].key if state else pending[0][0].protocol.key
     readers = sorted({op.cell.reader if op.cell else _reader_id(op.device) for op, _ in pending})
-    if len(readers) == 1:
-        why = ("the write was issued and nothing decoded anything at all. With only %s in the stack "
-               "this cannot be told apart from %s being unable to decode %s — a second reader on "
-               "the same tag would separate them (RULES.md §10)."
-               % (readers[0], readers[0], protocol))
+
+    # ⛔⛔ SILENCE FROM A READER THAT HAS NEVER SPOKEN ABOUT THIS PROTOCOL SAYS NOTHING, AND THAT IS
+    # TRUE HOWEVER MANY SUCH READERS THERE ARE. The previous wording concluded "none of them read it
+    # back, so the credential is not on the tag — this is a WRITE failure", which is a confident
+    # verdict drawn from collective ignorance: every reader present may simply be unable to decode
+    # the protocol. You can prove a write LANDED; you cannot prove it did not, without a reader
+    # already shown to see that protocol (RULES.md §10).
+    proven = sorted(r for r in readers if (protocol, r) in res.decoded_by)
+    if proven:
+        why = ("the write was issued and nothing read it back — and %s %s decoded %s earlier in "
+               "this session, so %s silence now is about the TAG. The credential is not on it."
+               % (", ".join(proven), "has" if len(proven) == 1 else "have", protocol,
+                  "its" if len(proven) == 1 else "their"))
     else:
-        why = ("the write was issued and none of %s read it back, so the credential is not on the "
-               "tag. This is a WRITE failure, not a reader one (RULES.md §10)."
-               % ", ".join(readers))
+        alt = _other_sources(protocol, state, devices)
+        why = ("the write was issued and nothing decoded anything at all. No reader present has "
+               "been shown to decode %s at all this session, so this cannot be told apart from "
+               "every one of them being unable to — adding readers does not help unless one of "
+               "them speaks. What settles it is the same protocol from a DIFFERENT source%s — and "
+               "if one arrives later in this run, this reading is revisited (RULES.md §10)."
+               % (protocol, (": try " + ", ".join(alt)) if alt else ""))
     out("      %s %-10s write NOT VERIFIED — %s" % (ui.mark("skip"), protocol, why))
     for op, obs in graded:
         c = op.cell
         res.cells.append(ungraded(c.protocol.key, c.source, c.reader, why, crowding=op.crowding))
+        if not proven:
+            # Revisited at the end of the run: another source may yet license this reader.
+            res.unattributed.append((len(res.cells) - 1, c.protocol.key, c.reader, state))
 
 
 def _grade_one(op: Op, obs, report: BlockReport, res: RunResult, out, issued: list) -> None:
@@ -674,6 +735,36 @@ def _check_marker(obs, res: RunResult, out) -> None:
     out("      %s %-10s %-7s DECODE MARKER DID NOT FIRE on a byte-exact read — it would report a "
         "wrong decode as SILENT. Device said: %r"
         % (ui.mark("warn"), obs.protocol, obs.reader, line[:70]))
+
+
+def _other_sources(protocol: str, state, devices: Devices) -> list:
+    """Other ways to put this protocol in front of a reader — the only thing that can license one.
+
+    ⭐ A READER IS LICENSED FOR A PROTOCOL BY SEEING IT, and it does not matter who produced it. So
+    when a write cannot be attributed, the useful next step is not another reader but another
+    WRITER: a tag carrying the same protocol from a different hand. If a reader decodes that, its
+    silence about the first tag becomes a statement about that tag.
+    """
+    from .registry import ALL
+    p = ALL.get(protocol)
+    if p is None:
+        return []
+    wrote = state[1] if state else None
+    out = []
+    for dev, source in (("pm3", "t55.pm3"), ("cu1", "t55.cu1"), ("cu2", "t55.cu2"),
+                        ("flipper", "t55.flip")):
+        if dev == wrote:
+            continue
+        if dev == "pm3" and not p.can("pm3_write"):
+            continue
+        if dev in ("cu1", "cu2") and not p.can("cu_write"):
+            continue
+        if dev == "flipper" and not (p.flip_write and p.flip_expect):
+            continue
+        if getattr(devices, dev, None) is None:
+            continue
+        out.append("-s %s" % source)
+    return out
 
 
 def _carries_match(line: str, obs) -> bool:

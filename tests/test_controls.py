@@ -590,3 +590,96 @@ class WhatIsNotMeasuredIsSaidBeforeTheRunNotAfter(unittest.TestCase):
         row = [l for l in md.splitlines() if l.startswith("| em410x_electra")]
         self.assertTrue(row)
         self.assertIn("refsd", row[0], "a blank cell reads as missing data, not as a decision")
+
+
+class SilenceIsOnlyAttributableToAReaderThatHasSpoken(unittest.TestCase):
+    """⛔⛔ YOU CAN PROVE A WRITE LANDED. YOU CANNOT PROVE IT DID NOT — not without a reader already
+    shown to see that protocol. The earlier wording concluded "none of them read it back, so the
+    credential is not on the tag: this is a WRITE failure", which is a confident verdict drawn from
+    collective ignorance. Every reader present may simply be unable to decode the protocol, and
+    adding more of them changes nothing unless one speaks."""
+
+    def _settle_note(self, decoded_before=()):
+        from benchmatrix import plan as planning
+        from benchmatrix.outcomes import observe
+        from benchmatrix.runner import RunResult, TagState, BlockReport, _settle
+        p = reg.ALL["fdxb"]
+        plan = planning.build([p], ["t55.pm3"], ["rd.pm3"], Bench())
+        res = RunResult(session="S", started="", plan=plan)
+        res.decoded_by.update(decoded_before)
+        block = plan.blocks[0]
+        op = next(o for o in block.ops if o.kind == "read")
+        obs = observe("fdxb", "t55.pm3", "rd.pm3", "", p.expect, p.pm3_decode_marker)
+        _settle([(op, obs)], (p, "pm3"), TagState(), BlockReport(block),
+                make_devices(), res, lambda *a: None, [])
+        return res.cells[0].note
+
+    def test_with_no_reader_ever_having_decoded_it_nothing_is_concluded(self):
+        note = self._settle_note()
+        self.assertIn("No reader present has been shown to decode", note)
+        self.assertNotIn("is not on it", note, "that would be a verdict the evidence cannot support")
+        self.assertIn("DIFFERENT source", note, "and it must say what would settle it")
+
+    def test_it_names_the_other_writers_that_could_settle_it(self):
+        """⭐ The useful next step is not another reader but another WRITER — a tag carrying the
+        same protocol from a different hand."""
+        note = self._settle_note()
+        self.assertIn("-s t55.cu1", note)
+        self.assertNotIn("-s t55.pm3", note, "that is the writer that just failed")
+
+    def test_once_a_reader_has_decoded_it_the_same_silence_becomes_a_statement(self):
+        note = self._settle_note(decoded_before={("fdxb", "rd.pm3")})
+        self.assertIn("decoded fdxb earlier in this session", note)
+        self.assertIn("not on it", note, "now the silence IS about the tag")
+
+    def test_a_decode_from_any_source_counts_for_this(self):
+        """⚠ Deliberately weaker than a licence. A licence needs a GOLD source; "can this reader see
+        this protocol at all" is answered by any source that worked."""
+        from benchmatrix import plan as planning
+        protos = reg.resolve(["em410x"])
+        plan = planning.build(protos, ["t55.pm3"], ["rd.pm3"], Bench())
+        res = runner.run(plan, make_devices(answers=answers_all_exact(protos)),
+                         interactive=False, session="S", out=quiet)
+        self.assertIn(("em410x", "rd.pm3"), res.decoded_by)
+
+
+class TheInterpretationOfASilenceFollowsTheCorpus(unittest.TestCase):
+    """⭐⭐ SILENCE IS A RESULT WHEN, AND ONLY WHEN, SOMETHING BACKS IT UP — and what backs it up may
+    arrive AFTER it. The reading never changes; its interpretation does, as the corpus grows."""
+
+    def _run_with_failing_gold_write(self):
+        """The Proxmark's write does nothing; the Chameleon's works. So the Proxmark reads silence
+        first — uninterpretable — and then decodes the Chameleon's tag, which proves it can see the
+        protocol after all and settles the earlier reading."""
+        from benchmatrix import plan as planning
+        protos = reg.resolve(["em410x"])
+        plan = planning.build(protos, ["t55.pm3", "t55.cu1"], ["rd.pm3"], Bench())
+        dev = make_devices(answers=answers_all_exact(protos))
+        dev.pm3.write_works = False
+        return runner.run(plan, dev, interactive=False, session="S", out=quiet), plan
+
+    def test_the_early_silence_is_relicensed_by_the_later_decode(self):
+        res, _ = self._run_with_failing_gold_write()
+        gold = [c for c in res.cells if c.source == "t55.pm3"]
+        self.assertTrue(gold)
+        for c in gold:
+            self.assertIn("licensed retrospectively", c.note)
+            self.assertIn("not on it", c.note, "it IS a statement about the tag now")
+
+    def test_the_reading_itself_is_unchanged(self):
+        """Only the interpretation moves. The cell stays UNGRADED — a silence is still not a
+        licensed verdict, it is now an attributable one."""
+        res, _ = self._run_with_failing_gold_write()
+        gold = [c for c in res.cells if c.source == "t55.pm3"]
+        self.assertTrue(all(c.outcome is Outcome.UNGRADED for c in gold))
+
+    def test_without_the_later_decode_it_stays_uninterpretable(self):
+        from benchmatrix import plan as planning
+        protos = reg.resolve(["em410x"])
+        plan = planning.build(protos, ["t55.pm3"], ["rd.pm3"], Bench())
+        dev = make_devices(answers=answers_all_exact(protos))
+        dev.pm3.write_works = False
+        res = runner.run(plan, dev, interactive=False, session="S", out=quiet)
+        for c in res.cells:
+            self.assertIn("No reader present has been shown to decode", c.note)
+            self.assertNotIn("licensed retrospectively", c.note)
