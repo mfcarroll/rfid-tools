@@ -35,6 +35,16 @@ def paint(text: str, *styles: str) -> str:
     return "\x1b[%sm%s\x1b[0m" % (codes, text) if codes else text
 
 
+def spoken_removal(devices) -> str:
+    """⚠ WHEN NOTHING IS BEING ADDED, THE ARRANGEMENT IS NOT AN INSTRUCTION. "Put Chameleon 1 on the
+    Proxmark" is confusing when it is already there and the only thing to do is take the tag out.
+    A pure removal is the one case where the delta IS the clearest thing to say."""
+    names = [SPOKEN[d] for d in devices]
+    if len(names) > 1:
+        names = ["%s and %s" % (", ".join(names[:-1]), names[-1])]
+    return "take out %s" % names[0]
+
+
 def spoken_arrangement(stations) -> str:
     """One sentence per rig, describing where things go. Nothing about what comes off.
 

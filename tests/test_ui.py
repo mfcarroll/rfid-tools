@@ -114,3 +114,27 @@ class Colour(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class APureRemovalIsSaidAsARemoval(unittest.TestCase):
+    """⚠ Describing the arrangement is right when something is being placed, and confusing when the
+    only thing to do is take the tag out of a stack that is otherwise already correct."""
+
+    def test_one_thing(self):
+        self.assertEqual(ui.spoken_removal((T5577,)), "take out the tag")
+
+    def test_several_things(self):
+        self.assertEqual(ui.spoken_removal((T5577, CU2)), "take out the tag and Chameleon two")
+
+    def test_the_runner_says_it_when_nothing_is_being_added(self):
+        from benchmatrix.stations import plan_move
+        full = build_station({PM3, T5577, CU1}, B)
+        empty = build_station({PM3, CU1}, B)
+        move = plan_move(full, empty)
+        self.assertTrue(move.remove and not move.place, "this is the pure-removal case")
+        self.assertEqual(ui.spoken_removal(move.remove), "take out the tag")
+
+    def test_but_an_addition_is_still_said_as_an_arrangement(self):
+        from benchmatrix.stations import plan_move
+        move = plan_move(build_station({PM3, CU1}, B), build_station({PM3, T5577, CU1}, B))
+        self.assertTrue(move.place, "something is being added, so the arrangement is the cue")

@@ -146,7 +146,12 @@ ALL: dict[str, Protocol] = {p.key: p for p in [
        cu_emulate="lf em 410x econfig -s {slot} --id 2244668800",
        cu_read="lf em 410x read",
        cu_write="lf em 410x write --id 2244668800",
-       cu_decode_marker=r"EM410X\s*:",
+       # ⛔ THE DEVICE PRINTS THE VARIANT: `EM410X/64: 2244668800`, not `EM410X:`. Observed on the
+       # bench 2026-09-15. This marker was derived from the source's `{TagSpecificType(data[0])}:`
+       # and guessed at how the enum renders — and it never fired. It went unnoticed because a
+       # byte-exact hit forces `decoded` True, so a CORRECT read masked it; a read that decoded the
+       # WRONG value would have been reported SILENT, which is the merge the four outcomes forbid.
+       cu_decode_marker=r"EM410X[/_0-9]*\s*:",
        cu_expect="2244668800",
        flip_key="EM4100", flip_expect="2244668800",
        notes="5-byte id both sides — the one protocol where every channel speaks the same bytes."),
