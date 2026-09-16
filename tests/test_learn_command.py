@@ -424,3 +424,59 @@ class AndTheLearnLoopActuallyAsksForThatRetry(_ScriptedLearningBench):
         self.assertIn(("hidprox", "rd.cu1"), recs)
         self.assertEqual(self.moves, [self.moves[0]],
                          "one cue to build the station, and nothing after it")
+
+
+class TheProxmarkChecksItsOwnWriteOutLoud(_ScriptedLearningBench):
+    """⛔ A CHECK THAT DISCARDS ITS EVIDENCE CANNOT BE TOLD APART FROM A CHECK THAT IS WRONG. The
+    read-back reported only that it had failed. Three live explanations — the write did not land,
+    the registry expectation is wrong, or something in the stack is loading the tag — and they look
+    identical without the transcript. That is the same fault that hid the Flipper channel for a
+    whole session.
+
+    ⚠ AND WHEN IT PASSES IT MUST SAY SO. Operator, reading `written — not yet verified by anything`
+    followed by silence: "is it not verified by the proxmark after writing?" It was; nothing said.
+    """
+
+    def _learn_viking(self):
+        import contextlib
+        import io
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            cli.cmd_learn(cli.build_parser().parse_args(
+                ["learn", "--no-prompt", "-r", "rd.flip", "-p", "viking",
+                 "--learned", self.path, "--session", "S1"]))
+        return buf.getvalue(), learned.load(self.path)
+
+    def test_a_passing_read_back_is_announced_with_what_it_matched(self):
+        self.dev.flipper.answers[("viking", "t5577")] = "Viking AABBCCDD\n"
+        out, recs = self._learn_viking()
+        self.assertIn("the credential is on the tag", out)
+        self.assertIn(repr(reg.ALL["viking"].expect), out)
+        self.assertIn(("viking", "rd.flip"), recs)
+
+    def test_the_write_line_does_not_claim_more_than_it_knows(self):
+        """⚠ A T5577 does not acknowledge a write, so `Done!` says the commands went out and
+        nothing more (RULES.md §10)."""
+        self.dev.flipper.answers[("viking", "t5577")] = "Viking AABBCCDD\n"
+        out, _ = self._learn_viking()
+        self.assertIn("write issued", out)
+        self.assertNotIn("not yet verified by anything", out,
+                         "the next line verifies it, so this read as if nothing did")
+
+    def test_a_failing_read_back_shows_both_sides(self):
+        self.dev.pm3.answers[("viking", "t5577")] = ("[+] Viking - Card: 99999999\n"
+                                                     "[+] raw: FFFFFFFFFFFFFFFF")
+        out, recs = self._learn_viking()
+        self.assertEqual(recs, {}, "nothing is learned from a tag whose credential is unconfirmed")
+        self.assertIn("expected", out)
+        self.assertIn("1A337102", out, "what the registry says")
+        self.assertIn("99999999", out, "and what the device actually printed")
+
+    def test_and_names_the_candidates_rather_than_picking_one(self):
+        """⛔ It used to assert "the credential is not what the registry says it is" — one of three
+        possibilities, stated as the conclusion."""
+        self.dev.pm3.answers[("viking", "t5577")] = "[+] Viking - Card: 99999999"
+        out, _ = self._learn_viking()
+        self.assertNotIn("the credential is not what the registry says it is", out)
+        for candidate in ("write", "registry", "stack"):
+            self.assertIn(candidate, out)

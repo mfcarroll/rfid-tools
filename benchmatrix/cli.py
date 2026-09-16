@@ -629,7 +629,11 @@ def cmd_learn(a) -> int:
             except DeviceError as e:
                 print("      ⛔ %s" % e)
                 continue
-            done("      %s written — not yet verified by anything" % ui.mark("write"))
+            # ⚠ "ISSUED", NOT "WRITTEN". A T5577 does not acknowledge a write, so `Done!` says the
+            # commands went out and nothing more (RULES.md §10). The read-back on the next line is
+            # what makes it a fact — and it now says so out loud, because "not yet verified by
+            # anything" followed by silence reads as if nothing checked.
+            done("      %s write issued" % ui.mark("write"))
             if reader == "rd.pm3":
                 text, obs, proposals = _learn_read(pm3, p, reader)
             else:
@@ -637,11 +641,26 @@ def cmd_learn(a) -> int:
                 # credential the tag does not carry is not an expectation, it is noise recorded
                 # forever.
                 if p.expect:
+                    done = ui.working(print, "the Proxmark reads its own write back")
                     back = pm3.read(p)
-                    if p.expect.lower() not in back.lower():
-                        print("      ⛔ the Proxmark cannot read back what it just wrote. Not "
-                              "learning from this tag — the credential is not what the registry "
-                              "says it is.")
+                    if outcomes._flat(p.expect) in outcomes._flat(back):
+                        done("      %s the credential is on the tag — %r"
+                             % (ui.mark("ok"), p.expect))
+                    else:
+                        # ⛔⛔ SHOW WHAT IT SAID. This reported only that the read-back failed, which
+                        # is the same fault that hid the Flipper channel for this whole session: a
+                        # check that discards its evidence cannot be told apart from a check that
+                        # is wrong. Three live explanations — the write did not land, the registry
+                        # expectation is wrong, or something in the stack is loading the tag — and
+                        # they look identical without the transcript.
+                        done("      %s the Proxmark cannot read back what it just wrote"
+                             % ui.mark("bad"))
+                        print("          expected  %r" % p.expect)
+                        for line in outcomes.observe(p.key, "t55.pm3", "rd.pm3", back, p.expect,
+                                                     p.pm3_decode_marker).summary or ["(nothing)"]:
+                            print("          device    %s" % line[:110])
+                        print("      · not learning from this tag. The write, the registry entry "
+                              "and the stack are all still candidates — the lines above say which.")
                         continue
                 done = ui.working(print, "%s reads it back" % reader)
                 try:
