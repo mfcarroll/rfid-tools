@@ -769,3 +769,54 @@ class TheNullSweepMustListenInEachReadersOwnWording(unittest.TestCase):
         sweep = identity.null_sweep("NULL", [Scripted(id="cu1", role="cu1", air=air)],
                                     [reg.ALL["fdxb"]], [])
         self.assertEqual(sweep.hits, frozenset())
+
+
+class AParkingWriteThatTookMustSaySo(unittest.TestCase):
+    """⛔⛔ THE PARK HAD NEVER ONCE WORKED, AND NO TEST NOTICED.
+
+    `TagState.cleared` was set in exactly one place — `_wipe`. A parking write could be issued, read
+    back byte-exact, and still leave `cleared` False; the write that followed then saw
+    `parked=False` and every cell behind it was published `UNPARKED`.
+
+    ⇒ Parking is what a station does when the PROXMARK IS NOT IN THE STACK — it is the only way to
+    clear a tag without one. So no Chameleon-only or Flipper-only station could grade a single cell,
+    which is exactly the shape of the isolation phase. Two consecutive bench runs lost their
+    `t55.cu1 → rd.pm3` cell to it.
+
+    ⚠ AND IT PRESENTED AS A DEVICE FAULT — "the parking write did not take", at a station whose
+    transcript showed no failure. That reads as a Chameleon refusing to write a tag left in another
+    protocol's configuration, which is a real thing that happens and was the wrong answer here.
+    """
+
+    def _isolated(self, park_works=True):
+        from benchmatrix import outcomes, plan as planning
+        from benchmatrix.stations import Bench
+        obs = outcomes.observe("fdxb", "t55.cu1", "rd.pm3", "", "x", "y")
+        screened = outcomes.screened(obs, frozenset({"cu1"}), "PM3+T55+CU1")
+        p2 = planning.isolate([screened], Bench())
+        self.assertEqual([b.station.name for b in p2.blocks], ["CU1+T55", "PM3+T55"],
+                         "the fixture must exercise a stack with no Proxmark in it")
+        dev = make_devices()
+        dev.cu1.write_works = park_works
+        # The pm3 is licensed for fdxb from a gold row taken earlier, as phase 2 always is.
+        lic = {("fdxb", "rd.pm3"): outcomes.Calibration.from_row(
+            runner.observe("fdxb", "t55.pm3", "rd.pm3",
+                           "[+] FDX-B / ISO 11784/5 Animal %s" % reg.ALL["fdxb"].expect,
+                           reg.ALL["fdxb"].expect, r"FDX-B / ISO 11784/5 Animal"),
+            {"t55.pm3", "oem"})}
+        return runner.run(p2, dev, interactive=False, session="S", out=quiet, licences=lic)
+
+    def test_the_cell_is_graded_not_published_unparked(self):
+        res = self._isolated()
+        cells = [c for c in res.cells if c.source == "t55.cu1" and c.reader == "rd.pm3"]
+        self.assertEqual(len(cells), 1)
+        self.assertNotIn("UNPARKED", cells[0].note)
+        self.assertNotIn("parking write did not take", cells[0].note)
+
+    def test_and_a_park_that_really_did_not_take_still_says_so(self):
+        """⚠ The guard must keep working. A writer that returns cheerfully and puts nothing on the
+        tag is the case UNPARKED exists for."""
+        res = self._isolated(park_works=False)
+        cells = [c for c in res.cells if c.source == "t55.cu1" and c.reader == "rd.pm3"]
+        self.assertEqual(len(cells), 1)
+        self.assertIn("parking write did not take", cells[0].note)

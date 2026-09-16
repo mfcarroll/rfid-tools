@@ -413,7 +413,27 @@ ALL: dict[str, Protocol] = {p.key: p for p in [
        cu_read="lf fdxb read",
        cu_write="lf fdxb write --raw 00339a080402079f8040797788040201",
        cu_decode_marker=r"FDX-B ASK/biphase",
-       cu_expect="00339a080402079f8040797788040201",
+       # ⛔⛔ AN EXPECTATION FOR JUDGING THE CHAMELEON MUST NOT COME FROM THE CHAMELEON. This was
+       # `...80407977 88040201` — the raw in this entry's OWN `cu_write --raw`. A calibration row is
+       # (GOLD SOURCE -> this reader): what the Chameleon prints reading a PROXMARK-written tag.
+       # Using its own encoding instead makes the control "does the Chameleon agree with itself",
+       # which is RULES.md §8 arriving through the registry rather than through `bench learn`.
+       #
+       # ⭐ CORRECTED FROM THE BENCH, run 20260915_204348, reading the gold tag:
+       #     expected  00 33 9a 08 04 02 07 9f | 80 40 79 77 88 04 02 01
+       #     device    00 33 9a 08 04 02 07 9f | 80 40 3b 75 98 04 02 01
+       # The first eight bytes — country 999, national 1337, CRC — are IDENTICAL. The Chameleon read
+       # the Proxmark's tag correctly. What differs is bytes 10-12, and the device's own reply says
+       # why: "the CRC covers the first 8 bytes only — the last 40 bits of that raw are NOT
+       # protected". The two writers fill that unprotected trailer differently.
+       #
+       # ⚠ SO `t55.cu1 -> rd.cu1` IS NOW EXPECTED TO READ `WRONG`, AND THAT IS THE POINT. It is the
+       # honest statement of a real difference: told to write `--raw ...79778804...`, the Chameleon
+       # puts a frame on the tag that is not the one the gold writer puts there. Whether `cu_write`
+       # should be realigned to the Proxmark's frame is a question about what we want to test, not a
+       # typo to quietly fix — and `t55.cu1 -> rd.pm3` (does the Proxmark read the Chameleon's
+       # frame at all?) is still unmeasured, because the park bug ate that cell twice.
+       cu_expect="00339a080402079f80403b7598040201",
        flip_key="FDX-B",
        notes="FDXB_DECODED_DATA_SIZE = 11 against a 16-byte armed raw — different encodings."),
     # ---------------------------------------------------------------- tier 0b: built, never tested
