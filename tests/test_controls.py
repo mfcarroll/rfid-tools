@@ -825,3 +825,34 @@ class AParkingWriteThatTookMustSaySo(unittest.TestCase):
         cells = [c for c in res.cells if c.source == "t55.cu1" and c.reader == "rd.pm3"]
         self.assertEqual(len(cells), 1)
         self.assertIn("parking write did not take", cells[0].note)
+
+
+class AnExplicitNegativeIsNotAnUnreadLine(unittest.TestCase):
+    """⛔⛔ THE CONTROL THAT CATCHES WRONG REGISTRY ENTRIES MUST NOT FIRE ON EVERY NULL. `unaccounted`
+    exists so an expectation that does not match the shape a device prints surfaces as OUR fault
+    instead of the device's — and that only works while the section it feeds is rare enough to read.
+
+    ⚠ IT WASN'T. Run 20260916_114253 filed `em410x / rd.cu1` under "silences that may be OURS"
+    because the Chameleon printed `LF tag not found` — its normal way of reporting a negative. The
+    same reader read em410x byte-exact off a real tag in the same run, so the null was as controlled
+    as a null gets, and it was presented to the operator as a suspected harness bug.
+    """
+
+    def test_the_chameleons_not_found_line_is_accounted_for(self):
+        from benchmatrix.outcomes import unaccounted
+        text = "[=] Reading RFID tag...\nLF tag not found\n[=] Reading stopped\n"
+        self.assertEqual(unaccounted(text, r"EM410X"), ())
+
+    def test_but_a_line_we_genuinely_cannot_read_still_surfaces(self):
+        """⚠ THE HALF THAT MATTERS. A suppression list that swallowed a real decode would turn the
+        control off entirely, which is worse than the false positive it was added to fix."""
+        from benchmatrix.outcomes import unaccounted
+        text = "[=] Reading RFID tag...\nEM 4100 TAG ID: 2244668800\n"
+        self.assertEqual(unaccounted(text, r"EM410X/64:"), ("EM 4100 TAG ID: 2244668800",))
+
+    def test_a_not_found_line_does_not_hide_a_decode_beside_it(self):
+        """⛔ Filtering is per LINE. A device that reports a negative for one front end and a decode
+        for another must still have the decode surfaced."""
+        from benchmatrix.outcomes import unaccounted
+        text = "LF tag not found\nSome Format: 1234ABCD\n"
+        self.assertEqual(unaccounted(text, r"EM410X"), ("Some Format: 1234ABCD",))
