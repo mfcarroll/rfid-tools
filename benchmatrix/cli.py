@@ -15,6 +15,7 @@ import os as _os
 import sys
 
 from . import (cues, firmware, grid, learned, outcomes, plan as planning, registry as reg,
+               republish,
                runner, setup, ui)
 from . import devices as devices_mod
 from .devices import (DEFAULT_PM3, Chameleon, DeviceError, Flipper, Pm3, obedient_operator,
@@ -133,6 +134,34 @@ def _scripted(a) -> runner.Devices:
 
 
 # ------------------------------------------------------------------ commands
+
+def cmd_report(a) -> int:
+    """Draw a published run's grid again, from its own JSON. ⛔ TOUCHES NO DEVICE.
+
+    ⭐ A RUN COSTS SOMEBODY'S HANDS AND THE RENDERING DOES NOT. Run 20260916_114253 lost ten
+    measured cells to a missing column, and re-running the bench to fix a table header would have
+    been an absurd price for a bug that was never in the readings.
+    """
+    protos, _ = learned.apply(reg.resolve(a.protocol), learned.load(a.learned), "REPORT")
+    r = republish.republish(a.run, protos, regrade=a.regrade)
+    md = "\n".join(republish.banner(r, runner._harness_version())) + grid.render(r, protos)
+    if a.stdout:
+        print(md)
+        return 0
+    out = a.out or os.path.join(RUNS, "run_%s%s.md"
+                                % (r.session, "_regraded" if a.regrade else ""))
+    # ⛔ THE VERBATIM REDRAW REPLACES THE FILE IT CAME FROM; A REGRADE NEVER DOES. One is the
+    # markdown that should have been written for those readings, the other is a DIFFERENT claim
+    # about them — and overwriting the published view of a run with a later interpretation of it
+    # is how a grid comes to say something the bench never said.
+    with open(out, "w", encoding="utf-8") as fh:
+        fh.write(md + "\n")
+    for line in republish.banner(r, runner._harness_version()):
+        if line.strip():
+            print("  " + line.lstrip("> "))
+    print("  written: %s" % out)
+    return 0
+
 
 def cmd_scope(a) -> int:
     """What the registry holds, and — the part that matters — what each protocol can and cannot do.
@@ -932,6 +961,22 @@ def build_parser() -> argparse.ArgumentParser:
                                  "physically repositioned, which invalidates earlier licences")
             sp.add_argument("--no-cu2", action="store_true")
             sp.add_argument("--no-flipper", action="store_true")
+
+    sp = sub.add_parser("report", help="draw a published run's grid again from its JSON; "
+                                       "touches no device")
+    sp.add_argument("run", help="a session id, or a path to a run's .json (with or without the "
+                                "extension); ./ and ./runs/ are both searched")
+    sp.add_argument("-p", "--protocol", action="append",
+                    help="⚠ must cover every protocol the run graded, or it refuses rather than "
+                         "publish a grid with cells missing")
+    sp.add_argument("--regrade", action="store_true",
+                    help="re-derive every outcome from its stored transcript under TODAY's "
+                         "registry, and name every one that moves. Without this the outcomes are "
+                         "reproduced exactly as graded and only the rendering is new")
+    sp.add_argument("-o", "--out", help="write here instead of beside the run")
+    sp.add_argument("--stdout", action="store_true", help="print it and write nothing")
+    sp.add_argument("--learned", default=learned.DEFAULT_PATH)
+    sp.set_defaults(func=cmd_report)
 
     sp = sub.add_parser("scope", help="print the registry and what it can and cannot grade")
     sp.add_argument("-p", "--protocol", action="append")

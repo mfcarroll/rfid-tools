@@ -246,6 +246,46 @@ whole carry is refused and the differences printed — on a bench that has not c
 outcome is a finding about the harness. The published grid says how many cells were carried and
 from which session; a cell measured in this session always wins over the same cell carried forward.
 
+### `bench report`: draw a published grid again
+
+Every reading is filed with the transcript that produced it, so a run's markdown is a **view** of
+its JSON and can always be rebuilt. No device is touched and nothing is re-measured.
+
+```bash
+./bench report 20260916_114253
+```
+
+That rewrites `runs/run_20260916_114253.md` with **the outcomes exactly as they were graded** — only
+the rendering is today's. Use it when the fault was in the drawing rather than the reading: run
+20260916_114253 tallied 26 EXACT for `rd.cu1` and displayed 17, because the grid had no column for
+`emu.pm3` and dropped ten measured cells without a word.
+
+```bash
+./bench report 20260916_104455 --regrade
+```
+
+⭐ **`--regrade` answers a different question** — *what would this run say now?* Every stored
+transcript goes back through today's registry and today's matcher, and **every outcome that moves
+is named**. This is how you see what a registry correction bought without spending another
+afternoon at the bench:
+
+```
+> Every reading was put back through the registry at `8f3b897` and graded again;
+> it was measured under `d46c59a`. **1 outcome(s) moved**, listed below.
+>   · `viking` t55.pm3 → rd.cu1: **EXACT** was **UNGRADED**
+```
+
+⛔ **The two modes are never conflated, and neither is silent about which it is.** A redraw that
+quietly re-judged would be the harness rewriting history; a redraw that could only ever be verbatim
+could not show what a correction changed. The banner at the top of the file says which one produced
+it, a `--regrade` writes to `run_<session>_regraded.md` rather than over the published view, and a
+cell whose arm was refused has no transcript to re-read, so it is reproduced as filed and counted
+in the banner.
+
+`--stdout` prints instead of writing. `-p` limits the protocols, and **refuses** if that would drop
+a cell the run actually graded — a grid missing measured cells is the fault this command exists to
+repair.
+
 ## How it is built
 
 ```
