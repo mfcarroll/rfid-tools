@@ -232,6 +232,30 @@ transmitting.
 A clearing that cannot be confirmed blocks the write it was meant to protect, and those reads go
 UNGRADED saying so rather than being scored against a tag whose state was guessed at.
 
+⛔⛔ **A write can be proved to have landed. It cannot be proved NOT to have landed.** A byte-exact
+read is positive evidence; silence is the absence of evidence, and it is the absence of evidence
+however many readers produce it. "None of them decoded it, so the credential is not on the tag" is a
+verdict drawn from collective ignorance — every reader present may simply be unable to decode that
+protocol, and adding more of them changes nothing unless one of them speaks.
+
+Silence becomes attributable only when **a reader present has been shown to decode that protocol**,
+from any source. Then its silence is about the tag. Until then the useful next step is not another
+reader but another **writer**: the same protocol from a different hand, which if decoded licenses
+that reader and settles the first question too. The harness tracks what each reader has been shown
+to decode and names the alternative sources by command.
+
+⭐ **And the backing may arrive after the silence.** A reader that says nothing about a protocol at
+step three is uninterpretable there; if the same reader decodes that protocol at step forty, the
+step-three silence becomes a statement about that tag. The reading never changes — the
+interpretation does, as the corpus grows. So the run revisits its own silences once every station
+is in, and says how many it was able to license retrospectively.
+
+⚠ The same holds across runs, and is deliberately not built yet. A reader shown to decode a protocol
+last week can license a silence recorded today — but only while it is running the same firmware,
+because a cell is a claim about a firmware and not about a device (§11). A persisted corpus has to
+be keyed on that, and a half-built one that forgets it would license silences with evidence from a
+build that no longer exists.
+
 ⚠ **With only one reader, a failed read-back is ambiguous and is reported as ambiguous.** The
 harness does not pick between "the write did not land" and "this reader is deaf"; it says a second
 reader on the same tag would separate them, and leaves the cell UNGRADED.

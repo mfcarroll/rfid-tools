@@ -554,9 +554,13 @@ class Scripted:
                 return self.answers[(p.key, dev)]
         return "\n".join("[+] %s scripted read: %s" % (p.key, exp) for _, _, exp in holding if exp)
 
+    #: Set False to model a writer that returns cheerfully and puts nothing on the tag.
+    write_works: bool = True
+
     def write_t55(self, p: reg.Protocol) -> str:
         self.log.append(("write", p.key))
-        self.air.armed[T5577] = (p.key, p.expect)      # the tag now holds this credential
+        if self.write_works:
+            self.air.armed[T5577] = (p.key, p.expect)  # the tag now holds this credential
         return "ok"
 
     #: Set False to model a wipe that returns cheerfully and changes nothing.
