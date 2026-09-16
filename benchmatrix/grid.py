@@ -319,9 +319,11 @@ def _open_questions(result) -> list[str]:
     out = ["## open questions", "",
            "Cells the run could not grade. These are **not** findings — they are the work that is "
            "still outstanding, and the reason each one is outstanding.", ""]
+    # ⚠ NOT `split(".")`. Every reader id has a dot in it, so grouping on the first sentence cut
+    # "(viking, rd.pm3): the calibration row DECODED..." down to "(viking, rd".
     by_note: dict[str, list[Cell]] = {}
     for c in ungraded:
-        by_note.setdefault(c.note.split(".")[0][:140], []).append(c)
+        by_note.setdefault(" ".join(c.note.split())[:160], []).append(c)
     for note, group in sorted(by_note.items(), key=lambda kv: -len(kv[1])):
         out.append("- **%d cell%s** — %s" % (len(group), "" if len(group) == 1 else "s", note))
         out.append("  · " + "; ".join(sorted({"%s/%s" % (c.protocol, c.reader) for c in group})[:10]))
@@ -345,7 +347,8 @@ def to_json(result, protocols: list[reg.Protocol]) -> str:
         "cells": [{"protocol": c.protocol, "source": c.source, "reader": c.reader,
                    "outcome": c.outcome.value, "note": c.note,
                    "crowding": sorted(c.crowding), "isolated": c.isolated,
-                   "evidence": (c.observation.text[:400] if c.observation else None)}
+                   "decoded": (list(c.observation.summary) if c.observation else None),
+                   "evidence": (c.observation.text[-1200:] if c.observation else None)}
                   for c in result.cells],
         "licences": [{"protocol": p, "reader": r, "source": lic.source, "pad": lic.pad,
                       "evidence": lic.evidence[:400]}

@@ -194,3 +194,39 @@ class ABadMarkerReportsItselfOnAGoodRun(unittest.TestCase):
         plan = planning.build(reg.resolve(["em410x"]), ["t55.pm3"], ["rd.cu1"], Bench())
         res = runner.run(plan, make_devices(answers=ans), interactive=False, session="S", out=quiet)
         self.assertEqual(res.bad_markers, {})
+
+
+class TheRecordKeepsWhatADiagnosisNeeds(unittest.TestCase):
+    """⛔ A FIXED-LENGTH SLICE OF A TRANSCRIPT RECORDS THE BANNER. The Proxmark prints six lines
+    before it says anything about the tag, so `text[:400]` preserved the session log path and cut
+    off the `Raw:` value — which is exactly what is needed to correct a registry fault. Found while
+    trying to fix four of them from the run record and being unable to."""
+
+    REAL = ("[+] loaded `/Users/x/.proxmark3/preferences.json`\n"
+            "[+] execute command from commandline: lf viking reader\n"
+            "[=] Session log /Users/x/.proxmark3/logs/log_20260916.txt\n"
+            "[+] Using UART port /dev/tty.usbmodemiceman1\n"
+            "[+] Communicating with PM3 over USB-CDC\n"
+            "[+] Max frame size: 624 bytes\n"
+            "[+] Viking - Card 001A3371, Raw: F2001A3371000095")
+
+    def test_the_decode_survives_and_the_banner_does_not(self):
+        from benchmatrix.outcomes import _summarise
+        kept = _summarise(self.REAL, "1A337195", r"Viking - Card")
+        self.assertEqual(len(kept), 1)
+        self.assertIn("Raw: F2001A3371000095", kept[0])
+        joined = " ".join(kept)
+        for noise in ("Session log", "UART port", "Max frame size", "preferences.json"):
+            self.assertNotIn(noise, joined)
+
+    def test_a_raw_line_is_kept_even_when_nothing_matched(self):
+        """The failing case is the one that needs the evidence most."""
+        from benchmatrix.outcomes import _summarise
+        kept = _summarise(self.REAL, "DEADBEEF", r"NOTHING")
+        self.assertTrue(any("Raw:" in k for k in kept))
+
+    def test_the_observation_carries_it(self):
+        from benchmatrix.outcomes import observe
+        got = observe("viking", "t55.pm3", "rd.pm3", self.REAL, "1A337195", r"Viking - Card")
+        self.assertTrue(got.summary)
+        self.assertIn("Raw", got.summary[0])
