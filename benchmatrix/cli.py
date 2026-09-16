@@ -38,11 +38,22 @@ DEFAULT_LEARN_READERS = ["rd.pm3", "rd.cu1", "rd.flip"]
 
 def _learn_device(a, reader: str):
     """The channel for one reader id. ⚠ A LEARNING STATION HAS EXACTLY ONE READER IN IT besides the
-    Proxmark, so this returns one device rather than the whole bench."""
+    Proxmark, so this returns one device rather than the whole bench.
+
+    ⛔ THROUGH `_chameleons`, NOT A LOCAL SHORTCUT. This used to read `CU1_PORT` out of the
+    environment and build a Chameleon with no `expect_chipid`, so the identity check that guards
+    every run was simply absent from the one place where getting the device wrong is PERMANENT —
+    the wrong Chameleon's rendering recorded as this one's expectation, and every later run graded
+    against it.
+    """
     if reader == "rd.flip":
         return Flipper(port=getattr(a, "flipper_port", None) or "")
-    port = _os.environ.get("CU1_PORT" if reader == "rd.cu1" else "CU2_PORT")
-    return Chameleon(id=READERS[reader], port=port or "")
+    label = READERS[reader]
+    got = _chameleons(a).get(label)
+    if got is None:
+        raise SystemExit("  ⛔ no port for %s. Run `bench setup`, or set %s_PORT."
+                         % (label, label.upper()))
+    return got
 
 
 def _bench(a) -> Bench:
@@ -69,19 +80,37 @@ def _devices(a) -> runner.Devices:
     d.pm3 = Pm3(binary=a.pm3)
     if not a.no_flipper:
         d.flipper = Flipper(port=a.flipper_port or "")
-    # ⭐ PORTS ARE RESOLVED BY CHIP ID, NOT READ OUT OF A FILE. The cached port is a hint; if a cable
-    # has moved since it was written, the bus is rescanned and the label follows its silicon.
+    for label, chameleon in _chameleons(a, skip=("cu2",) if a.no_cu2 else ()).items():
+        setattr(d, label, chameleon)
+    return d
+
+
+def _chameleons(a, skip=()) -> dict:
+    """Build the Chameleons this bench has, resolved by chip id.
+
+    ⭐ PORTS ARE RESOLVED BY CHIP ID, NOT READ OUT OF A FILE. The cached port is a hint; if a cable
+    has moved since it was written, the bus is rescanned and the label follows its silicon.
+
+    ⛔⛔ AND `expect_chipid` IS WHY THIS IS SHARED RATHER THAN WRITTEN TWICE. `bench learn` built its
+    own Chameleon without one, so nothing checked that its commands reached the device they were
+    addressed to — and it printed exactly that warning on a real learning session. A run
+    misattributing a device loses one grid; a LEARNING session misattributing one records Chameleon
+    2's rendering as Chameleon 1's expectation and every later run is graded against it. `cu.py`
+    already carries a scar from a correctly flashed device being graded through its neighbour twice.
+    """
     known = {k: v for k, v in os.environ.items() if k.startswith(("CU1_", "CU2_"))}
-    for label, flag in (("cu1", a.cu1_port), ("cu2", a.cu2_port)):
+    for label, flag in (("cu1", getattr(a, "cu1_port", None)), ("cu2", getattr(a, "cu2_port", None))):
         if flag:
             known["%s_PORT" % label.upper()] = flag
     resolved = setup.resolve_chameleons(known) if any(k.endswith("_CHIPID") for k in known) else {}
-    for label, name, skip in (("cu1", CU1, False), ("cu2", CU2, a.no_cu2)):
+    out = {}
+    for label, name in (("cu1", CU1), ("cu2", CU2)):
         port = resolved.get(label) or known.get("%s_PORT" % label.upper())
-        if port and not skip:
-            setattr(d, label, Chameleon(port=port, name=name, slot=a.slot,
-                                        expect_chipid=known.get("%s_CHIPID" % label.upper(), "")))
-    return d
+        if port and label not in skip:
+            out[label] = Chameleon(port=port, name=name, id="rd.%s" % label,
+                                   slot=getattr(a, "slot", 8),
+                                   expect_chipid=known.get("%s_CHIPID" % label.upper(), ""))
+    return out
 
 
 def _scripted(a) -> runner.Devices:

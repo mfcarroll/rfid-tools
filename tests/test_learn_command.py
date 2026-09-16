@@ -245,3 +245,58 @@ class WhatItRefusesToEvenAttempt(_ScriptedLearningBench):
         _, recs = self._run("-r", "rd.cu1", "-p", "em410x_electra", "-p", "hidprox")
         self.assertIn(("hidprox", "rd.cu1"), recs)
         self.assertNotIn(("em410x_electra", "rd.cu1"), recs)
+
+
+class TheDeviceLearnedFromMustBeTheDeviceNAMED(unittest.TestCase):
+    """⛔⛔ THE WORST FAILURE THIS BENCH HAS, AND LEARNING IS THE WORST PLACE FOR IT. A wrong
+    Chameleon answers confidently, with no error and no wrong exit code. A RUN that misattributes a
+    device loses one grid; a LEARNING session that misattributes one records Chameleon 2's rendering
+    as Chameleon 1's expectation, and every later run is graded against it.
+
+    ⚠ FOUND ON A REAL LEARNING SESSION, from the harness's own warning: "no chip id recorded, so
+    nothing checks that commands reach this device rather than the other one". `bench learn` had
+    been given its own Chameleon-building shortcut that read `CU1_PORT` and set no `expect_chipid`,
+    so the check that guards every run was absent from the one place it cannot be undone.
+    """
+
+    def setUp(self):
+        # ⛔ NO BUS SCAN FROM A UNIT TEST. `_chameleons` re-resolves a port by chip id whenever one
+        # is configured, which probes real serial devices — it did, and re-resolved the operator's
+        # actual CU1 mid-suite. What is under test is whether the chip id reaches the channel, not
+        # the resolver.
+        self._resolve = cli.setup.resolve_chameleons
+        cli.setup.resolve_chameleons = lambda known: {}
+
+    def tearDown(self):
+        cli.setup.resolve_chameleons = self._resolve
+
+    def _args(self):
+        return cli.build_parser().parse_args(["learn", "-r", "rd.cu1"])
+
+    def test_the_chip_id_reaches_the_channel(self):
+        import os
+        was = {k: os.environ.get(k) for k in ("CU1_PORT", "CU1_CHIPID")}
+        os.environ["CU1_PORT"], os.environ["CU1_CHIPID"] = "/dev/null", "31AFE73F8B158D64"
+        try:
+            dev = cli._learn_device(self._args(), "rd.cu1")
+            self.assertEqual(dev.expect_chipid, "31AFE73F8B158D64",
+                             "without this nothing proves the commands reached cu1")
+            self.assertEqual(dev.name, "cu1")
+            self.assertEqual(dev.id, "rd.cu1", "the reader id its expectations are keyed under")
+        finally:
+            for k, v in was.items():
+                os.environ.pop(k, None) if v is None else os.environ.__setitem__(k, v)
+
+    def test_and_an_unconfigured_chameleon_stops_rather_than_guesses(self):
+        """⚠ Not a default port. A guess here is a device misattribution with a transcript that
+        looks completely normal."""
+        import os
+        was = {k: os.environ.pop(k, None) for k in ("CU1_PORT", "CU1_CHIPID")}
+        try:
+            with self.assertRaises(SystemExit) as cm:
+                cli._learn_device(self._args(), "rd.cu1")
+            self.assertIn("bench setup", str(cm.exception))
+        finally:
+            for k, v in was.items():
+                if v is not None:
+                    os.environ[k] = v

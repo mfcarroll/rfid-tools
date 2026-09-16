@@ -1,0 +1,23 @@
+{
+  "note": "Bench-learned reader expectations. A record CANNOT license a calibration row in the session that learned it \u2014 see learned.py.",
+  "learned": [
+    {
+      "protocol": "hidprox",
+      "reader": "rd.cu1",
+      "value": "FC: 123 CN: 4567",
+      "session": "20260915_220108",
+      "source": "t55.pm3",
+      "when": "2026-09-15T22:02:16",
+      "evidence": " { Chameleon Ultra connected: v2.2 }\nSwitch to {  Tag Reader  } mode successfully.\nHIDProx/HID H10301 26-bit\n   1 other layout also fits: Indala 26-bit \u2014 the Proxmark prints them all with a parity verdict each.\n   \u26a0 no format pinned \u2014 this is the FIRST layout that fits, not the only one. A VALID 26-bit HID frame is accepted by TWO formats and the table's order picks (C277). Re-run with -f H10301 to require it.\n FC: 123\n CN: 4567\n"
+    },
+    {
+      "protocol": "ioprox",
+      "reader": "rd.cu1",
+      "value": "007854E03059CDF7",
+      "session": "20260915_220108",
+      "source": "t55.pm3",
+      "when": "2026-09-15T22:03:47",
+      "evidence": " { Chameleon Ultra connected: v2.2 }\nSwitch to {  Tag Reader  } mode successfully.\nioProx XSF format\n   Version: 1\n   Facility: 83 [0x53]\n   ID: 1337\n   Raw: 007854E03059CDF7\n"
+    }
+  ]
+}
