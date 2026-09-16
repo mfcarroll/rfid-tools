@@ -16,6 +16,7 @@ import sys
 
 from . import (cues, firmware, grid, learned, outcomes, plan as planning, registry as reg,
                runner, setup, ui)
+from . import devices as devices_mod
 from .devices import (DEFAULT_PM3, Chameleon, DeviceError, Flipper, Pm3, obedient_operator,
                       scripted_bench)
 from .stations import CU1, CU2, FLIPPER, PM3, T5577, Bench, READERS, SOURCES, build_station
@@ -625,7 +626,7 @@ def cmd_learn(a) -> int:
                 continue
             done = ui.working(print, "the Proxmark writes %s to the tag" % p.key)
             try:
-                pm3.write_t55(p)
+                wrote = pm3.write_t55(p)
             except DeviceError as e:
                 print("      ⛔ %s" % e)
                 continue
@@ -666,6 +667,13 @@ def cmd_learn(a) -> int:
                         # device at all.
                         for line in said or (back or "").strip().splitlines()[-4:] or ["(no output)"]:
                             print("          device    %s" % line.strip()[:110])
+                        # ⛔ AND WHAT THE CLONE SAID ABOUT ITSELF. `write_t55` looks for one
+                        # confirmation marker and discards the transcript — but the Proxmark prints
+                        # `Data written and verified` when it read the blocks back on the spot, and
+                        # that single line separates "the write did not land" from "it landed and
+                        # the reader cannot see it". Both look exactly like this failure without it.
+                        for line in devices_mod.clone_evidence(wrote):
+                            print("          clone     %s" % line[:110])
                         print("      · not learning from this tag. The write, the registry entry "
                               "and the stack are all still candidates — the lines above say which.")
                         continue

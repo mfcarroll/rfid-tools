@@ -61,6 +61,28 @@ PM3_ALIVE = ("communicating with pm3 over", "max frame size:")
 #: prevent, so the write says so itself rather than being inferred from what came after it.
 PM3_WROTE = ("done!", "done:")
 
+#: ⭐ STRONGER THAN `Done!`, AND ONLY SOME CLONES OFFER IT. `Done!` means the commands went out;
+#: `Data written and verified` means the client read the blocks back and they matched. Where a clone
+#: says it, its absence is the difference between a write that landed and one that did not.
+PM3_VERIFIED = ("data written and verified",)
+
+#: Lines of a clone's reply that say whether it landed. ⚠ `write_t55` keeps NONE of them — it looks
+#: for a confirmation marker and throws the transcript away, which is the same discard that made
+#: every other failure in this session unreadable.
+_CLONE_KEEP = ("verified", "done", "error", "fail", "blk |", "preparing to clone", " | ")
+
+
+def clone_evidence(out: str) -> list[str]:
+    """What the Proxmark said about its own write, for when the read-back disagrees."""
+    keep = [l.strip() for l in (out or "").splitlines()
+            if any(k in l.lower() for k in _CLONE_KEEP)]
+    return keep[:8] or ["(the clone said nothing this filter recognises)"]
+
+
+def clone_verified(out: str) -> bool:
+    """Did the client read the blocks back itself? False also when it never offers to."""
+    return any(m in (out or "").lower() for m in PM3_VERIFIED)
+
 #: ⛔⛔ `lf t55xx detect` IS A PREREQUISITE FOR EVERY DIRECT T5577 BLOCK READ, AND IT IS NOT ITSELF A
 #: BLOCK READ. It works out the modulation and bit rate from what the tag is putting on the air, and
 #: the block 0 it reports is INTERPRETED FROM THAT SIGNAL rather than fetched from block 0. The
