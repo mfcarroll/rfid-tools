@@ -240,7 +240,10 @@ def _carry_forward(a, plan, devices, session, protos):
         print("  %s %s" % ("✓" if ok else "⛔", why))
         if not ok:
             raise SystemExit(2)
-        firmware[dev.id] = dev.reported
+        firmware[runner.firmware_key(dev)] = dev.reported
+    note = resume.harness_note(earlier, runner._harness_version())
+    if note:
+        print("  ⚠ %s" % note)
     bad = resume.check(earlier, firmware, a.pad, runner._harness_version())
     if bad:
         print("\n  ⛔ cannot carry %s forward, and these are not warnings:" % earlier.session)

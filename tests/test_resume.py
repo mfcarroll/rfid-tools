@@ -66,11 +66,18 @@ class OnlyTheSameBenchMayBeCarriedForward(unittest.TestCase):
         """⚠ A licence is pad-scoped because repositioning a reader invalidates it."""
         self.assertTrue(any("pad" in b for b in resume.check(self.e, FIRMWARE, "pad1", "abc1234")))
 
-    def test_and_a_different_harness_commit_is_refused(self):
-        """⛔ THE ONE PEOPLE FORGET. Every reading in this project has at some point been changed by
-        a harness fix — a decode marker corrected, a parser that was discarding real decodes."""
-        bad = resume.check(self.e, FIRMWARE, "pad0", "deadbee")
-        self.assertTrue(any("harness" in b for b in bad), bad)
+    def test_a_different_harness_commit_is_said_but_not_refused(self):
+        """⛔⛔ THE COMMIT IS A PROXY AND `rebuild` TESTS THE THING ITSELF. Refusing on it made
+        `--resume` unusable during exactly the work it was built for: the first carry was refused by
+        a commit that had changed because it ADDED the feature. Most commits here never touch
+        grading — and one that does shows up in the re-grade, in the cells it actually affected."""
+        self.assertEqual(resume.check(self.e, FIRMWARE, "pad0", "deadbee"), [])
+        note = resume.harness_note(self.e, "deadbee")
+        self.assertIn("abc1234", note)
+        self.assertIn("re-graded", note)
+
+    def test_and_says_nothing_when_it_matches(self):
+        self.assertEqual(resume.harness_note(self.e, "abc1234"), "")
 
     def test_a_run_that_completed_nothing_carries_nothing(self):
         e = resume.load(_run_file(self.tmp, completed_stations=[]))
@@ -130,3 +137,32 @@ class TheEvidenceIsReGradedNotCopied(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class ARunFromBeforeTheFeatureCannotBeCarried(unittest.TestCase):
+    """⚠ AND SAYING SO BEATS GUESSING. A run published before `--resume` existed records neither
+    which stations completed nor which station produced each cell — so a reading with a closing
+    null sweep behind it is indistinguishable from one taken at the station that died. The first
+    real file anyone tried to resume was exactly that, and the refusal it got blamed the bench
+    ("completed no station with both null sweeps agreeing") for a missing field."""
+
+    def setUp(self):
+        self.tmp = tempfile.mkdtemp()
+
+    def test_it_is_refused_for_the_right_reason(self):
+        path = _run_file(self.tmp)
+        doc = json.load(open(path))
+        del doc["completed_stations"]
+        json.dump(doc, open(path, "w"))
+        e = resume.load(path)
+        self.assertFalse(e.knows_stations)
+        bad = resume.check(e, FIRMWARE, "pad0", "abc1234")
+        self.assertTrue(any("before runs recorded which stations completed" in b for b in bad), bad)
+        self.assertFalse(any("completed no station" in b for b in bad),
+                         "that message blames the bench for a missing field")
+
+    def test_a_run_that_records_them_and_completed_none_says_that_instead(self):
+        e = resume.load(_run_file(self.tmp, completed_stations=[]))
+        self.assertTrue(e.knows_stations)
+        self.assertTrue(any("completed no station" in b
+                            for b in resume.check(e, FIRMWARE, "pad0", "abc1234")))

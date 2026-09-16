@@ -214,6 +214,13 @@ def _announce_refusals(plan: RunPlan, out) -> None:
         % ui.mark("note"))
 
 
+def firmware_key(dev) -> str:
+    """How a device is named in the firmware table. ⛔ ONE DEFINITION, because `--resume` compares
+    these across runs and computed its own — so a stored `cu1` never matched a rebuilt `rd.cu1` and
+    every carry was refused with "cu1 is not on this bench" about a Chameleon sitting right there."""
+    return getattr(dev, "name", None) or dev.id
+
+
 def _harness_version() -> str:
     """The commit this harness is running from. A grid should say which rules produced it.
 
@@ -261,7 +268,7 @@ def run(plan: RunPlan, devices: Devices, *, interactive: bool = True,
         for dev in devices.all():
             ok, why = dev.alive()
             out("    %s %s" % (ui.mark("ok" if ok else "bad"), why))
-            res.firmware[getattr(dev, "name", None) or dev.id] = getattr(
+            res.firmware[firmware_key(dev)] = getattr(
                 dev, "reported", "not reported")
             if not ok:
                 res.aborted = why
@@ -279,6 +286,12 @@ def run(plan: RunPlan, devices: Devices, *, interactive: bool = True,
         raise RunAborted(res.aborted, res) from None
     except RunAborted as e:
         e.result = res
+        # ⛔ THE RECORD MUST SAY IT ABORTED. Only the paths that set `res.aborted` themselves did,
+        # so a run killed by a reader failing mid-routine was filed with `aborted: null` — a partial
+        # grid that reads as a complete one, and the one field `--resume` needs to know the last
+        # station is untrustworthy.
+        if not res.aborted:
+            res.aborted = str(e)
         raise
     finally:
         _restore(devices, out)
