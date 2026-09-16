@@ -11,12 +11,14 @@ from __future__ import annotations
 import argparse
 import datetime as _dt
 import os
+import os as _os
 import sys
 
-from . import cues, firmware, grid, learned, plan as planning, registry as reg, runner, setup
+from . import (cues, firmware, grid, learned, outcomes, plan as planning, registry as reg,
+               runner, setup, ui)
 from .devices import (Chameleon, DeviceError, Flipper, Pm3, obedient_operator,
                       scripted_bench)
-from .stations import CU1, CU2, FLIPPER, PM3, T5577, Bench, READERS, SOURCES
+from .stations import CU1, CU2, FLIPPER, PM3, T5577, Bench, READERS, SOURCES, build_station
 
 RUNS = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                      "..", "runs"))
@@ -25,6 +27,22 @@ RUNS = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)),
 #: handful of arrangements. Asking for less does not save the operator much and leaves holes.
 DEFAULT_SOURCES = ["t55.pm3", "t55.cu1", "t55.cu2", "emu.cu1", "emu.cu2"]
 DEFAULT_READERS = ["rd.pm3", "rd.cu1", "rd.cu2"]
+
+#: ⭐ EVERY READER, because the command is no longer Flipper-only and defaulting to one of four
+#: would leave the other three to be filled in by hand — which is what it used to do, and how a
+#: hand-edited `fdxb` entry came to carry two faults that hid each other. `rd.cu2` is left out:
+#: `cu_expect` is shared with `rd.cu1`, so learning it twice records the same value against a
+#: second device and teaches the grid nothing (see `learned.FIELD_FOR`).
+DEFAULT_LEARN_READERS = ["rd.pm3", "rd.cu1", "rd.flip"]
+
+
+def _learn_device(a, reader: str):
+    """The channel for one reader id. ⚠ A LEARNING STATION HAS EXACTLY ONE READER IN IT besides the
+    Proxmark, so this returns one device rather than the whole bench."""
+    if reader == "rd.flip":
+        return Flipper(port=getattr(a, "flipper_port", None) or "")
+    port = _os.environ.get("CU1_PORT" if reader == "rd.cu1" else "CU2_PORT")
+    return Chameleon(id=READERS[reader], port=port or "")
 
 
 def _bench(a) -> Bench:
@@ -374,57 +392,166 @@ def _write(result, protos, suffix: str = "") -> str:
     return stem
 
 
+def _learn_read(dev, p, reader):
+    """Read with one device and turn the text into (observation, proposals)."""
+    text = dev.read(p)
+    obs = outcomes.observe(p.key, "t55.pm3", reader, text, "", dev.decode_marker(p))
+    return text, obs, learned.candidates(None, text)
+
+
+def _confirm_value(p, reader, text, obs, proposals, interactive) -> str | None:
+    """Show what the device said, propose the expectation, and let the operator settle it.
+
+    ⛔⛔ THE OPERATOR CONFIRMS, ALWAYS. Every extractor trusted to choose on its own has eventually
+    chosen wrong and made it permanent — `fdxb` was registered with the T5577 BLOCK IMAGE as its
+    Proxmark expectation, which is a real value printed by a real device and simply not the one that
+    reader compares against. It then reported SILENT on every read for as long as it existed. The
+    machine proposes; a person with the bench in front of them decides.
+    """
+    said = learned.value_lines(text)
+    print("      the device said:")
+    for line in said[:12]:
+        print("        %s" % line[:110])
+    if not said:
+        # ⚠ AN EMPTY SECTION READS AS A BROKEN TOOL. Nothing at all is a result about the reader,
+        # and it is a different result from "it printed something the marker did not match".
+        print("        (nothing at all — not even a banner)")
+    if not obs.marker_fired:
+        # ⚠ A FINDING, NOT A FAILURE TO LEARN — and not a value to record either: an expectation
+        # taken from output the decode marker did not match would license a reader that never
+        # decoded anything.
+        print("      ⛔ the decode marker for %s did not fire. Either this reader does not decode "
+              "%s from a real tag — which is a FINDING — or the marker is wrong. Not recording."
+              % (reader, p.key))
+        return None
+    if not proposals:
+        print("      ⛔ nothing in that output looks like a credential. Not recording.")
+        return None
+    print("      proposals, best first:")
+    for i, c in enumerate(proposals[:9], 1):
+        print("        %d. %r" % (i, c))
+    if not interactive:
+        print("      · --no-prompt: taking 1")
+        return proposals[0]
+    print("        s. skip this one")
+    choice = cues.ask_choice(
+        "      which does %s expect for %s? [1-%d / s / or type a value] "
+        % (reader, p.key, min(9, len(proposals))),
+        choices="123456789s", default="1",
+        spoken="which value for %s" % p.key)
+    if choice == "s":
+        return None
+    return proposals[int(choice) - 1]
+
+
 def cmd_learn(a) -> int:
-    """Write a credential with the Proxmark, read it on the Flipper, record what it printed.
+    """Write a credential with the Proxmark, read it back, and record what each reader printed.
 
     ⛔ THE TAG IS WRITTEN BY THE PROXMARK EVERY TIME. Learning from an emulation would record what
     our own emitter produces, which is the thing under test — the expectation has to come from the
     gold reference or it is not an expectation, it is a restatement.
+
+    ⭐⭐ ONE OPERATOR INTERVENTION PER READER, NOT TWO PER PROTOCOL. This used to cue "put the tag on
+    the Proxmark", write, then "now move the tag to the Flipper" — 28 interventions to learn the
+    Flipper's fourteen unknowns. The reader goes in the STACK with the Proxmark and the tag between
+    them, exactly as a run does it, and the whole protocol list is then hands-off. Fourteen becomes
+    one. The station model was already in `build_station`; this command predated it.
+
+    ⚠ A CONFIRMED WIPE IS WHAT MAKES THE READ ATTRIBUTABLE. The tag is wiped and `lf t55xx detect`
+    says so, then written, then read: something decoding a credential out of a tag that held none a
+    moment ago is the write landing (RULES.md §10). Where the Proxmark's own expectation is already
+    known it must also match, which catches a clone command whose arguments disagree with it.
     """
     reg.validate()
     session = a.session or runner.session_id()
     protos = reg.resolve(a.protocol)
+    bench = Bench(has=frozenset({PM3, FLIPPER, CU1, CU2, T5577}))
+    readers = a.reader or [r for r in DEFAULT_LEARN_READERS]
+
+    todo = {r: [p for p in protos if p.expect_for(r) is None or a.relearn] for r in readers}
+    todo = {r: ps for r, ps in todo.items() if ps}
+    if not todo:
+        print("  · every expectation asked for is already known. `--relearn` to take them again.")
+        return 0
+
+    print("\n  learning %d expectation(s) over %d station(s):"
+          % (sum(len(ps) for ps in todo.values()), len(todo)))
+    for r, ps in todo.items():
+        print("    %-8s %d — %s" % (r, len(ps), ", ".join(p.key for p in ps)))
+    print("\n  ⛔ These cannot license a calibration row in session %s (RULES.md §8). Learn now, "
+          "grade in a later session." % session)
+
     pm3 = Pm3(binary=a.pm3)
-    flip = Flipper(port=a.flipper_port or "")
-    for dev in (pm3, flip):
-        ok, why = dev.alive()
-        print("  %s %s" % ("✓" if ok else "⛔", why))
-        if not ok:
-            return 2
     records = learned.load(a.learned)
-    for p in protos:
-        if p.flip_expect is not None and not a.relearn:
-            print("  · %-10s already known (%s)" % (p.key, p.flip_expect))
-            continue
-        cues.ask("\n  put the T5577 on the Proxmark, then press Enter (%s): " % p.key,
-                 spoken="put the tag on the Proxmark")
-        out = pm3.write_t55(p)
-        if "error" in out.lower():
-            print("    ⛔ write refused — %s" % out.strip()[-160:])
-            continue
-        verify = pm3.read(p)
-        if p.expect.lower() not in verify.lower():
-            print("    ⛔ the Proxmark cannot read back what it just wrote. Not learning from this "
-                  "tag — the credential is not what the registry says it is.")
-            continue
-        cues.ask("  now move the tag to the Flipper and press Enter: ",
-                 spoken="move the tag to the Flipper")
-        try:
-            text = flip.read(p)
-        except DeviceError as e:
-            print("    ⛔ %s" % e)
-            continue
-        value = learned.observed_value(text, p.flip_key)
-        if value is None:
-            print("    · the Flipper printed no `%s <HEX>` line — it does not decode %s from a real "
-                  "tag on this bench. That is a FINDING, not a learning failure." % (p.flip_key, p.key))
-            continue
-        records[(p.key, "rd.flip")] = learned.Learned(
-            protocol=p.key, reader="rd.flip", value=value, session=session, source="t55.pm3",
-            when=_dt.datetime.now().isoformat(timespec="seconds"), evidence=text[:400])
-        print("    ✓ %s rd.flip expects %r" % (p.key, value))
+    learned_now = 0
+    for reader, wanted in todo.items():
+        dev = pm3 if reader == "rd.pm3" else _learn_device(a, reader)
+        for d in ([pm3] if dev is pm3 else [pm3, dev]):
+            ok, why = d.alive()
+            print("  %s %s" % ("✓" if ok else "⛔", why))
+            if not ok:
+                return 2
+        station = build_station({PM3, T5577} | ({READERS[reader]} if reader != "rd.pm3" else set()),
+                                bench)
+        print("")
+        for line in ui.diagram([station], sorted(bench.devices - station.devices)):
+            print(line)
+        print("")
+        if not a.no_prompt:
+            cues.ask("     press Enter when the bench looks like that: ",
+                     spoken=ui.spoken_arrangement([station]))
+        for p in wanted:
+            print("\n    %s %s → %s" % (ui.mark("write"), p.key, reader))
+            ok, detail = pm3.wipe_t55()
+            if not ok:
+                print("      ⛔ the tag was not wiped (%s). A read now cannot be attributed to the "
+                      "write that follows it. Skipping." % detail)
+                continue
+            try:
+                pm3.write_t55(p)
+            except DeviceError as e:
+                print("      ⛔ %s" % e)
+                continue
+            if reader == "rd.pm3":
+                text, obs, proposals = _learn_read(pm3, p, reader)
+            else:
+                # ⭐ THE PROXMARK CHECKS ITS OWN WORK FIRST where it can. A reader's rendering of a
+                # credential the tag does not carry is not an expectation, it is noise recorded
+                # forever.
+                if p.expect:
+                    back = pm3.read(p)
+                    if p.expect.lower() not in back.lower():
+                        print("      ⛔ the Proxmark cannot read back what it just wrote. Not "
+                              "learning from this tag — the credential is not what the registry "
+                              "says it is.")
+                        continue
+                try:
+                    text, obs, proposals = _learn_read(dev, p, reader)
+                except DeviceError as e:
+                    print("      ⛔ %s" % e)
+                    continue
+            if reader == "rd.flip":
+                # ⛔ THE FLIPPER KEEPS ITS ANCHORED EXTRACTOR (RULES.md §6). Its success line has a
+                # shape worth pinning to, and `flip_expect` is the bare hex that `flip_line()`
+                # composes a full expectation from — not a line the operator picked.
+                value = learned.observed_value(text, p.flip_key)
+                if value is None:
+                    print("      · no `%s <HEX>` line — the Flipper does not decode %s from a real "
+                          "tag on this bench. That is a FINDING, not a learning failure."
+                          % (p.flip_key, p.key))
+                    continue
+                print("      ✓ anchored `%s %s`" % (p.flip_key, value))
+            else:
+                value = _confirm_value(p, reader, text, obs, proposals, not a.no_prompt)
+                if value is None:
+                    continue
+            records[(p.key, reader)] = learned.Learned(
+                protocol=p.key, reader=reader, value=value, session=session, source="t55.pm3",
+                when=_dt.datetime.now().isoformat(timespec="seconds"), evidence=text[-800:])
+            learned_now += 1
+            print("      ✓ %s %s expects %r" % (p.key, reader, value))
     learned.save(records, a.learned)
-    print("\n  written: %s" % os.path.normpath(a.learned))
+    print("\n  learned %d. written: %s" % (learned_now, _os.path.normpath(a.learned)))
     print("  ⛔ These cannot license a calibration row in session %s. Run the matrix in a new one."
           % session)
     return 0
@@ -517,12 +644,20 @@ def build_parser() -> argparse.ArgumentParser:
     sp.set_defaults(func=cmd_run)
 
     sp = sub.add_parser("learn",
-                        help="learn the FLIPPER's expectations from a Proxmark-written tag "
-                             "(rd.flip only — it cannot learn pm3 or Chameleon expectations)")
+                        help="learn what a reader prints for a Proxmark-written tag, and record "
+                             "it with the transcript that produced it")
     common(sp, with_plan=False)
+    sp.add_argument("-r", "--reader", action="append", choices=list(READERS),
+                    help="repeatable; default %s. `rd.cu2` shares `cu_expect` with `rd.cu1`, so "
+                         "learning both records the same value twice"
+                         % " ".join(DEFAULT_LEARN_READERS))
     sp.add_argument("--pm3", default=os.environ.get("PM3", "pm3"))
     sp.add_argument("--flipper-port", default=os.environ.get("FLIPPER_PORT"))
     sp.add_argument("--relearn", action="store_true", help="re-learn values the registry already has")
+    sp.add_argument("--no-prompt", action="store_true",
+                    help="no operator prompts: take the best proposal for every reading. ⚠ The "
+                         "confirmation is the control on an automatic extractor — use it for a "
+                         "bench you are watching, not for one you have walked away from")
     sp.set_defaults(func=cmd_learn)
     return ap
 
