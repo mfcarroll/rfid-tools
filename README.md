@@ -304,7 +304,14 @@ the two answers.
 
 ⚠ **It is not a vote.** Two readings that disagree are not settled by counting them. What settles
 one is a cause — a timing, a settle period, an arrangement that differed — and until there is one,
-"this cell is unstable" is a more useful statement than either verdict would have been.
+"these readings disagree" is a more useful statement than either verdict would have been.
+
+⛔ **And "disagreed" is not "intermittent".** Intermittent means *varies under identical
+conditions*, and matching firmware is not identical conditions — run order, how much work a device
+had already done, and the station before this one are all uncontrolled. The distinction decides
+what happens next: "intermittent" says the reading is noise and should be repeated until it
+settles; "disagreed" says there is an uncontrolled variable and somebody should go and find it. The
+first retires a cause nobody looked for.
 
 ## How it is built
 
