@@ -463,6 +463,14 @@ def _routine(station: Station, cells: list[PlannedCell]) -> list[Op]:
         return sorted((c for c in mine if c.protocol.key == p.key and c.source == source),
                       key=lambda c: (READERS[c.reader] != writer, not c.is_calibration, c.reader))
 
+    if station.has_tag and any(WRITER_SOURCE.get(w) for w in WRITER_ORDER if w in station.devices):
+        # ⭐ ONE CLEARING AT THE TOP OF THE BLOCK. After it the tag's contents are known, and from
+        # then on each write is preceded by a state that differs from what it is about to put
+        # there — which is what lets a DECODE (matching or not) count as evidence that the write
+        # landed. Without it the first protocol of a block would be the one case where a wrong
+        # credential and a dead reader are indistinguishable.
+        ops += _clear_ops(protocols[0], station, WRITER_ORDER[0], tag=0) if protocols else []
+
     for p in protocols:
         if station.has_tag:
             # ⭐ THE CYCLE: write with each writer in turn, and after each write let every reader in
