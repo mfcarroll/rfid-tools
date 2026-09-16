@@ -111,23 +111,37 @@ should be split; do not open anything.
 
 ## 3. Caps and pacing
 
-| window | cap |
+`sh /Users/Shared/code/personal/utility-scripts/claude/usage_check.sh` prints one line:
+
+    util5=<pct> mins5=<min to reset> util7=<pct> mins7=<min to reset>
+
+⚠ `mins*` is **minutes until that window RESETS**, not minutes used. Verified working 2026-09-16
+16:24 (the cookie had been stale since 11 Sep and was rotated by the operator).
+
+**Read it at the START of every tick.** Two gates, and the second one changes at a fixed moment:
+
+| when | stop working at |
 |---|---|
-| now → Sun 20 Sep 00:01 | **98%** of the weekly allowance |
-| Sun 20 Sep 00:01 onward | **10%** of the weekly allowance |
+| before **Sun 2026-09-20 00:00** | `util7 >= 98` |
+| from Sun 2026-09-20 00:00 | `util7 >= 10` |
 
-The last 2% is reserved so wakeups and the cron cannot themselves fail for want of capacity.
+The 7-day window resets at exactly that moment — `mins7` counted down to it, so the boundary is the
+reset itself and not a calendar guess. The last 2% is reserved so the routine and its wakeups cannot
+themselves fail for want of capacity.
 
-⛔⛔ **THE USAGE CHECK IS BROKEN AS OF 2026-09-16.** `utility-scripts/claude/usage_check.sh` returns
-`HTTP 403 — session cookie REJECTED, needs rotating`, and the cookie at
-`~/.claude/t5577_usage_cookie.txt` is dated 11 Sep. **The caps above cannot be enforced while this
-is true.** Only the operator can rotate it.
+⚠ **`util5` can stop you while `util7` is healthy.** The 5-hour window is a separate quota. If
+`util5` is near its ceiling, work stalls no matter what the weekly figure says — report it as a
+5-hour stall, which passes, never as the weekly cap, which does not.
 
-⇒ Until it is fixed, pace by the blind fallback and **treat the 10% figure as the cap, not the
-98%** — an unenforceable 98% cap is not a cap. Check the usage script at the start of every tick;
-the moment it answers, switch to the real numbers.
+⛔ **If the script stops answering** (it returns `HTTP 403` when the cookie expires), the caps are
+unenforceable. Pace to the **10%** figure, not the 98%, and say so once per tick. An unenforceable
+98% ceiling is not a ceiling. Only the operator can rotate the cookie.
 
----
+⭐ **LOG `util7` IN EVERY TICK'S COMMIT OR REPORT.** The burn rate is unknown until it is measured,
+and a cold session cannot remember the last reading (§6). At the observed 18.5 points/day the 30
+points of headroom is about 1.6 days — so this is a **ceiling that will be reached early, not a
+budget spread across the absence**, and the round should expect a long idle period before Sunday
+rather than treat the silence as a fault.
 
 ## 4. Non-negotiables
 
