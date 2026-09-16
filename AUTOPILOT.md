@@ -3,6 +3,31 @@
 For a round worked while the **operator is away**. Written 2026-09-16 for an absence starting
 Wed 16 Sep and running several days.
 
+## 0. THE BENCH, AS IT ACTUALLY STANDS ⭐ AUTHORITATIVE
+
+Set by the operator 2026-09-16 before leaving. **This section overrides any bench description in
+the tick prompt.** The routine's prompt was written earlier in the day and says the Proxmark rig is
+tagless; **that is out of date — both rigs hold a tag.**
+
+    Rig A   Flipper ─ T5577 ─ Chameleon 1
+    Rig B   Proxmark ─ T5577 ─ Chameleon 2
+
+⛔ **NOBODY CAN MOVE ANY OF IT until ~22 Sep.** Never infer the topology from a silent null
+(C402/C404/C408) — if an arm disagrees with this section, the arm is wrong or the bench was
+disturbed, and either way it is a thing to report, not to work around.
+
+⚠ **Rig B's tag holds an EM410X *Electra* credential** — `lf em 410x clone --id 2244668800
+--electra`, written 2026-09-16 23:34 and read back as `EM 410x ID 2244668800` on the Proxmark and
+`EM410X/64: 2244668800` on Chameleon 2. **Rig A's tag contents are unknown** — establish them by
+reading before assuming anything about them, and write down what you find.
+
+⭐ Rig A is new and is the successor project's rig: Chameleon 1 writes T5577s (16/17 protocols
+EXACT, plus raw `lf t55xx` block access) so a program can rewrite that tag with no hands. ⛔ It
+cannot extend the capability matrix — `GOLD_SOURCES = {t55.pm3, oem}`, so a CU1-written tag is a
+source under test, never a reference.
+
+---
+
 ⛔⛔ **READ §1 BEFORE PLANNING ANY WORK. The bench cannot produce a single new graded cell while
 the operator is away, and a round that does not know this will spend itself discovering it.**
 
@@ -84,6 +109,35 @@ Deriving it is good hands-off work and is worth a tick of its own.
 ⇒ Work the emitters on the host: `firmware/application/src/rfid/nfctag/lf/protocols/`, verified by
 `ctest/`'s round trip, and queue each fix for bench confirmation on the operator's return. **A host
 round trip is not a bench verdict** — say so every time.
+
+⭐⭐ **AND YOU CAN VERIFY A FIX YOURSELF — MANUALLY, ON REAL SILICON, WITH NO HANDS.** §1 says the
+*grid* cannot produce a graded cell. It does not say the bench is unusable, and the operator is
+right to push back on that reading. Rig B stands as `Proxmark ─ T5577 ─ Chameleon 2`, and the
+Proxmark rewrites its own tag under program control — your own run did that seventeen times with
+Chameleon 2 in the stack. So all of this runs unattended, outside the harness:
+
+| you can | how |
+|---|---|
+| test **our decoder against real silicon** | pm3 writes protocol P to its tag, then `lf <proto> read` on cu2 |
+| test **an emitter fix** | flash cu2, arm it, `lf <proto> reader` on the pm3 |
+| wipe the tag first | `lf t55xx wipe` — it still modulates, but holds no decodable credential |
+
+⭐ **THE ASYMMETRY IS WHAT MAKES THIS WORK, AND IT IS EXACTLY THE ONE WE NEED.** The tag in the
+stack contaminates the field, but **it cannot manufacture the credential cu2 was armed with**. We
+are trying to turn SILENT into EXACT — so the result we are hunting is precisely the one that
+survives the contamination. A fix that starts decoding is real. A fix that stays silent is
+**inconclusive, not refuted**: keep working, do not record it as a failure.
+
+⛔⛔ **THESE ARE OBSERVATIONS, NOT CELLS.** No null sweep, no licence, a contaminated field. They
+never go in a grid, never into `bench state`, and never into the gap register as measurements —
+they are the signal that a fix is worth the operator's bench time, and **every one of them must be
+re-run through the harness when they are back**. Say "manually observed, ungraded" every single
+time. ⛔ A week of manual positives written up as results is C473 with better intentions.
+
+⚠ **FLASH `cu2` ONLY, NEVER `cu1`.** `enterdfu.py --port <tty> --program <zip>` needs no bench move
+and verifies the device re-enumerates, but a flash that goes wrong with nobody present ends the
+week. Chameleon 1 is the spare that keeps the bench alive, and it is also the successor project's
+writer — leave its firmware alone.
 
 ### 2b. The two cells that disagree with themselves
 
@@ -234,15 +288,26 @@ the repo are the only handover.** Anything a tick needs to know must be written 
 tick ends — a conclusion held only in context is lost at the next launch. Finish every tick with
 the work list updated and committed, not with a plan you intend to remember.
 
-⛔ **CONSEQUENCE 2 — TWO ROUNDS CAN NOW RUN AT ONCE.** Ticks inside one session serialise; sessions
-launched by a routine do not. If a tick is still working when the next fires, two rounds drive one
-bench and commit over each other. **So the heartbeat is a concurrency guard, not just a liveness
-signal:**
+⛔ **CONSEQUENCE 2 — TWO ROUNDS CAN RUN AT ONCE.** Ticks inside one session serialise; sessions
+launched by a routine do not. **The routine fires HOURLY** (its floor), so the heartbeat is a lock:
 
-> **First action of every tick: read `.loop-heartbeat`. If it is NEWER than 25 minutes, another
-> round is live — say so in one line and stop. Do not work, do not commit.** Otherwise touch it and
-> proceed, and touch it again as each unit of work completes so a long tick does not read as dead.
+> **First action of every tick: read `.loop-heartbeat`. If it is NEWER than 55 minutes, another
+> round is live — say so in one line and STOP.** Do not work, do not commit. Otherwise touch it and
+> proceed, touching it again as each unit of work completes so a long tick does not read as dead.
 
-⚠ That test is deliberately cheap and deliberately conservative: a tick skipped because a sibling
-was working costs one interval, and two rounds interleaving commits on one bench costs the day.
+⛔⛔ **AND DELETE `.loop-heartbeat` ON A CLEAN EXIT — the lock is WRONG without this.** A tick that
+worked for fifty minutes and finished leaves a heartbeat five minutes old; the next tick, firing at
+sixty, reads it as fresh and stands down **against a round that is no longer running**. With an
+hourly routine and a 55-minute threshold that is not an edge case, it is the ordinary outcome of a
+productive tick, and the round would deadlock itself after the first long one. So:
+
+| on | do |
+|---|---|
+| tick start, and each completed unit | **touch** `.loop-heartbeat` |
+| tick finishes normally | **delete** `.loop-heartbeat` |
+| tick crashes | leave it — it ages out in 55 min and costs one tick |
+
+⚠ The test is deliberately conservative: a tick skipped because a sibling was working costs one
+hour, and two rounds interleaving commits on one bench costs the day.
+
 
