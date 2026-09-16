@@ -13,7 +13,7 @@ import datetime as _dt
 import os
 import sys
 
-from . import cues, grid, learned, plan as planning, registry as reg, runner, setup
+from . import cues, firmware, grid, learned, plan as planning, registry as reg, runner, setup
 from .devices import (Chameleon, DeviceError, Flipper, Pm3, obedient_operator,
                       scripted_bench)
 from .stations import CU1, CU2, FLIPPER, PM3, T5577, Bench, READERS, SOURCES
@@ -188,6 +188,81 @@ def cmd_run(a) -> int:
     graded = sum(1 for c in result.cells if c.outcome.value != "UNGRADED")
     cues.cue_done("run complete. %d of %d cells graded." % (graded, len(result.cells)),
                   ok=not result.void_blocks, partial=graded < len(result.cells))
+    return 0
+
+
+def cmd_build(a) -> int:
+    """Build a firmware target, and judge it by what it produced."""
+    targets = firmware.load()
+    if a.target not in targets:
+        print("  ⛔ unknown target %r. Known: %s" % (a.target, ", ".join(sorted(targets))))
+        return 2
+    res = firmware.build(targets[a.target], docker=a.docker)
+    if res.ok:
+        print("\n  ✓ %s built. Flash it with:  ./bench flash %s --device cu1"
+              % (res.target, res.target))
+        return 0
+    print("\n  ⛔ %s did not produce fresh artifacts.%s"
+          % (res.target, (" " + res.note) if res.note else ""))
+    print("     Nothing was flashed and nothing stale was left behind to mistake for a build.")
+    return 2
+
+
+def cmd_flash(a) -> int:
+    """Flash one or more named devices, recording everything that could say whether it took."""
+    targets = firmware.load()
+    if a.target not in targets:
+        print("  ⛔ unknown target %r. Known: %s" % (a.target, ", ".join(sorted(targets))))
+        return 2
+    target = targets[a.target]
+    wanted = a.device or list(target.flash.get("devices") or [])
+    if not wanted:
+        print("  ⛔ no devices named, and the target configures none.")
+        return 2
+
+    known = {k: v for k, v in os.environ.items() if k.startswith(("CU1_", "CU2_"))}
+    resolved = setup.resolve_chameleons(known) if any(k.endswith("_CHIPID") for k in known) else {}
+    plan_lines, jobs = [], []
+    for name in wanted:
+        port = resolved.get(name) or known.get("%s_PORT" % name.upper())
+        if not port:
+            print("  ⛔ no port for %s — run `./bench setup` first." % name)
+            return 2
+        jobs.append((name, port, known.get("%s_CHIPID" % name.upper(), "")))
+        plan_lines.append("    %-4s %s%s" % (name, port,
+                                             "  chip %s" % known.get("%s_CHIPID" % name.upper(), "")
+                                             if known.get("%s_CHIPID" % name.upper()) else ""))
+
+    artifact = a.artifact or target.artifact()
+    print("\n  flashing %s" % artifact)
+    print("  onto:")
+    print("\n".join(plan_lines))
+    if not a.yes:
+        # ⚠ Firmware is not a reversible change, and the device cannot be asked afterwards which
+        # build it USED to have. Confirm before, not after.
+        if cues.ask_choice("\n  proceed? [y/N] ", "yn", "n",
+                           spoken="flash %d device%s?" % (len(jobs),
+                                                          "" if len(jobs) == 1 else "s")) != "y":
+            print("  nothing flashed.")
+            return 1
+
+    failed = []
+    for name, port, chipid in jobs:
+        print("\n  ── %s on %s ──" % (name, port))
+        try:
+            res = firmware.flash(target, port, name, artifact=artifact, expect_chipid=chipid)
+        except firmware.FirmwareError as e:
+            print("    ⛔ %s" % e)
+            failed.append(name)
+            continue
+        if not res.ok:
+            failed.append(name)
+    cues.cue_done("flashing complete." if not failed else "flashing failed.", ok=not failed)
+    if failed:
+        print("\n  ⛔ did not complete for: %s" % ", ".join(failed))
+        return 2
+    print("\n  ⚠ A VERSION STRING IS NOT A FUNCTIONAL CHECK. Confirm the build behaves, with:")
+    print("     ./bench run -s t55.pm3 -s t55.cu1 -r rd.pm3 -r rd.cu1 --no-flipper")
     return 0
 
 
@@ -368,6 +443,21 @@ def build_parser() -> argparse.ArgumentParser:
 
     sp = sub.add_parser("setup", help="find the devices, learn which Chameleon is which, write .env")
     sp.set_defaults(func=cmd_setup)
+
+    sp = sub.add_parser("build", help="build a firmware target from firmware.toml")
+    sp.add_argument("target")
+    sp.add_argument("--docker", action="store_true",
+                    help="build in the project's own image instead of with the host toolchain "
+                         "(the flash still runs on the host — Docker passes no USB through)")
+    sp.set_defaults(func=cmd_build)
+
+    sp = sub.add_parser("flash", help="flash a built target onto named devices")
+    sp.add_argument("target")
+    sp.add_argument("-d", "--device", action="append",
+                    help="repeatable; default is every device the target configures")
+    sp.add_argument("--artifact", help="override the firmware file")
+    sp.add_argument("--yes", action="store_true", help="do not ask before flashing")
+    sp.set_defaults(func=cmd_flash)
 
     sp = sub.add_parser("probe", help="ask every channel for proof of life; touch nothing else")
     common(sp, with_plan=False)

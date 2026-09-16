@@ -108,7 +108,7 @@ the one place where swapping tags beats rearranging the bench.
 ./bench scope                      # the registry, and what it can and cannot grade
 ./bench plan                       # the cells, the station script, and what is refused
 ./bench run --dry-run --no-prompt  # rehearse the whole thing with no hardware
-./runtests                         # 146 tests, no hardware, no network
+./runtests                         # 161 tests, no hardware, no network
 ```
 
 ### Setup: which device is on which port
@@ -177,7 +177,7 @@ readings taken so far are filed as `run_<session>_ABORTED.md` — clearly marked
 ## How it is built
 
 ```
-bench                 the CLI — scope | plan | run | learn
+bench                 the CLI — setup | probe | scope | plan | run | learn | build | flash
 benchmatrix/
   outcomes.py         the four outcomes, the Calibration licence, and screening
   registry.py         the 16 tier-0 protocols, with each value's provenance marked
@@ -188,9 +188,11 @@ benchmatrix/
   devices.py          pm3 / Flipper / Chameleon channels, and a scripted stand-in
   cues.py             spoken operator cues
   setup.py            device discovery, chip-id identity, and `.env`
+  firmware.py         build and flash orchestration, driven by firmware.toml
+  dfu.py              Nordic DFU: trigger and program in one process
   learned.py          expectations learned from a real tag, and the self-licensing guard
   grid.py             the published grid, the exclusion list, the gap register
-tests/                146 tests, all on the scripted bench — `./runtests`
+tests/                161 tests, all on the scripted bench — `./runtests`
 ```
 
 ## The protocol registry
@@ -219,6 +221,46 @@ attached is the strongest form a bug report takes.
 
 ⛔ Only an isolated reading may become a gap. A gap is a claim that something does **not** work, and
 a crowded stack cannot support that claim.
+
+## Building and flashing
+
+`bench build` and `bench flash` make this a general tooling resource rather than only a matrix
+runner. What to build, what environment it needs, which artifacts prove it worked and how to get
+them onto a device are all in [`firmware.toml`](firmware.toml) — adding another firmware project is
+a section there, not a code change.
+
+```bash
+./bench build chameleon-ultra                  # host toolchain, env supplied from the config
+./bench build chameleon-ultra --docker         # the project's own image instead
+./bench flash chameleon-ultra                  # every device the target configures
+./bench flash chameleon-ultra -d cu1           # just one
+```
+
+The same discipline as the rest of the harness, because flashing fails the same way measuring does —
+the tool returns cheerfully and nothing says whether it worked:
+
+- **The artifacts decide, not the exit code.** `build.sh` ends with a `mergehex` step that produces
+  the SWD artifact and fails harmlessly *after* the DFU zips are written; judging by exit status
+  would throw away a good build. Each artifact must exist **and be newer than the build started** —
+  a tool returning zero having produced nothing is not rare either.
+- **Trigger and program are one process.** The bootloader window is shorter than the gap between two
+  shell commands. Trigger in one and flash in the next, and the device has already fallen back to
+  the application: `nrfutil` emits nothing, exits clean, and the version afterwards is the old
+  build. That is a race, and by output alone it is indistinguishable from success.
+- **Quiet output is not success.** Captured non-interactively `nrfutil` prints only an unrelated
+  JLink warning — exactly what a flash that never happened prints. `--json` gives a record per
+  progress step, and an explicit success record is what is required.
+- **One named device.** The stock tool takes the first port matching the Chameleon's USB id, which
+  with two units on the bench is a coin toss on enumeration order. This takes a port, refuses
+  anything else, and refuses outright if something is already in DFU — a bootloader scan cannot then
+  say which unit it found.
+- **The device that comes back must be the one that went in.** Chip id is read before and after.
+- **A version string is not a functional check.** It is recorded before and after and compared, and
+  when it has not changed the tool says plainly that this does *not* confirm the flash — a version
+  string cannot tell two builds apart when the tree was dirty. The functional check is the matrix.
+
+⚠ The flash always runs on the host, even when the build ran in Docker: Docker Desktop on macOS
+passes no USB through.
 
 ## Provenance
 
