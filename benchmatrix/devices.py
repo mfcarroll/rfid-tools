@@ -29,6 +29,7 @@ from dataclasses import dataclass, field
 from typing import Optional
 
 from . import cues
+from . import flipper
 from . import registry as reg
 from .stations import READER_OF, T5577
 
@@ -40,7 +41,9 @@ RESEARCH = os.path.join(CHAMELEON_ROOT, "research", "indala-psk-read")
 DEFAULT_PM3 = os.environ.get("PM3", os.path.join(REPO, "proxmark3", "pm3"))
 DEFAULT_CU_PY = os.environ.get("CHAMELEON_CLI",
                                os.path.join(CHAMELEON_ROOT, "software", "script", "cu.py"))
-DEFAULT_FLIPPER_PY = os.environ.get("FLIPPER_PY", os.path.join(RESEARCH, "flipper.py"))
+# ⭐ THE FLIPPER IS DRIVEN IN-PROCESS NOW, by `benchmatrix.flipper`. There is no script path to
+# configure and no other project's research directory to depend on — which is the point of moving
+# the tooling here. `FLIPPER_PORT` is the only Flipper configuration left.
 
 PM3_FAIL = ("claimed by another process", "could not open", "waiting for proxmark3",
             "failed to open", "no proxmark3 found", "permission denied", "resource busy",
@@ -89,6 +92,14 @@ CU_VERSION_RE = re.compile(r"Chameleon\s+(\w+),\s*Version:\s*(\S+)\s*\(([^)]+)\)
 #: not scored a working emulation 0 of 6 and put that number in FINDINGS.md as a defect.
 FLIP_SUCCESS = re.compile(r"^([A-Za-z][A-Za-z0-9/\- ]*?)\s+([0-9A-F]{4,})$")
 FLIP_DECODE_MARKER = r"^[A-Za-z][A-Za-z0-9/\- ]*?\s+[0-9A-F]{4,}$"
+#: `flipper.py`'s own per-mode scoreboard, e.g. `    => ASK: 2/2`. ⭐ A SECOND OPINION ON OUR OWN
+#: PARSE: the tool counts what it decoded, so a disagreement between that count and what this
+#: channel extracts is a parser bug and can be raised as one instead of published as a silence.
+FLIP_TALLY = re.compile(r"=>\s*\w+:\s*(\d+)\s*/\s*\d+")
+#: ⛔ `--verbose` PREFIXES EVERY DEVICE LINE WITH `      | `, AND `.strip()` DOES NOT REMOVE IT —
+#: the pipe survives, so `| H10301 7B11D7` fails an anchor that requires a letter first. Two
+#: separate reasons the same real decode was invisible; fixing only the first found only the pipe.
+FLIP_ECHO = re.compile(r"^\s*\|\s?")
 
 #: The Chameleon's permanent hardware id, as `hw chipid` prints it. Shared with
 #: setup.py so the two cannot drift apart.
@@ -386,98 +397,133 @@ class Chameleon:
 class Flipper:
     """Reader `rd.flip`, emitter `emu.flip`, and the `t55.flip` writer.
 
-    Driven through `flipper.py` rather than a fresh serial implementation, because that script
-    already encodes the three lessons this channel costs you: ETX-terminated reads (`rfid read`
-    never times out on its own), a non-zero exit when the plugin will not load, and a reboot before
-    an arm that would not fit in the largest contiguous heap block.
+    ⭐ DRIVEN IN-PROCESS THROUGH `benchmatrix.flipper`, WHICH IS NOW OURS. It used to shell out to
+    the ChameleonUltra project's `research/indala-psk-read/flipper.py` and parse that script's
+    stdout — and parsed the wrong half of it, so `rd.flip` returned an empty string for every
+    protocol it was ever asked about while the Flipper decoded perfectly. See `flipper.py` for the
+    two independent reasons the same real decode was invisible.
+
+    ⇒ There is no longer any text between the device and this class. `read()` gets `Decode` objects
+    off the wire and composes the one anchored line an expectation is compared against.
     """
 
-    script: str = DEFAULT_FLIPPER_PY
     port: str = ""
     attempts: int = 6
-    timeout: int = 180
+    settle: float = 6.0
     id: str = "rd.flip"
-    #: ⚠ HONESTLY UNKNOWN. `flipper.py` exposes read / emulate / reboot / heap and no version query,
-    #: and this harness does not reach past it to the serial port — two readers on one `/dev/cu.*`
-    #: is how a session's replies get eaten. Recorded as unknown rather than guessed; a one-line
-    #: `version` subcommand in `flipper.py` would fill it in.
+    #: The lines the device actually sent, kept for diagnosis. ⚠ NEVER RETURNED FROM `read`, which
+    #: must yield only anchored success lines or a substring match would hit the usage banner
+    #: (RULES.md §6) — but a channel that discards its evidence cannot be debugged, and this one
+    #: could not be.
+    last_transcript: str = ""
+    #: ⚠ HONESTLY UNKNOWN. The `lfrfid` CLI has no version query, and this harness will not open a
+    #: second reader on the same `/dev/cu.*` to go looking — that is how a session's replies get
+    #: eaten. Recorded as unknown rather than guessed.
     reported: str = "firmware not reported by this channel"
 
-    def _py(self) -> str:
-        cand = os.path.join(os.path.dirname(DEFAULT_CU_PY), ".venv", "bin", "python")
-        return cand if os.path.exists(cand) else "python3"
-
-    def _exec(self, *args: str) -> tuple[int, str]:
-        argv = [self._py(), self.script] + (["--port", self.port] if self.port else []) + list(args)
+    def _session(self):
+        if not self.port:
+            raise DeviceError("flipper: no port configured. Run `bench setup`, or set FLIPPER_PORT.")
         try:
-            r = subprocess.run(argv, capture_output=True, text=True, errors="replace",
-                               timeout=self.timeout, stdin=subprocess.DEVNULL)
-            return r.returncode, (r.stdout or "") + (r.stderr or "")
-        except subprocess.TimeoutExpired:
-            return 3, "[flipper.py TIMED OUT after %ss]" % self.timeout
-        except Exception as e:                                    # noqa: BLE001
-            return 3, "[flipper.py could not launch: %s]" % e
+            return flipper.FlipperCLI(self.port, settle=self.settle)
+        except flipper.FlipperError as e:
+            raise DeviceError("flipper: %s" % e) from e
+        except OSError as e:
+            raise DeviceError("flipper: cannot open %s — %s" % (self.port, e)) from e
 
     def alive(self) -> tuple[bool, str]:
-        """⭐ A CLEAN `heap` IS THE ONLY POSITIVE CONTROL THIS RIG HAS. There is no other, because a
-        silent reader and a silent emulator produce the same numbers."""
-        rc, out = self._exec("heap")
-        if rc != 0:
-            rc2, _ = self._exec("reboot")
-            if rc2 != 0:
-                return False, "flipper: heap too fragmented for the rfid plugin and the reboot failed"
-            rc, out = self._exec("heap")
-        return (rc == 0), ("flipper: alive" if rc == 0
-                           else "flipper: the rfid plugin will not load — /ext/apps/RFID/lfrfid.fap "
-                                "must match the running firmware's API")
+        """⭐ A HEAP WITH ROOM FOR THE PLUGIN IS THE ONLY POSITIVE CONTROL THIS RIG HAS. There is no
+        other, because a silent reader and a silent emulator produce the same numbers.
+
+        ⛔ AND IT IS A CLIFF, NOT A GAUGE. `rfid` is a 66KB .fap the loader must place in ONE
+        contiguous block, so the plugin starts refusing mid-session with plenty of memory free and
+        nothing about the bench having changed (C377). Checking it here is what turns "eleven arms
+        scored 0/6" into "reboot first".
+        """
+        try:
+            block = flipper.heap_largest_block(self.port) if self.port else None
+        except (flipper.FlipperError, OSError) as e:
+            return False, "flipper: %s" % e
+        if block is None:
+            return False, "flipper: the CLI did not report a heap size — it is not answering"
+        if block < flipper.FAP_BYTES + flipper.FAP_HEADROOM:
+            try:
+                flipper.reboot(self.port)
+            except (flipper.FlipperError, OSError) as e:
+                return False, ("flipper: heap too fragmented for the rfid plugin (%d free in one "
+                               "block, needs %d) and the reboot failed — %s"
+                               % (block, flipper.FAP_BYTES, e))
+            block = flipper.heap_largest_block(self.port) or 0
+            if block < flipper.FAP_BYTES + flipper.FAP_HEADROOM:
+                return False, ("flipper: still only %d bytes in one contiguous block after a "
+                               "reboot; the rfid plugin needs %d" % (block, flipper.FAP_BYTES))
+            return True, "flipper: alive — rebooted, %d bytes largest block" % block
+        return True, "flipper: alive — %d bytes largest block" % block
 
     def read(self, p: reg.Protocol) -> str:
-        """Return the NORMALISED decode lines, not the raw log.
+        """Return the anchored decode lines, not the transcript.
 
-        ⭐ NORMALISING HERE IS WHAT KEEPS THE NAME-MATCH RULE (RULES.md §6). `observe()` does a substring match, and
-        a substring match against the raw log would hit the usage banner and the "Available
-        protocols:" listing — the exact trap that once turned 5 attempts into 10 reported successes.
-        What comes back from here is only lines that matched the anchored `^name HEX$` pattern, so
-        there is nothing else in the text for a match to land on.
+        ⭐ NORMALISING HERE IS WHAT KEEPS THE NAME-MATCH RULE (RULES.md §6). `observe()` does a
+        substring match, and a substring match against the raw log would hit the usage banner and
+        the "Available protocols:" listing — the exact trap that once turned 5 attempts into 10
+        reported successes.
         """
-        rc, out = self._exec("read", "--mode", "both", "--attempts", str(self.attempts))
-        if rc != 0 or "the Flipper REJECTED" in out:
-            raise DeviceError(
-                "flipper: the reader is not running — nothing measured against it would mean "
-                "anything. A silent reader and a silent emulator produce IDENTICAL numbers.")
-        hits = [m.group(0) for line in out.splitlines()
-                for m in [FLIP_SUCCESS.match(line.strip())] if m]
+        with self._session() as f:
+            try:
+                tries = f.read("both", self.attempts)
+            except flipper.FlipperError as e:
+                raise DeviceError(
+                    "flipper: the reader is not running — nothing measured against it would mean "
+                    "anything. A silent reader and a silent emulator produce IDENTICAL numbers. %s"
+                    % e) from e
+            finally:
+                self.last_transcript = "\n".join(f.transcript)
+        seen, hits = set(), []
+        for t in tries:
+            if t.decode and t.decode.line not in seen:
+                seen.add(t.decode.line)
+                hits.append(t.decode.line)
         return "\n".join(hits)
-
-    def arm(self, p: reg.Protocol) -> None:
-        """`emu.flip` — the Flipper emulating, an independent second opinion on our own emulator."""
-        if p.flip_expect is None:
-            raise DeviceError("flipper: no known data encoding for %s — `rfid emulate` needs the "
-                              "Flipper's own hex. Run `bench learn` first." % p.key)
-        rc, out = self._exec("emulate", p.flip_key, p.flip_expect, "--seconds", "30")
-        if rc != 0:
-            raise DeviceError("flipper: refused to emulate %s — %s" % (p.key, out.strip()[-160:]))
 
     def write_t55(self, p: reg.Protocol) -> str:
         """`t55.flip` — `rfid write <key_type> <key_data>`.
 
-        ⛔ FOUR OF THE SIXTEEN ARE KNOWN NOT TO WRITE (see the gap register): keri, nexwatch, idteck and
-        gproxii go onto a T5577 from the pm3 and not from the Flipper. That is a REGISTERED GAP, so
-        it is refused here by name rather than discovered again as a puzzling row.
+        ⛔ FOUR OF THE EIGHTEEN ARE KNOWN NOT TO WRITE (see the gap register): keri, nexwatch,
+        idteck and gproxii go onto a T5577 from the pm3 and not from the Flipper. That is a
+        REGISTERED GAP, so it is refused here by name rather than discovered again as a puzzling row.
         """
         if not p.flip_write:
             raise DeviceError("flipper: cannot write %s to a T5577 — registered gap, the gap register"
                               % p.key)
         if p.flip_expect is None:
-            raise DeviceError("flipper: no known data encoding for %s. Run `bench learn` first."
+            raise DeviceError("flipper: no known data encoding for %s. Run `bench learn -r rd.flip`."
                               % p.key)
-        rc, out = self._exec("write", p.flip_key, p.flip_expect)
-        if rc != 0:
-            raise DeviceError("flipper: write refused for %s — %s" % (p.key, out.strip()[-160:]))
-        return out
+        with self._session() as f:
+            try:
+                return "\n".join(f.write_tag(p.flip_key, p.flip_expect))
+            except flipper.FlipperError as e:
+                raise DeviceError("flipper: write refused for %s — %s" % (p.key, e)) from e
+
+    def arm(self, p: reg.Protocol) -> None:
+        """`emu.flip` — the Flipper emulating, an independent second opinion on our own emulator.
+
+        ⚠ EMULATION IS A HELD PORT, not a command that returns. `rfid emulate` blocks exactly like
+        `rfid read`, so the session stays open for the hold and is released with ETX.
+        """
+        if p.flip_expect is None:
+            raise DeviceError("flipper: no known data encoding for %s — `rfid emulate` needs the "
+                              "Flipper's own hex. Run `bench learn -r rd.flip` first." % p.key)
+        self._armed = self._session()
+        try:
+            self._armed.emulate(p.flip_key, p.flip_expect, seconds=0)
+        except flipper.FlipperError as e:
+            self.disarm()
+            raise DeviceError("flipper: refused to emulate %s — %s" % (p.key, e)) from e
 
     def disarm(self) -> None:
-        pass          # `rfid emulate` stops when flipper.py closes the port
+        got, self._armed = getattr(self, "_armed", None), None
+        if got is not None:
+            got.close()
 
     def decode_marker(self, p: reg.Protocol) -> str:
         return FLIP_DECODE_MARKER
