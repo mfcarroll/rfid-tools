@@ -575,7 +575,8 @@ def _settle(pending: list, state, tag_state: TagState, report: BlockReport, devi
                "been shown to decode %s at all this session, so this cannot be told apart from "
                "every one of them being unable to — adding readers does not help unless one of "
                "them speaks. What settles it is the same protocol from a DIFFERENT source%s — and "
-               "if one arrives later in this run, this reading is revisited (RULES.md §10)."
+               "if one arrives later in THIS run it is revisited; if it arrives in a later run, "
+               "this cell is published as outstanding so that run can settle it (RULES.md §10)."
                % (protocol, (": try " + ", ".join(alt)) if alt else ""))
     out("      %s %-10s write NOT VERIFIED — %s" % (ui.mark("skip"), protocol, why))
     for op, obs in graded:

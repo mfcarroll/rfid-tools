@@ -160,7 +160,14 @@ def _provenance(result) -> list[str]:
 
 
 #: Reader ids the channels report themselves as, mapped to the device they are.
-_DEVICE_OF = {"rd.pm3": "pm3", "rd.flip": "flipper", "rd.cu": "cu"}
+_DEVICE_OF = {"rd.pm3": "pm3", "rd.flip": "flipper", "rd.cu1": "cu1", "rd.cu2": "cu2"}
+
+
+def _firmware_of(result, reader: str) -> str:
+    """What the reader named in a cell was running — linked to the cell, not left to be joined."""
+    dev = _DEVICE_OF.get(reader, reader)
+    fw = _device_names(getattr(result, "firmware", {}) or {})
+    return fw.get(dev) or fw.get(reader) or "unknown"
 
 
 def _device_names(firmware: dict) -> dict:
@@ -359,6 +366,18 @@ def to_json(result, protocols: list[reg.Protocol]) -> str:
                      for (p, r), lic in sorted(result.licences.items())],
         "refusals": [{"protocol": p, "reader": r, "why": why}
                      for (p, r), why in sorted(result.refusals.items())],
+        # ⭐ THE HANDLE A LATER RUN NEEDS. Within a run we can confirm a write or be unable to;
+        # what we cannot do is settle a silence no reader present could interpret. A later run — a
+        # better decoder, a different writer — may settle it, but only if this record says plainly
+        # WHICH silence is outstanding and on WHAT FIRMWARE. Buried in a prose note it is not
+        # usable; a reader reflashed since licenses nothing (RULES.md §11).
+        "unattributed": [{"protocol": p, "reader": r,
+                          "source": result.cells[i].source if i < len(result.cells) else None,
+                          "reader_firmware": _firmware_of(result, r),
+                          "settled_by": "a decode of %s on %s, same firmware, from any source"
+                                        % (p, r)}
+                         for i, p, r, _ in getattr(result, "unattributed", [])
+                         if (p, r) not in getattr(result, "decoded_by", set())],
         "bad_markers": [{"protocol": p, "reader": r, "observed": line}
                         for (p, r), line in sorted(getattr(result, "bad_markers", {}).items())],
         "void_blocks": [{"station": b.block.station.name, "why": b.void_why}
