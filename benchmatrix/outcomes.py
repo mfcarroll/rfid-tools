@@ -295,6 +295,27 @@ _BOILERPLATE = ("reading rfid", "press ctrl+c", "reading stopped", "chameleon ul
                 "switch to", "mode successfully", "pm3 -->", "usb]", "hint:", "searching for",
                 "note: false positives", "checking for known")
 
+#: The device saying, in as many words, THAT IT FOUND NOTHING.
+#:
+#: ⛔⛔ NOT BOILERPLATE, AND THE DIFFERENCE IS THE WHOLE REASON THIS LIST IS SEPARATE. Boilerplate is
+#: printed whatever happened; these are printed ONLY on a negative, which makes them the device's
+#: own verdict rather than a line we failed to understand. `unaccounted` exists to catch the second
+#: — an expectation or a marker that does not match the shape the device actually prints — and an
+#: explicit "not found" is the one kind of unmatched line that is CERTAINLY not that.
+#:
+#: ⚠ AND MISFILING IT COSTS THE SECTION ITS MEANING. Run 20260916_114253 reported
+#: `em410x / rd.cu1` under "silences that may be OURS" on the strength of `LF tag not found` —
+#: a properly controlled null (the same reader read em410x byte-exact from a real tag in the same
+#: run) presented to the operator as a suspected harness fault. Every genuine Chameleon silence
+#: would land there, and a section that fires on every null trains the reader to skip the section
+#: that catches wrong registry entries.
+#:
+#: ⭐ IF ANYTHING IT IS A POSITIVE CONTROL. Silence can mean the reader never ran; "not found" is
+#: proof it ran, drove the antenna and reached a decision. That is stronger evidence than no output
+#: at all, and nothing here yet takes credit for it.
+_EXPLICIT_NULL = ("tag not found", "no tag found", "no known tag", "unable to find",
+                  "nothing found", "no card found")
+
 
 def unaccounted(text: str, decode_marker: str) -> tuple:
     """Lines the reader printed that are neither boilerplate nor a decode we recognised.
@@ -313,8 +334,11 @@ def unaccounted(text: str, decode_marker: str) -> tuple:
     keep = []
     for line in _strip_ansi(text or "").splitlines():
         t = line.strip()
-        if not t or any(n in t.lower() for n in _NOISE) or any(b in t.lower() for b in _BOILERPLATE):
+        low = t.lower()
+        if not t or any(n in low for n in _NOISE) or any(b in low for b in _BOILERPLATE):
             continue
+        if any(n in low for n in _EXPLICIT_NULL):
+            continue                       # the device's own negative, not a line we misread
         if re.search(decode_marker, t, re.IGNORECASE):
             continue
         keep.append(t)
