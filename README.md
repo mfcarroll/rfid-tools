@@ -108,7 +108,7 @@ the one place where swapping tags beats rearranging the bench.
 ./bench scope                      # the registry, and what it can and cannot grade
 ./bench plan                       # the cells, the station script, and what is refused
 ./bench run --dry-run --no-prompt  # rehearse the whole thing with no hardware
-./runtests                         # 161 tests, no hardware, no network
+./runtests                         # 167 tests, no hardware, no network
 ```
 
 ### Setup: which device is on which port
@@ -192,7 +192,7 @@ benchmatrix/
   dfu.py              Nordic DFU: trigger and program in one process
   learned.py          expectations learned from a real tag, and the self-licensing guard
   grid.py             the published grid, the exclusion list, the gap register
-tests/                161 tests, all on the scripted bench — `./runtests`
+tests/                167 tests, all on the scripted bench — `./runtests`
 ```
 
 ## The protocol registry
@@ -200,6 +200,14 @@ tests/                161 tests, all on the scripted bench — `./runtests`
 One entry per protocol, holding everything needed to test it from every side — `pm3.write`,
 `pm3.read`, `cu.read`, `cu.write`, `cu.emulate`, `flip.key`, the byte-exact `expect`, the
 modulation family and the subcarrier flag.
+
+⛔ **Every capability is optional, because the firmware's are.** Assuming every protocol can be
+emulated, read and written by every device is false in four directions: `fdxa`/`paradox`/`pyramid`
+are read and cloned with no emitter, `instafob` is scan-only, `em410x_electra` is emulated and
+written with no scan command, and `fdxa`/`instafob` have no Proxmark clone signature to make a gold
+tag with. A `None` is a **fact about the firmware**, and the planner refuses the cells it makes
+impossible with that fact as the reason — a different published statement from a cell that was
+measured and failed. `./bench scope` prints the three capability columns.
 
 ⛔ **Three classes of value live in there and they are not equally trustworthy.** The registry keeps
 them apart and says which is which:

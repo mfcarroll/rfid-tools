@@ -1,6 +1,10 @@
 # LF protocol scope — what we should actually be testing
 
-**Status: drafted from source on 2026-09-15. NOT yet verified on the bench.** Every "✔" below means
+**Status: drafted from source on 2026-09-15. NOT yet verified on the bench.** The counts below were
+re-derived independently in `benchmatrix/registry.py` and agree: `./bench scope` reports
+**emulate 18 · scan 21 · write-to-T55xx 21** from the registry, against this document's 18 and 22
+(the 22 being the union of scan and write, since `em410x_electra` has no scan and `instafob` has no
+write). Every "✔" below means
 *the source tree has a named handler*, not *the device does it*. That distinction is the whole point
 of this project; do not let it collapse.
 
@@ -10,7 +14,7 @@ of this project; do not let it collapse.
 |---|---|---|
 | Flipper (Momentum) | `Momentum-Firmware/lib/lfrfid/protocols/lfrfid_protocols.c` | 26 protocols |
 | Proxmark3 | `proxmark3/client/src/cmdlf.c` — `CommandTable[]` | 29 LF tag commands (+1 commented out) |
-| ChameleonUltra (ours) | the 16 tier-0 arms in `benchmatrix/registry.py` | 16 arms |
+| ChameleonUltra (ours) | `firmware/.../lf_tag_em.c` dispatch + `data_cmd.h` | 18 emulate, 22 read/clone |
 
 ## The reconciliation
 
@@ -37,6 +41,12 @@ at all — they are grid rows nobody has ever run. That is the cheapest item in 
 
 `fdxa` · `paradox` · `pyramid` (each has `_SCAN` **and** `_WRITE_TO_T55XX`) · `instafob` (`_SCAN`
 only, no T55xx write)
+
+⚠ One more shape the first pass missed, found while registering these: **`em410x_electra` has no
+`_SCAN` either.** The Chameleon emulates and writes Electra but cannot read it, so it is a fourth
+distinct row shape — emulate and clone, no scan. All four are now in the registry with their
+capabilities declared rather than assumed, and the planner refuses the impossible cells naming the
+firmware fact as the reason.
 
 ⇒ For these the Chameleon can act as a *reader* and as a *cloner* but not as a *card*. That is a
 distinct row shape in the matrix, not a missing protocol: `(t55.cu, rd.pm3)` is testable today even
@@ -102,7 +112,7 @@ instrument-qualification step, never as a grid row.
 
 ## First bench task
 
-Tier 0 is not "done", it is *unmeasured*. Run the full SOURCE x READER matrix (`DESIGN.md`) over
+Tier 0 is not "done", it is *unmeasured*. Run the full SOURCE x READER matrix (`README.md`) over
 tier 0 **plus tier 0b** — 18 arms, since the two free ones cost only configuration — with
 calibration rows enforced. Adding anything on top of an unmeasured tier 0 would repeat C473 at
 larger scale.

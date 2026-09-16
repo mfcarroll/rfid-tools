@@ -207,7 +207,10 @@ def licensing_source(p: reg.Protocol, bench: Bench) -> str | None:
     too, but it carries a credential produced by the very writer under test — licensing a reader
     with it would let a device vouch for itself one step removed.
     """
-    if p.t55_capable and bench.available(T5577):
+    # ⛔ A GOLD SOURCE NEEDS A GOLD WRITER AND A READABLE EXPECTATION. `fdxa` has no recorded
+    # Proxmark clone signature and `em410x_electra` has no byte-exact token the two writers share,
+    # so neither can be licensed by a Proxmark-written tag however capable the Chameleon is.
+    if p.t55_capable and bench.available(T5577) and p.can("pm3_write") and p.expect:
         return "t55.pm3"
     return "oem" if p.key in bench.has_oem else None
 
@@ -217,6 +220,29 @@ def _refuse(p: reg.Protocol, source: str, reader: str, bench: Bench) -> Exclusio
     emitter, writer = SOURCES[source]
     rd = READERS[reader]
 
+    # ⛔⛔ CAPABILITY FIRST, AND AS A FACT ABOUT THE FIRMWARE. `fdxa`, `paradox` and `pyramid` are
+    # read and cloned but have no emitter; `instafob` is scan-only; `em410x_electra` has no scan
+    # command. A cell those make impossible is refused with that as the reason — which is a
+    # different published statement from a cell that was measured and came back silent.
+    if source in EMULATED_SOURCES and emitter in ("cu1", "cu2") and not p.can("emulate"):
+        return Exclusion(p.key, source, reader, "no-emitter",
+                         "the firmware reads and clones %s but does not emulate it — there is no "
+                         "`%s` dispatch entry. `(t55.cu*, ...)` is testable today; this cell cannot "
+                         "exist." % (p.key, p.cu_type))
+    if writer in ("cu1", "cu2") and not p.can("cu_write"):
+        return Exclusion(p.key, source, reader, "no-write-arm",
+                         "the firmware scans %s but has no T55xx writer for it." % p.key)
+    if reader == "rd.pm3" and not p.can("pm3_read"):
+        return Exclusion(p.key, source, reader, "no-judge",
+                         "the Proxmark has no command for %s, so it cannot judge it." % p.key)
+    if reader == "rd.pm3" and not p.expect:
+        return Exclusion(p.key, source, reader, "no-expectation",
+                         "what the Proxmark prints for a %s written on this bench has never been "
+                         "observed, so there is no byte-exact token to compare against." % p.key)
+    if source == "t55.pm3" and not p.can("pm3_write"):
+        return Exclusion(p.key, source, reader, "no-gold-writer",
+                         "the Proxmark has no recorded clone signature for %s, so it cannot produce "
+                         "the gold reference tag." % p.key)
     if p.subcarrier and source in EMULATED_SOURCES and rd in ("cu1", "cu2"):
         return Exclusion(p.key, source, reader, "subcarrier",
                          "subcarrier-dependent (RULES.md §2): this family needs a subcarrier "
@@ -287,10 +313,22 @@ def _cells(protocols, sources, readers, bench) -> tuple[list[PlannedCell], list[
             lic = licensing_source(p, bench)
             requested = [s for s in sources if s != lic]
             if lic is None:
+                # ⚠ SAY WHICH OF THE THREE IT IS. "Unlicensable" covers a protocol a T5577 cannot
+                # hold, one the Proxmark cannot write, and one where the two writers share no
+                # byte-exact token — and they need different things done about them.
+                if not p.t55_capable:
+                    why = "a T5577 cannot hold %s" % p.key
+                elif not p.can("pm3_write"):
+                    why = "the Proxmark has no recorded clone signature for %s" % p.key
+                elif not p.expect:
+                    why = ("the Proxmark and the Chameleon write different credentials for %s, so "
+                           "there is no byte-exact token a gold row could match" % p.key)
+                else:
+                    why = "no gold source is available for %s" % p.key
                 exclusions.append(Exclusion(
                     p.key, "-", reader, "unlicensable",
-                    "%s cannot be held by a T5577 and no genuine card is owned, so nothing can "
-                    "license %s for it." % (p.key, reader)))
+                    "%s, and no genuine card is owned — so nothing can license %s for it. "
+                    "`bench learn` on the Proxmark side would settle it." % (why, reader)))
                 continue
             if not consider(p, lic, reader, True):
                 for src in requested:

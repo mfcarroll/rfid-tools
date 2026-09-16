@@ -86,23 +86,48 @@ def _scripted(a) -> runner.Devices:
 # ------------------------------------------------------------------ commands
 
 def cmd_scope(a) -> int:
+    """What the registry holds, and — the part that matters — what each protocol can and cannot do.
+
+    ⛔ CAPABILITY IS NOT ONE THING. The first version of this project's scope document counted our
+    firmware's capability off a TEST SCRIPT's arm list and undercounted it badly: the firmware
+    emulates 18 where the script tested 16. Emulate, scan and T55xx-write are three different
+    questions with three different answers, so this prints three columns.
+    """
     reg.validate()
-    protos = reg.resolve(a.protocol)
-    print("\n  tier-0 registry — %d protocols\n" % len(protos))
-    print("  %-11s %-5s %-4s %-12s %-14s %s" % ("protocol", "fam", "sub", "cu type", "flipper key",
-                                                "flipper hex"))
-    print("  " + "-" * 74)
+    protos = reg.resolve(a.protocol) if a.protocol else [reg.ALL[k] for k in reg.ORDER]
+    print("\n  registry — %d protocols (%d tier 0, %d tier 1)\n"
+          % (len(protos), sum(1 for p in protos if p.tier == 0),
+             sum(1 for p in protos if p.tier == 1)))
+    print("  %-15s %-3s %-3s %-4s %-5s %-4s %-13s %s"
+          % ("protocol", "emu", "rd", "wr", "sub", "tier", "cu type", "expectations known"))
+    print("  " + "-" * 86)
     for p in protos:
-        print("  %-11s %-5s %-4s %-12s %-14s %s"
-              % (p.key, p.family, "✋" if p.subcarrier else "", p.cu_type, p.flip_key,
-                 p.flip_expect or "— not known, `bench learn` it"))
-    known = sum(1 for p in protos if p.flip_expect)
-    print("\n  %d/%d have a Flipper expectation; the other %d cannot have an `rd.flip` column."
-          % (known, len(protos), len(protos) - known))
-    print("  %d refuse `(emu.*, rd.cu)` under the subcarrier rule."
+        known = []
+        if p.expect:
+            known.append("pm3")
+        if p.cu_expect:
+            known.append("cu")
+        if p.flip_expect:
+            known.append("flip")
+        print("  %-15s %-3s %-3s %-4s %-5s %-4d %-13s %s"
+              % (p.key,
+                 "✓" if p.can("emulate") else "·",
+                 "✓" if p.can("cu_read") else "·",
+                 "✓" if p.can("cu_write") else "·",
+                 "✋" if p.subcarrier else "",
+                 p.tier, p.cu_type, ", ".join(known) or "— none; `bench learn` them"))
+    emu = sum(1 for p in protos if p.can("emulate"))
+    rd = sum(1 for p in protos if p.can("cu_read"))
+    wr = sum(1 for p in protos if p.can("cu_write"))
+    print("\n  emulate %d · scan %d · write-to-T55xx %d — three questions, three answers."
+          % (emu, rd, wr))
+    print("  %d refuse `(emu.*, rd.cu*)` under the subcarrier rule (RULES.md §2)."
           % sum(1 for p in protos if p.subcarrier))
-    print("  %d cannot be written to a T5577 by the Flipper (registered gap)."
-          % sum(1 for p in protos if not p.flip_write))
+    print("  %d have no emitter at all: reader and cloner rows only, which is a row SHAPE and not "
+          "a gap." % sum(1 for p in protos if not p.can("emulate")))
+    research = [p.key for p in protos if p.research_only]
+    if research:
+        print("  ⛔ research-build-only (LF_RESEARCH_CMDS_ENABLED): %s" % ", ".join(research))
     return 0
 
 

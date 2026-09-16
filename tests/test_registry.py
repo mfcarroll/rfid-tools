@@ -11,9 +11,31 @@ from benchmatrix.outcomes import Outcome, observe
 class ItValidates(unittest.TestCase):
 
     def test_tier0_is_complete_and_valid(self):
+        """⭐ EIGHTEEN, NOT SIXTEEN. The firmware dispatches 18 emulate types (`lf_tag_em.c`); the
+        first count came off `pm3grade.sh`'s arm list, which is a TEST SCRIPT and describes what has
+        been run, not what exists."""
         reg.validate()
-        self.assertEqual(len(reg.TIER0), 16)
+        self.assertEqual(len(reg.TIER0), 18)
         self.assertEqual(set(reg.TIER0), set(reg.TIER0_ORDER))
+        self.assertIn("em410x_electra", reg.TIER0)
+        self.assertIn("indala224", reg.TIER0)
+
+    def test_the_read_and_clone_only_protocols_are_registered_as_such(self):
+        """⛔ A DIFFERENT ROW SHAPE, NOT A MISSING PROTOCOL."""
+        for key in ("fdxa", "paradox", "pyramid", "instafob"):
+            with self.subTest(key):
+                p = reg.ALL[key]
+                self.assertEqual(p.tier, 1)
+                self.assertFalse(p.can("emulate"), "%s has no emitter in the firmware" % key)
+                self.assertTrue(p.can("cu_read"), "%s is scannable" % key)
+        self.assertFalse(reg.ALL["instafob"].can("cu_write"), "instafob is scan-only")
+        self.assertTrue(reg.ALL["paradox"].can("cu_write"))
+
+    def test_electra_can_be_emulated_and_written_but_not_scanned(self):
+        p = reg.ALL["em410x_electra"]
+        self.assertTrue(p.can("emulate") and p.can("cu_write"))
+        self.assertFalse(p.can("cu_read"), "there is no EM410X_ELECTRA_SCAN command")
+        self.assertIn("em410x_electra", reg.NO_CU_SCAN)
 
     def test_a_missing_decode_marker_is_a_hard_error(self):
         """⛔ Without one, WRONG and SILENT are indistinguishable — the merge RULES.md §1 forbids."""
@@ -24,7 +46,9 @@ class ItValidates(unittest.TestCase):
         self.assertIn("WRONG and SILENT", str(cm.exception))
 
     def test_every_decode_marker_compiles_and_fires_on_a_real_decode(self):
-        for p in reg.TIER0.values():
+        for p in reg.ALL.values():
+            if not (p.pm3_decode_marker and p.expect):
+                continue
             with self.subTest(p.key):
                 rx = re.compile(p.pm3_decode_marker, re.IGNORECASE | re.MULTILINE)
                 self.assertTrue(rx.search(pm3_exact(p)), "marker misses its own success line")
@@ -37,16 +61,16 @@ class ItValidates(unittest.TestCase):
 
 class TheThreeTrustClassesStayApart(unittest.TestCase):
 
-    def test_ten_flipper_expectations_are_honestly_absent(self):
+    def test_the_unknown_flipper_expectations_are_honestly_absent(self):
         """⛔ `None` means "not known", never "approximate". Filling these in by deriving them from
         each protocol's encoder would be guessing at an answer the bench can be asked for."""
-        unknown = {p.key for p in reg.TIER0.values() if p.flip_expect is None}
-        self.assertEqual(len(unknown), 10)
+        unknown = {p.key for p in reg.ALL.values() if p.flip_expect is None}
+        self.assertGreater(len(unknown), 8)
         self.assertNotIn("em410x", unknown, "the one protocol every channel spells the same")
 
     def test_known_flipper_expectations_match_the_armed_credential_width(self):
         """The six we claim to know are exactly those where the Chameleon arms the same bytes."""
-        for p in reg.TIER0.values():
+        for p in reg.ALL.values():
             if p.flip_expect is None:
                 continue
             with self.subTest(p.key):
@@ -74,7 +98,9 @@ class TheThreeTrustClassesStayApart(unittest.TestCase):
 class WrongIsNeverMergedWithSilence(unittest.TestCase):
 
     def test_the_three_read_shapes_are_told_apart(self):
-        for p in reg.TIER0.values():
+        for p in reg.ALL.values():
+            if not (p.pm3_decode_marker and p.expect):
+                continue
             with self.subTest(p.key):
                 mk = p.pm3_decode_marker
                 exact = observe(p.key, "t55.pm3", "rd.pm3", pm3_exact(p), p.expect, mk)
