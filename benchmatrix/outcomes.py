@@ -81,6 +81,9 @@ class Observation:
     summary: tuple = ()
     session: str = ""
     pad: str = ""
+    #: The pattern this reading was judged against, kept so a SILENT reading can be re-examined for
+    #: output the pattern did not account for. See `unaccounted`.
+    decode_marker: str = ""
 
     @property
     def outcome_if_licensed(self) -> Outcome:
@@ -279,6 +282,37 @@ def _summarise(text: str, expect: str, decode_marker: str) -> tuple:
     return tuple(keep[:8])
 
 
+#: What every client prints regardless of what it found. Anything else is the device answering.
+_BOILERPLATE = ("reading rfid", "press ctrl+c", "reading stopped", "chameleon ultra connected",
+                "switch to", "mode successfully", "pm3 -->", "usb]", "hint:", "searching for",
+                "note: false positives", "checking for known")
+
+
+def unaccounted(text: str, decode_marker: str) -> tuple:
+    """Lines the reader printed that are neither boilerplate nor a decode we recognised.
+
+    ⛔⛔ THE DIFFERENCE BETWEEN "THE READER HEARD NOTHING" AND "WE DID NOT UNDERSTAND THE READER",
+    and every harness bug in this project has been the second published as the first. A decode
+    marker or an expectation is an ASSUMPTION ABOUT OUTPUT SHAPE; where the assumption is wrong the
+    cell reads SILENT, which is a verdict about the device. `fdxb` was written up as a Flipper
+    FDX-B gap against a firmware that reads FDX-B fine and renders it `ISO FDX-B` with the id on a
+    line of its own.
+
+    ⇒ A null is only evidence with a positive control (F05). Lines we cannot account for are a
+    control, and they point at the harness. 18 expectations in this registry have never been seen
+    printed by the device they describe; this is what stops a wrong one becoming a finding.
+    """
+    keep = []
+    for line in _strip_ansi(text or "").splitlines():
+        t = line.strip()
+        if not t or any(n in t.lower() for n in _NOISE) or any(b in t.lower() for b in _BOILERPLATE):
+            continue
+        if re.search(decode_marker, t, re.IGNORECASE):
+            continue
+        keep.append(t)
+    return tuple(keep[:6])
+
+
 def observe(protocol: str, source: str, reader: str, text: str, expect: str,
             decode_marker: str, session: str = "", pad: str = "") -> Observation:
     """Turn raw reader output into an Observation.
@@ -311,6 +345,7 @@ def observe(protocol: str, source: str, reader: str, text: str, expect: str,
     # the marker is wrong, not the read — never let that combination produce `decoded=False`, which
     # would be an impossible Observation (matched but nothing demodulated).
     return Observation(protocol=protocol, source=source, reader=reader, text=clean,
+                       decode_marker=decode_marker,
                        matched=matched, decoded=decoded or matched, marker_fired=decoded,
                        summary=_summarise(clean, expect, decode_marker),
                        session=session, pad=pad)

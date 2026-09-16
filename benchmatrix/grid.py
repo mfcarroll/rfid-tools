@@ -127,6 +127,7 @@ def render(result, protocols: list[reg.Protocol]) -> str:
     lines.extend(_voids(result))
     lines.extend(gap_register(result, protocols))
     lines.extend(_bad_markers(result))
+    lines.extend(_unparsed(result))
     lines.extend(_open_questions(result))
     return "\n".join(lines)
 
@@ -146,6 +147,28 @@ def _bad_markers(result) -> list[str]:
            "| protocol | reader | what the device actually printed |", "|---|---|---|"]
     for (proto, reader), line in sorted(bad.items()):
         out.append("| `%s` | `%s` | `%s` |" % (proto, reader, line.replace("|", "\\|")[:90]))
+    out.append("")
+    return out
+
+
+def _unparsed(result) -> list[str]:
+    """⛔ SUSPECTED HARNESS FAULTS, PUBLISHED NEXT TO THE RESULTS. A reading that scored SILENT while
+    the device plainly printed something is far more likely to be a wrong decode marker or a wrong
+    expectation than a deaf reader — and 18 expectations in this registry have never been observed
+    being printed by the device they describe. Every harness bug in this project so far has been an
+    assumption about output shape surfacing as a claim about hardware."""
+    odd = getattr(result, "unparsed", {})
+    if not odd:
+        return []
+    out = ["## ⛔ silences that may be OURS", "",
+           "Each of these scored `SILENT` — the decode marker did not fire and the expectation did "
+           "not match — and yet the reader printed lines this harness cannot account for. **Do not "
+           "read these as decoder gaps.** A null is only evidence with a positive control, and "
+           "output we cannot parse is a control pointing at the registry entry, not at the device.",
+           "", "| protocol | reader | what it printed that we did not recognise |", "|---|---|---|"]
+    for (proto, reader), said in sorted(odd.items()):
+        out.append("| `%s` | `%s` | `%s` |"
+                   % (proto, reader, " / ".join(said)[:120].replace("|", "\|")))
     out.append("")
     return out
 
@@ -402,6 +425,8 @@ def to_json(result, protocols: list[reg.Protocol]) -> str:
                          if (p, r) not in getattr(result, "decoded_by", set())],
         "bad_markers": [{"protocol": p, "reader": r, "observed": line}
                         for (p, r), line in sorted(getattr(result, "bad_markers", {}).items())],
+        "unparsed": [{"protocol": p, "reader": r, "printed": list(said)}
+                     for (p, r), said in sorted(getattr(result, "unparsed", {}).items())],
         "void_blocks": [{"station": b.block.station.name, "why": b.void_why}
                         for b in result.void_blocks],
         "exclusions": [{"protocol": e.protocol, "source": e.source, "reader": e.reader,
