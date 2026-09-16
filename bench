@@ -1,6 +1,15 @@
 #!/usr/bin/env python3
-"""rfid-tools bench matrix — see DESIGN.md."""
+"""rfid-tools bench matrix — see DESIGN.md.
+
+⭐ SELF-SUFFICIENT. The Flipper is driven directly over serial, so this repo needs pyserial; if the
+interpreter running it does not have one, `bootstrap.ensure` builds `.venv/` here and re-execs. It
+does nothing at all when the requirement is already satisfied, which is every run after the first.
+Set BENCH_NO_BOOTSTRAP=1 to manage the environment yourself.
+"""
 import os, sys
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+HERE = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, HERE)
+from benchmatrix.bootstrap import ensure
+ensure(HERE)
 from benchmatrix.cli import main
 raise SystemExit(main())
