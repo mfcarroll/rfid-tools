@@ -104,6 +104,9 @@ class RunResult:
     cells: list[Cell] = field(default_factory=list)
     licences: dict = field(default_factory=dict)
     refusals: dict = field(default_factory=dict)
+    #: (protocol, reader) pairs whose decode marker did not fire on a byte-exact read. The cell is
+    #: still correct; the REGISTRY is not, and would misreport a wrong decode as silence.
+    bad_markers: dict = field(default_factory=dict)
     #: Pairs whose calibration row was screened rather than decided. Their dependent cells are still
     #: measured — see `_routine`.
     screened_pairs: set = field(default_factory=set)
@@ -408,6 +411,7 @@ def _routine(report: BlockReport, devices: Devices, res: RunResult, session: str
         obs = _read(op, devices, session, pad, out)
         if obs is None:
             continue
+        _check_marker(obs, res, out)
         if cell.source in TAG_SOURCES:
             pending.append((op, obs))          # graded once the whole tag state has been read
         else:
@@ -614,6 +618,35 @@ def _read(op: Op, devices: Devices, session: str, pad: str, out, protocol=None, 
                    dev.decode_marker(p), session=session, pad=pad)
 
 
+def _check_marker(obs, res: RunResult, out) -> None:
+    """⛔ A GOOD READ IS THE ONLY CHANCE TO CATCH A BAD MARKER. If the expectation matched but the
+    marker did not fire, the marker is wrong — and it is invisible for exactly as long as the reads
+    keep being correct, because a byte-exact hit stands in for it. The day it matters is the day a
+    reader decodes the wrong value and the harness reports SILENT instead of WRONG, which is the
+    merge the four outcomes forbid. Caught here, on the run that worked."""
+    if obs is None or not obs.matched or obs.marker_fired:
+        return
+    pair = (obs.protocol, obs.reader)
+    if pair in res.bad_markers:
+        return
+    # The line the operator needs to see is the one carrying the value that matched.
+    lines = [l.strip() for l in obs.text.splitlines() if l.strip()]
+    line = next((l for l in lines if obs.protocol and _carries_match(l, obs)), lines[-1] if lines
+                else "")
+    res.bad_markers[pair] = line
+    out("      %s %-10s %-7s DECODE MARKER DID NOT FIRE on a byte-exact read — it would report a "
+        "wrong decode as SILENT. Device said: %r"
+        % (ui.mark("warn"), obs.protocol, obs.reader, line[:70]))
+
+
+def _carries_match(line: str, obs) -> bool:
+    """The line the expectation was found on — that is what the marker should have matched."""
+    from .registry import ALL
+    p = ALL.get(obs.protocol)
+    want = (p.expect_for(obs.reader) or p.expect) if p else None
+    return bool(want) and want.lower() in line.lower()
+
+
 # ------------------------------------------------------------------ controls
 
 def _goto(frm, to, interactive: bool, devices: Devices, out, bench=None) -> None:
@@ -633,11 +666,15 @@ def _goto(frm, to, interactive: bool, devices: Devices, out, bench=None) -> None
     for line in ui.diagram([to], idle):
         out(line)
     out("")
+    # ⚠ A PURE REMOVAL IS SAID AS A REMOVAL. Describing the arrangement is right when something is
+    # being placed, and confusing when the only thing to do is take the tag out of a stack that is
+    # otherwise already correct.
+    spoken = (ui.spoken_removal(move.remove) if move.remove and not move.place
+              else ui.spoken_arrangement([to]))
     if interactive:
-        cues.ask("     press Enter when the bench looks like that: ",
-                 spoken=ui.spoken_arrangement([to]))
+        cues.ask("     press Enter when the bench looks like that: ", spoken=spoken)
     else:
-        cues.cue_move(ui.spoken_arrangement([to]))
+        cues.cue_move(spoken)
     if devices.operator is not None:
         devices.operator(to)
 

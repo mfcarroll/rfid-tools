@@ -112,8 +112,28 @@ def render(result, protocols: list[reg.Protocol]) -> str:
     lines.extend(_exclusions(result.plan.exclusions))
     lines.extend(_voids(result))
     lines.extend(gap_register(result, protocols))
+    lines.extend(_bad_markers(result))
     lines.extend(_open_questions(result))
     return "\n".join(lines)
+
+
+def _bad_markers(result) -> list[str]:
+    """⛔ A fault in the HARNESS, found on a run that otherwise passed. Published with the results
+    because a grid whose instrument has a known defect should say so next to the numbers."""
+    bad = getattr(result, "bad_markers", {})
+    if not bad:
+        return []
+    out = ["## ⚠ registry faults found during this run", "",
+           "These cells are correct. The **decode marker** for each pair did not fire on a "
+           "byte-exact read, which means it is wrong — and a marker that never matches is invisible "
+           "while reads are correct, because a byte-exact hit stands in for it. The day it matters "
+           "is the day that reader decodes the WRONG value and this harness reports `SILENT` "
+           "instead of `WRONG`. Fix the marker before trusting a silence from these pairs.", "",
+           "| protocol | reader | what the device actually printed |", "|---|---|---|"]
+    for (proto, reader), line in sorted(bad.items()):
+        out.append("| `%s` | `%s` | `%s` |" % (proto, reader, line.replace("|", "\\|")[:90]))
+    out.append("")
+    return out
 
 
 def _provenance(result) -> list[str]:
@@ -124,12 +144,23 @@ def _provenance(result) -> list[str]:
     if not result.firmware:
         return []
     out = ["### what was running", "", "| device | firmware |", "|---|---|"]
-    for dev, ver in sorted(result.firmware.items()):
+    # ⚠ ONE NAMING SCHEME. The devices were keyed by whatever attribute they happened to have, so
+    # the published table mixed device names (`cu1`) with reader ids (`rd.pm3`) — in a record whose
+    # whole job is to say unambiguously what was running.
+    for dev, ver in sorted(_device_names(result.firmware).items()):
         flag = "" if ver and "not reported" not in ver else " ⚠"
         out.append("| `%s`%s | %s |" % (dev, flag, ver or "unknown"))
     out.append("| `rfid-tools` | %s |" % (result.harness or "unknown"))
     out.append("")
     return out
+
+
+#: Reader ids the channels report themselves as, mapped to the device they are.
+_DEVICE_OF = {"rd.pm3": "pm3", "rd.flip": "flipper", "rd.cu": "cu"}
+
+
+def _device_names(firmware: dict) -> dict:
+    return {_DEVICE_OF.get(k, k): v for k, v in firmware.items()}
 
 
 def _short(o: Outcome) -> str:
@@ -218,13 +249,21 @@ def gap_register(result, protocols: list[reg.Protocol]) -> list[str]:
                     "writes fine", "operator bench, 2026-09"),
         ("Flipper", "can emulate Indala224 but cannot write it", "operator bench"),
         ("Proxmark", "does not decode the Flipper's Indala224 emulation", "operator bench"),
-        ("Proxmark", "no dedicated Electra or InstaFob command", "`cmdlf.c` `CommandTable[]`"),
-        ("ChameleonUltra", "10 of the Flipper's 26 protocols unimplemented", "`SCOPE.md` §B"),
+        ("Proxmark", "no dedicated InstaFob command", "`cmdlf.c` `CommandTable[]`"),
+        ("ChameleonUltra", "**4** of the Flipper's 26 protocols absent — EM4100/16, EM4100/32, "
+                           "HidGeneric, HidExGeneric. A further 4 (fdxa, paradox, pyramid, "
+                           "instafob) are read and cloned but not emulated, which is a row shape "
+                           "and not a gap", "`SCOPE.md` §B/§C"),
         ("ChameleonUltra", "FSK2a mark is a fixed 32 µs on **both** tones "
                            "(`LF_FSK2A_MARK_CYCLES = 4`); a real tag is symmetric 32/32 and 40/40",
          "ChameleonUltra bench"),
     ]
     out = ["## gap register", "",
+           "⚠ The rows above the run's own are carried from `SCOPE.md` and are only as current as "
+           "it is. Two were retracted on 2026-09-15 after being checked against source: the "
+           "Proxmark DOES support Electra (`lf em 410x clone --electra`, and its reader prints the "
+           "Electra value), and the ChameleonUltra is missing 4 of the Flipper's protocols rather "
+           "than 10.", "",
            "| firmware | gap | evidence |", "|---|---|---|"]
     for fw, gap, ev in known:
         out.append("| %s | %s | %s |" % (fw, gap, ev))
@@ -313,6 +352,8 @@ def to_json(result, protocols: list[reg.Protocol]) -> str:
                      for (p, r), lic in sorted(result.licences.items())],
         "refusals": [{"protocol": p, "reader": r, "why": why}
                      for (p, r), why in sorted(result.refusals.items())],
+        "bad_markers": [{"protocol": p, "reader": r, "observed": line}
+                        for (p, r), line in sorted(getattr(result, "bad_markers", {}).items())],
         "void_blocks": [{"station": b.block.station.name, "why": b.void_why}
                         for b in result.void_blocks],
         "exclusions": [{"protocol": e.protocol, "source": e.source, "reader": e.reader,

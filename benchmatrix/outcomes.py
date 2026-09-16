@@ -69,6 +69,11 @@ class Observation:
     text: str
     matched: bool
     decoded: bool
+    #: ⛔ DID THE DECODE MARKER ITSELF FIRE, before `matched` was allowed to stand in for it? A
+    #: marker that never matches is invisible while reads are correct — a byte-exact hit forces
+    #: `decoded` True — and only shows up the day a reader decodes the WRONG value and the harness
+    #: calls it SILENT. Recording the raw answer lets that be caught on a GOOD run instead.
+    marker_fired: bool = True
     session: str = ""
     pad: str = ""
 
@@ -239,4 +244,5 @@ def observe(protocol: str, source: str, reader: str, text: str, expect: str,
     # the marker is wrong, not the read — never let that combination produce `decoded=False`, which
     # would be an impossible Observation (matched but nothing demodulated).
     return Observation(protocol=protocol, source=source, reader=reader, text=clean,
-                       matched=matched, decoded=decoded or matched, session=session, pad=pad)
+                       matched=matched, decoded=decoded or matched, marker_fired=decoded,
+                       session=session, pad=pad)

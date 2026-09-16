@@ -129,3 +129,68 @@ class WrongIsNeverMergedWithSilence(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class MarkersMatchWhatTheDevicesActuallyPrint(unittest.TestCase):
+    """⛔ A marker derived from a FORMAT STRING in the source is a guess at how the value renders.
+    `EM410X\\s*:` never fired, because the device prints `EM410X/64:` — and nothing noticed, because
+    a byte-exact hit forces `decoded` True and so a CORRECT read masked it. A read that decoded the
+    wrong value would have been reported SILENT, which is the merge the four outcomes forbid."""
+
+    #: Lines captured from the bench, 2026-09-15.
+    OBSERVED = {("em410x", "cu"): "EM410X/64: 2244668800",
+                ("em410x", "pm3"): "[+] EM 410x ID 2244668800"}
+
+    def test_each_observed_line_fires_its_marker(self):
+        for (key, which), line in self.OBSERVED.items():
+            with self.subTest(key=key, which=which):
+                p = reg.ALL[key]
+                marker = p.cu_decode_marker if which == "cu" else p.pm3_decode_marker
+                self.assertTrue(re.search(marker, line, re.IGNORECASE | re.MULTILINE),
+                                "%s marker %r does not match %r" % (which, marker, line))
+
+    def test_the_marker_is_independent_of_the_value(self):
+        """It has to fire on a decode of the WRONG credential — that is its entire purpose."""
+        p = reg.ALL["em410x"]
+        self.assertTrue(re.search(p.cu_decode_marker, "EM410X/64: deadbeefff", re.IGNORECASE))
+        self.assertTrue(re.search(p.cu_decode_marker, "EM410X/16: 1122334455", re.IGNORECASE))
+
+
+class ABadMarkerReportsItselfOnAGoodRun(unittest.TestCase):
+    """⛔ A marker that never matches is invisible for as long as the reads keep being correct,
+    because a byte-exact hit stands in for it. The day it matters is the day that reader decodes the
+    WRONG value and the harness says SILENT. A good read is the only chance to catch it."""
+
+    def test_the_raw_marker_result_is_recorded_separately_from_the_match(self):
+        from benchmatrix.outcomes import observe
+        p = reg.ALL["em410x"]
+        got = observe("em410x", "t55.pm3", "rd.cu1", "EM410X/64: 2244668800",
+                      p.cu_expect, r"THIS-NEVER-MATCHES")
+        self.assertTrue(got.matched)
+        self.assertTrue(got.decoded, "a match must still imply a decode happened")
+        self.assertFalse(got.marker_fired, "but the marker's own answer is kept")
+
+    def test_a_run_flags_it_without_failing_the_cell(self):
+        from tests.helpers import EMITTERS, answers_all_exact, make_devices, quiet, runner
+        from benchmatrix import plan as planning
+        from benchmatrix.stations import Bench
+        from benchmatrix.outcomes import Outcome
+        broken = reg.Protocol(**{**reg.ALL["em410x"].__dict__,
+                                 "cu_decode_marker": r"EM410X\s*:"})
+        ans = {("em410x", e): "EM410X/64: 2244668800" for e in EMITTERS}
+        plan = planning.build([broken], ["t55.pm3"], ["rd.cu1"], Bench())
+        res = runner.run(plan, make_devices(answers=ans), interactive=False, session="S", out=quiet)
+        self.assertTrue(all(c.outcome is Outcome.EXACT for c in res.cells),
+                        "the cells are correct — it is the registry that is wrong")
+        self.assertIn(("em410x", "rd.cu1"), res.bad_markers)
+        self.assertIn("EM410X/64", res.bad_markers[("em410x", "rd.cu1")],
+                      "it must quote what the device actually printed")
+
+    def test_a_correct_marker_raises_no_complaint(self):
+        from tests.helpers import EMITTERS, make_devices, quiet, runner
+        from benchmatrix import plan as planning
+        from benchmatrix.stations import Bench
+        ans = {("em410x", e): "EM410X/64: 2244668800" for e in EMITTERS}
+        plan = planning.build(reg.resolve(["em410x"]), ["t55.pm3"], ["rd.cu1"], Bench())
+        res = runner.run(plan, make_devices(answers=ans), interactive=False, session="S", out=quiet)
+        self.assertEqual(res.bad_markers, {})

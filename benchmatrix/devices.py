@@ -582,7 +582,15 @@ class Scripted:
         self.air.armed.pop(self.id, None)
 
     def decode_marker(self, p: reg.Protocol) -> str:
-        return FLIP_DECODE_MARKER if self.role == "flipper" else p.pm3_decode_marker
+        """⚠ MIRROR THE REAL CHANNEL, INCLUDING WHICH MARKER IT USES. This returned the Proxmark's
+        pattern for a Chameleon role, so every scripted Chameleon read was matched against the wrong
+        marker — which is the exact defect the harness is meant to catch, hiding inside the thing
+        that tests for it."""
+        if self.role == "flipper":
+            return FLIP_DECODE_MARKER
+        if self.role in ("cu1", "cu2"):
+            return p.cu_decode_marker or p.pm3_decode_marker
+        return p.pm3_decode_marker
 
 
 def _pm3_version(out: str) -> str:

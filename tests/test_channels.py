@@ -176,3 +176,27 @@ class EveryChannelAnswersWhatTheRunnerCalls(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TheStandInMirrorsTheRealChannel(unittest.TestCase):
+    """⛔ THE FAKE MUST NOT DISAGREE WITH THE THING IT STANDS FOR. `Scripted.decode_marker` returned
+    the Proxmark's pattern for a Chameleon role, so every scripted Chameleon read was matched
+    against the wrong marker — the exact defect the harness exists to catch, hiding inside the code
+    that tests for it."""
+
+    def test_each_role_uses_the_marker_its_real_channel_would(self):
+        from benchmatrix.devices import Air, Scripted
+        for key in ("em410x", "keri", "gproxii"):
+            p = reg.ALL[key]
+            with self.subTest(key):
+                real_cu = Chameleon(port="/dev/x", name="cu1").decode_marker(p)
+                fake_cu = Scripted(id="cu1", role="cu1", air=Air()).decode_marker(p)
+                self.assertEqual(fake_cu, real_cu)
+                real_pm3 = Pm3().decode_marker(p)
+                fake_pm3 = Scripted(id="pm3", role="pm3", air=Air()).decode_marker(p)
+                self.assertEqual(fake_pm3, real_pm3)
+
+    def test_the_chameleon_marker_is_not_the_proxmarks(self):
+        """If these were ever the same the test above would pass while proving nothing."""
+        p = reg.ALL["keri"]
+        self.assertNotEqual(p.cu_decode_marker, p.pm3_decode_marker)
