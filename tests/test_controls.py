@@ -291,3 +291,46 @@ class OnlyPhysicalInstructionsAreSpoken(unittest.TestCase):
             c._say, c._play = say, play
         self.assertEqual(spoken, ["take the tag out"])
         self.assertEqual(len(played), 2, "both still chime")
+
+
+class AWriteMustSaySoItself(unittest.TestCase):
+    """⛔ Without a positive check, a refused clone leaves the tag holding its previous credential,
+    the read decodes nothing, and the harness reports "this reader cannot judge this protocol" — a
+    bench verdict for a one-line registry error."""
+
+    def _pm3(self, output):
+        from benchmatrix.devices import Pm3
+        pm3 = Pm3()
+        pm3.exec = lambda *c, **k: output
+        return pm3
+
+    def test_a_confirmed_write_returns(self):
+        self._pm3("[=] Preparing to clone Viking tag\n[+] Done!\n").write_t55(reg.TIER0["viking"])
+
+    def test_an_unconfirmed_write_is_refused_rather_than_assumed(self):
+        from benchmatrix.devices import DeviceError
+        with self.assertRaises(DeviceError) as cm:
+            self._pm3("usage: lf viking clone [-h] ...\n[!] ERROR: invalid card number\n") \
+                .write_t55(reg.TIER0["viking"])
+        self.assertIn("did not confirm a write", str(cm.exception))
+        self.assertIn("still holds whatever it held before", str(cm.exception))
+
+    def test_silence_is_not_success(self):
+        from benchmatrix.devices import DeviceError
+        with self.assertRaises(DeviceError):
+            self._pm3("").write_t55(reg.TIER0["viking"])
+
+    def test_the_reads_after_a_refused_write_are_not_scored(self):
+        """They are skipped as "source not armed", never filed as the reader's failure."""
+        plan = tiny_plan(keys=("em410x",), sources=("t55.pm3",), readers=("rd.pm3",))
+        dev = make_devices(answers=answers_all_exact(reg.resolve(["em410x"])))
+        from benchmatrix.devices import DeviceError
+
+        def refuse(p):
+            raise DeviceError("pm3: `lf em 410x clone` did not confirm a write.")
+        dev.pm3.write_t55 = refuse
+        res = runner.run(plan, dev, interactive=False, session="S", out=quiet)
+        self.assertTrue(res.cells)
+        for c in res.cells:
+            self.assertIs(c.outcome, Outcome.UNGRADED)
+            self.assertIn("not armed", c.note)
