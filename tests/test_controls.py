@@ -13,7 +13,7 @@ from benchmatrix import identity
 from benchmatrix.devices import Air
 from benchmatrix.identity import NullSweep, sweeps_agree
 from benchmatrix.outcomes import Outcome
-from benchmatrix.stations import CU1, CU2
+from benchmatrix.stations import Bench, CU1, CU2
 
 
 def quiet(*a, **k):
@@ -333,4 +333,75 @@ class AWriteMustSaySoItself(unittest.TestCase):
         self.assertTrue(res.cells)
         for c in res.cells:
             self.assertIs(c.outcome, Outcome.UNGRADED)
-            self.assertIn("not armed", c.note)
+            self.assertIn("never armed", c.note)
+
+
+class AWriteIsNotDoneBecauseItReturned(unittest.TestCase):
+    """⛔ RULES.md §10. `Done!` means the commands went out on the air. A T5577 does not acknowledge
+    a write, so nothing in that reply says the credential landed — only a read-back can."""
+
+    def test_a_silent_tag_is_a_write_failure_not_a_reader_failure(self):
+        """With one reader it is ambiguous, and the harness says so instead of picking."""
+        protos = reg.resolve(["em410x"])
+        silent = {("em410x", e): "" for e in ("t5577", "cu1", "cu2", "flipper")}
+        plan = tiny_plan(keys=("em410x",), sources=("t55.pm3",), readers=("rd.pm3",))
+        res = runner.run(plan, make_devices(answers=silent), interactive=False, session="S",
+                         out=quiet)
+        self.assertTrue(res.cells)
+        for c in res.cells:
+            self.assertIs(c.outcome, Outcome.UNGRADED)
+            self.assertIn("nothing read it back", c.note)
+            self.assertNotIn("cannot judge", c.note,
+                             "a bench verdict must not be issued for an unwitnessed write")
+        self.assertEqual(res.licences, {})
+
+    def test_one_reader_seeing_it_settles_it_for_the_others(self):
+        """⭐ A credential we chose cannot be conjured out of a tag that does not hold it. So one
+        byte-exact read proves the write landed, and every OTHER reader's silence on the same tag
+        becomes a genuine finding about that reader rather than an ambiguity."""
+        protos = reg.resolve(["em410x"])
+        deaf_cu1 = {("em410x", e): "" for e in ("t5577", "cu1", "cu2", "flipper")}
+        plan = tiny_plan(keys=("em410x",), sources=("t55.pm3",), readers=("rd.pm3", "rd.cu1"))
+        res = runner.run(plan, make_devices(answers=answers_all_exact(protos),
+                                            cu1_answers=deaf_cu1),
+                         interactive=False, session="S", out=quiet)
+        pm3 = [c for c in res.cells if c.reader == "rd.pm3"]
+        cu1 = [c for c in res.cells if c.reader == "rd.cu1"]
+        self.assertTrue(all(c.outcome is Outcome.EXACT for c in pm3))
+        self.assertTrue(cu1)
+        for c in cu1:
+            self.assertNotIn("nothing read it back", c.note,
+                             "the Proxmark witnessed the write, so this is about the reader")
+
+    def test_the_writer_reads_back_even_when_no_cell_asks_it_to(self):
+        """A verify op: a read that produces no cell, whose only job is to witness the write."""
+        from benchmatrix import plan as planning
+        p = planning.build(reg.resolve(["em410x"]), ["t55.pm3"], ["rd.cu1"], Bench())
+        kinds = [o.kind for b in p.blocks for o in b.ops]
+        self.assertIn("verify", kinds)
+        verifies = [o for b in p.blocks for o in b.ops if o.kind == "verify"]
+        self.assertTrue(all(o.cell is None for o in verifies))
+        self.assertTrue(all(o.device == "pm3" for o in verifies))
+
+    def test_verification_survives_the_tag_being_carried_to_another_station(self):
+        """⛔ The write happens at one station and the read at the next — that is the whole point of
+        carrying a tag. Scoping verification to a block would make every carried tag look like a
+        write that never landed."""
+        from benchmatrix import plan as planning
+        protos = reg.resolve(["em410x"])
+        deaf_cu1 = {("em410x", e): "" for e in ("t5577", "cu1", "cu2", "flipper")}
+        # The isolation phase is where a tag genuinely travels: written at one station, carried,
+        # read at the next. Build that plan directly from a screened cell.
+        from benchmatrix.outcomes import Cell
+        screened = [Cell("em410x", "t55.pm3", "rd.cu1", Outcome.UNGRADED, None, "",
+                         frozenset({"pm3"}))]
+        p = planning.isolate(screened, Bench())
+        self.assertGreater(len(p.blocks), 1, "the tag must be carried for this to be a test")
+        self.assertIn("verify", [o.kind for b in p.blocks for o in b.ops],
+                      "the write station must read its own work back")
+        res = runner.run(p, make_devices(answers=answers_all_exact(protos), cu1_answers=deaf_cu1),
+                         interactive=False, session="S", out=quiet)
+        self.assertTrue(res.cells)
+        for c in res.cells:
+            self.assertNotIn("nothing read it back", c.note,
+                             "the Proxmark witnessed it at the write station, one stop earlier")

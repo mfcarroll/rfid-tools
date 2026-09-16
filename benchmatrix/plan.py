@@ -63,9 +63,15 @@ class Exclusion:
 
 @dataclass(frozen=True)
 class Op:
-    """One automated device action inside a routine. No operator involvement."""
+    """One automated device action inside a routine. No operator involvement.
 
-    kind: str                       # write | arm | disarm | read | place
+    ⭐ `verify` IS A READ THAT PRODUCES NO CELL. Its only job is to witness that a write landed, so
+    that the reads which follow can be attributed to their readers instead of being ambiguous
+    between "this reader is deaf" and "the credential is not on the tag" (RULES.md §10). It is added
+    wherever a writer can read its own work back and no wanted cell already does that.
+    """
+
+    kind: str                       # write | arm | disarm | read | verify | place
     device: str
     protocol: reg.Protocol
     cell: PlannedCell | None = None
@@ -154,7 +160,7 @@ class RunPlan:
                     armed[o.device] = o.protocol.key
                 elif o.kind == "disarm":
                     armed.pop(o.device, None)
-                elif o.kind == "read" and o.cell is not None:
+                elif o.kind in ("read", "verify") and o.cell is not None:
                     c = o.cell
                     if c.source in TAG_SOURCES:
                         writer = SOURCES[c.source][1]
@@ -331,8 +337,19 @@ def choose_stations(cells: list[PlannedCell], bench: Bench) -> list[Station]:
             if hits > best_hits or (hits == best_hits and best is not None and len(cand) < len(best)):
                 best, best_hits = frozenset(cand), hits
         if best is None or best_hits == 0:
-            raise AssertionError("cannot place %d cell(s) on this bench: %s"
-                                 % (len(uncovered), ", ".join(sorted({c.key[0] for c in uncovered}))))
+            # ⚠ A KNOWN LIMIT, NOT A MYSTERY. Phase 1 covers each cell with ONE station, so a tag
+            # cell needs its writer and its reader in the same stack. Where they will not fit, the
+            # measurement is still possible — write at one station, carry the tag, read at the next,
+            # which is exactly what the isolation phase does — but the set-cover planner does not
+            # build that split, because in phase 1 it would trade a great many interventions for
+            # coverage that a bigger stack gives for free.
+            need = sorted({" / ".join(c.key) for c in uncovered})
+            raise AssertionError(
+                "%d cell(s) need more devices in one stack than --max-stack=%d allows:\n    %s\n"
+                "  Each needs %s together. Raise --max-stack if they physically stack, or drop the "
+                "source or reader that does not fit."
+                % (len(uncovered), bench.max_stack, "\n    ".join(need),
+                   ", ".join(sorted(devices_to_produce(uncovered[0].source, uncovered[0].reader)))))
         station = build_station(best, bench)
         chosen.append(station)
         done = {id(c) for c in _covered(best, uncovered)}
@@ -396,6 +413,7 @@ def _routine(station: Station, cells: list[PlannedCell]) -> list[Op]:
                 if not todo or writer not in station.devices:
                     continue
                 ops.append(Op("write", writer, p))
+                ops += _verify_ops(p, writer, station, todo)
                 for c in todo:
                     ops.append(Op("read", READERS[c.reader], p, c,
                                   station.crowding(devices_to_measure(c.source, c.reader))))
@@ -417,6 +435,27 @@ def _routine(station: Station, cells: list[PlannedCell]) -> list[Op]:
                                   station.crowding(devices_to_measure(c.source, c.reader))))
                 ops.append(Op("disarm", dev, p))
     return ops
+
+
+def _verify_ops(p: reg.Protocol, writer: str, station: Station, wanted: list, tag: int = 0) -> list:
+    """A read-back by the writer, unless one of the wanted cells already is one.
+
+    ⛔⛔ A WRITE IS NOT DONE BECAUSE IT RETURNED (RULES.md §10). A T5577 does not acknowledge a
+    write, so the client's "Done!" says the commands went out and nothing more. If the only reader
+    that then looks at the tag happens to be one that cannot decode this protocol, its silence is
+    ambiguous — and the harness would have to call it either a write failure or a reader gap without
+    being able to tell. One extra read by the writer, at the station that is already set up, removes
+    the ambiguity for every reader that follows.
+    """
+    if writer not in READERS.values() or writer not in station.devices:
+        return []
+    if any(READERS[c.reader] == writer for c in wanted):
+        return []                                   # a wanted cell already witnesses it
+    if writer in ("cu1", "cu2") and p.cu_read is None:
+        return []
+    if writer == "flipper" and p.flip_expect is None:
+        return []
+    return [Op("verify", writer, p, tag=tag)]
 
 
 def _rank(key: str) -> int:
@@ -502,7 +541,12 @@ def isolate(screened: list, bench: Bench) -> RunPlan:
         write_station = build_station({writer, T5577}, bench)
         for i in range(0, len(protos), batch_size):
             batch = protos[i:i + batch_size]
-            here = [Op("write", writer, p, tag=n) for n, p in enumerate(batch)]
+            here = []
+            for n, p in enumerate(batch):
+                here.append(Op("write", writer, p, tag=n))
+                wanted_here = [c for (src, rdr), cs in routes.items() for c in cs
+                               if c.protocol == p.key and READERS[rdr] == writer]
+                here += _verify_ops(p, writer, write_station, wanted_here, tag=n)
             for (source, reader), cells in sorted(routes.items()):
                 if READERS[reader] != writer:
                     continue

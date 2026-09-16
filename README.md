@@ -25,7 +25,7 @@ place where cross-firmware protocol gaps are recorded.
 
 ## The rules
 
-Nine of them, in [RULES.md](RULES.md). They are enforced in code, not left to discipline. The first
+Ten of them, in [RULES.md](RULES.md). They are enforced in code, not left to discipline. The first
 is the one the rest exist to protect:
 
 > **A reader's silence about a source means nothing until that reader has decoded the same protocol
@@ -104,7 +104,7 @@ the one place where swapping tags beats rearranging the bench.
 ./bench scope                      # the registry, and what it can and cannot grade
 ./bench plan                       # the cells, the station script, and what is refused
 ./bench run --dry-run --no-prompt  # rehearse the whole thing with no hardware
-./runtests                         # 124 tests, no hardware, no network
+./runtests                         # 128 tests, no hardware, no network
 ```
 
 ### Setup: which device is on which port
@@ -186,7 +186,7 @@ benchmatrix/
   setup.py            device discovery, chip-id identity, and `.env`
   learned.py          expectations learned from a real tag, and the self-licensing guard
   grid.py             the published grid, the exclusion list, the gap register
-tests/                124 tests, all on the scripted bench — `./runtests`
+tests/                128 tests, all on the scripted bench — `./runtests`
 ```
 
 ## The protocol registry

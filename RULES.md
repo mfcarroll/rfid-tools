@@ -162,6 +162,39 @@ reader cannot judge this protocol"* — a bench verdict for a one-line registry 
 confirmed by **evidence that it happened**, never by the absence of an error, and a write that
 cannot confirm itself skips the reads that depended on it rather than letting them be scored.
 
+## 10. The verification rule
+
+> **An action is not done because it returned. It is done when something has observed its effect.**
+
+A T5577 does not acknowledge a write. `Done!` from the Proxmark client means the commands went out
+on the air and nothing more — the tag may be holding the new credential, or the one from the
+previous step, and the reply cannot tell you which. The same is true of the Chameleon's writer and
+the Flipper's.
+
+So the reads that follow a write are settled **together**, once the tag's state has been read by
+everything that is going to read it:
+
+- **If no reader read it back**, the tag is not known to hold what was written, and none of those
+  reads may be attributed to their readers. A silence there is as likely to be a write that never
+  landed as a decoder that cannot see it, and reporting it as "this reader cannot judge this
+  protocol" would be a bench verdict for what may be a one-line registry error.
+- **If any one reader read it back byte-exact**, that settles it for all of them. A credential we
+  chose cannot be conjured out of a tag that does not hold it, so one witness proves the write
+  landed — and every *other* reader's silence on the same tag turns from an ambiguity into a genuine
+  finding about that reader. Two readers at a station are worth considerably more than twice one.
+
+Every write is therefore followed by a read-back from the writer itself wherever the writer can
+read, even when no cell in the plan asks for one. It costs one command at a station that is already
+set up, and without it a tag carried to a single deaf reader is unfalsifiable.
+
+**Verification belongs to the tag, not to the station.** A credential is written at one station and
+often read at the next — that is the whole point of carrying a tag. Scoping it to a block would make
+every carried tag look like a write that never landed.
+
+⚠ **With only one reader, a failed read-back is ambiguous and is reported as ambiguous.** The
+harness does not pick between "the write did not land" and "this reader is deaf"; it says a second
+reader on the same tag would separate them, and leaves the cell UNGRADED.
+
 ---
 
 ## Where each rule was paid for
@@ -181,3 +214,4 @@ own.
 | 7. crowded stack | operator bench practice |
 | 8. self-licensing | found while building this harness |
 | 9. write-state | found while building this harness |
+| 10. verification | operator, after the first bench run |
