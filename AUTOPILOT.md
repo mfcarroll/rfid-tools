@@ -110,34 +110,46 @@ Deriving it is good hands-off work and is worth a tick of its own.
 `ctest/`'s round trip, and queue each fix for bench confirmation on the operator's return. **A host
 round trip is not a bench verdict** — say so every time.
 
-⭐⭐ **AND YOU CAN VERIFY A FIX YOURSELF — MANUALLY, ON REAL SILICON, WITH NO HANDS.** §1 says the
-*grid* cannot produce a graded cell. It does not say the bench is unusable, and the operator is
-right to push back on that reading. Rig B stands as `Proxmark ─ T5577 ─ Chameleon 2`, and the
-Proxmark rewrites its own tag under program control — your own run did that seventeen times with
-Chameleon 2 in the stack. So all of this runs unattended, outside the harness:
+⛔⛔⛔ **MEASURED 2026-09-16 23:5x AND REFUTED — RIG B CANNOT VERIFY AN EMITTER FIX.** An earlier
+version of this section claimed a fix could be verified manually through the tag, on the argument
+that a contaminating tag "cannot manufacture the credential cu2 was armed with", so positives would
+survive. **That was reasoning, not measurement, and the measurement says otherwise.**
 
-| you can | how |
+A/B/A on the standing Rig B (`Proxmark ─ T5577 ─ Chameleon 2`), cu2 armed with PAC `CARD0042`,
+which read **EXACT** at the tagless station in run 20260916_161528:
+
+| cu2 mode | what `rd.pm3` decodes |
 |---|---|
-| test **our decoder against real silicon** | pm3 writes protocol P to its tag, then `lf <proto> read` on cu2 |
-| test **an emitter fix** | flash cu2, arm it, `lf <proto> reader` on the pm3 |
-| wipe the tag first | `lf t55xx wipe` — it still modulates, but holds no decodable credential |
+| emulator (`hw mode -e`) | **nothing** — not the PAC emulation, and **not even the tag** (3 tries) |
+| reader (`hw mode -r`) | `EM 410x ID 2244668800`, twice, immediately |
 
-⭐ **THE ASYMMETRY IS WHAT MAKES THIS WORK, AND IT IS EXACTLY THE ONE WE NEED.** The tag in the
-stack contaminates the field, but **it cannot manufacture the credential cu2 was armed with**. We
-are trying to turn SILENT into EXACT — so the result we are hunting is precisely the one that
-survives the contamination. A fix that starts decoding is real. A fix that stays silent is
-**inconclusive, not refuted**: keep working, do not record it as a failure.
+`playbacks started` rose 40 → 42 across the silent reads, so cu2 **was** emitting. Two active
+emitters in one stack and the Proxmark decodes **neither**. There are no positives to survive.
 
-⛔⛔ **THESE ARE OBSERVATIONS, NOT CELLS.** No null sweep, no licence, a contaminated field. They
-never go in a grid, never into `bench state`, and never into the gap register as measurements —
-they are the signal that a fix is worth the operator's bench time, and **every one of them must be
-re-run through the harness when they are back**. Say "manually observed, ungraded" every single
-time. ⛔ A week of manual positives written up as results is C473 with better intentions.
+⇒ **The crowded-stack rule does not cover this**, and that is where the error came from: it is about
+*idle parasitic* devices detuning a pad, not about a second live emitter. A powered T5577 is not a
+bystander.
+
+⇒ ⛔ **With Rig B as it stands, no emitter fix can be verified at all.** The verification loop needs
+the tag OUT of the Proxmark stack — which needs the operator. Until then:
+
+| still available | still blocked |
+|---|---|
+| `seqdump` (USB only — see below) | any air-side check of an emitter fix |
+| `t55.pm3 → rd.cu2` (tag read by cu2, cu2 in READER mode — no jamming) | `emu.cu2 → rd.pm3` anything |
+| host `ctest` round trips, `--regrade`, refactor, upstream prep | |
+
+⭐ **`t55.pm3 → rd.cu2` DOES still work**, because nothing is emulating: the pm3 writes its own tag
+under program control and cu2 reads it in reader mode. **That is a real unattended loop for our
+DECODERS against real silicon** — it just says nothing about emitters.
 
 ⚠ **FLASH `cu2` ONLY, NEVER `cu1`.** `enterdfu.py --port <tty> --program <zip>` needs no bench move
-and verifies the device re-enumerates, but a flash that goes wrong with nobody present ends the
-week. Chameleon 1 is the spare that keeps the bench alive, and it is also the successor project's
-writer — leave its firmware alone.
+and verifies re-enumeration, but a flash that goes wrong with nobody present ends the week.
+Chameleon 1 is the spare that keeps the bench alive and the successor project's writer.
+
+⛔ **ALWAYS RETURN cu2 TO `hw mode -r` WHEN DONE.** A Chameleon left in emulator mode jams the
+Proxmark's whole pad, including its reads of the tag — as measured above. Leaving it armed silently
+disables Rig B for every later tick.
 
 ### 2b. The two cells that disagree with themselves
 
