@@ -293,3 +293,62 @@ class ACellIsRefusedOrMeasuredNeverLost(unittest.TestCase):
         bad = p.audit()
         self.assertTrue(bad)
         self.assertIn("never measured", bad[0])
+
+
+class TheBenchCanBeAGivenRatherThanAChoice(unittest.TestCase):
+    """⭐ `--at` IS THE INVERSE OF THE USUAL QUESTION. The planner normally picks arrangements and
+    asks the operator to build each one; for a rig left standing — or shared with another session —
+    the useful question is what can be measured in the layout that EXISTS.
+
+    ⛔ AND WHAT CANNOT IS REFUSED BY NAME. A small grid is fine; a grid with holes nobody can
+    account for is not.
+    """
+
+    S = ["t55.pm3", "t55.cu1", "emu.pm3", "emu.cu1"]
+    R = ["rd.pm3", "rd.cu1"]
+
+    def _at(self, *stations):
+        return planning.build(reg.resolve(["em410x"]), self.S, self.R, Bench(tag_count=16),
+                              at=list(stations))
+
+    def test_one_station_and_nothing_is_moved(self):
+        p = self._at("PM3+T55+CU1")
+        self.assertEqual([b.station.name for b in p.blocks], ["PM3+T55+CU1"])
+        self.assertEqual(p.audit(), [])
+
+    def test_a_name_is_read_the_way_the_grid_prints_it(self):
+        from benchmatrix.stations import parse_station
+        self.assertEqual(parse_station("PM3+T55+CU1", Bench()).name, "PM3+T55+CU1")
+        self.assertEqual(parse_station("pm3 + cu1", Bench()).name, "PM3+CU1")
+
+    def test_a_typo_is_refused_rather_than_quietly_selecting_another_rig(self):
+        from benchmatrix.stations import StationError, parse_station
+        with self.assertRaises(StationError):
+            parse_station("PM3+NOPE", Bench())
+
+    def test_what_the_layout_cannot_produce_is_refused_by_name(self):
+        p = self._at("PM3+CU1")
+        rules = {e.rule for e in p.exclusions}
+        self.assertIn("not-in-this-layout", rules)
+        why = [e.why for e in p.exclusions if e.rule == "not-in-this-layout"][0]
+        self.assertIn("the T5577 tag", why, "it says what the cell would have needed")
+        self.assertIn("PM3+CU1", why, "and what it was given")
+
+    def test_a_tagless_layout_can_license_nothing(self):
+        """⛔ THE GOLD ROW IS A CREDENTIAL WRITTEN ON A T5577. A station with no tag has nothing to
+        calibrate against, so every cell is refused — and it must be refused at PLAN time, not left
+        to grade as UNGRADED."""
+        p = self._at("PM3+CU1")
+        self.assertEqual(p.cells, [])
+        self.assertTrue(p.exclusions)
+
+    def test_a_self_judging_pair_is_refused_not_crashed_on(self):
+        """⚠ `station_admits` asks what a cell needs, and asking that of a device pointed at its own
+        antenna raises — so the layout check has to come AFTER the self-judging one."""
+        p = self._at("PM3+CU1")
+        self.assertIn("self-judging", {e.rule for e in p.exclusions})
+
+    def test_several_layouts_may_be_named(self):
+        p = self._at("PM3+T55+CU1", "PM3+CU1")
+        self.assertEqual({b.station.name for b in p.blocks}, {"PM3+T55+CU1", "PM3+CU1"})
+        self.assertEqual(p.audit(), [])

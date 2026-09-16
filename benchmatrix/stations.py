@@ -140,6 +140,35 @@ class StationError(Exception):
     pass
 
 
+def parse_station(name: str, bench=None) -> "Station":
+    """Turn a printed station name back into a Station — `PM3+T55+CU1`, as the grid writes it.
+
+    ⭐ THE BENCH IS SOMETIMES A GIVEN, NOT A CHOICE. The planner normally picks arrangements and
+    asks the operator to build each one. When a rig is already standing — left set up between
+    sessions, or shared with another process — the useful question is the inverse: what can be
+    measured in THIS layout, without touching anything. That is what this name is for.
+
+    ⚠ IT IS THE SAME SPELLING THE GRID PUBLISHES, so a station named in a previous run's `stations:`
+    line can be handed straight back. Case and spacing are forgiven; an unknown part is not, because
+    a typo that silently selected a different rig would be measured and published as this one.
+    """
+    back = {v.lower(): k for k, v in SHORT.items()}
+    devs = []
+    for part in str(name).replace(" ", "").split("+"):
+        if not part:
+            continue
+        dev = back.get(part.lower())
+        if dev is None:
+            raise StationError("%r is not a device in a station name. Known: %s"
+                               % (part, ", ".join(sorted(SHORT.values()))))
+        if dev in devs:
+            raise StationError("%s appears twice in %r" % (SHORT[dev], name))
+        devs.append(dev)
+    if not devs:
+        raise StationError("%r names no devices" % name)
+    return build_station(set(devs), bench or Bench())
+
+
 # ------------------------------------------------------------------ the bench
 
 @dataclass(frozen=True)

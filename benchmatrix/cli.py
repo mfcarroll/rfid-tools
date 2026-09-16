@@ -184,7 +184,8 @@ def cmd_plan(a) -> int:
     reg.validate()
     session = a.session or runner.session_id()
     protos, notes = _protocols(a, session)
-    p = planning.build(protos, a.source, a.reader, _bench(a), cross=getattr(a, "cross", False))
+    p = planning.build(protos, a.source, a.reader, _bench(a), cross=getattr(a, "cross", False),
+                       at=getattr(a, "at", None) or ())
     for n in notes:
         print("  %s" % n)
     print("\n  %d cells · %d stations · %d operator interventions · %d refused at plan time"
@@ -277,7 +278,8 @@ def cmd_run(a) -> int:
     protos, notes = _protocols(a, session)
     for n in notes:
         print("  %s" % n)
-    p = planning.build(protos, a.source, a.reader, _bench(a), cross=getattr(a, "cross", False))
+    p = planning.build(protos, a.source, a.reader, _bench(a), cross=getattr(a, "cross", False),
+                       at=getattr(a, "at", None) or ())
     devices = _devices(a)
     carried_cells, carried_lic, earlier = [], {}, None
     if getattr(a, "resume", None):
@@ -890,6 +892,14 @@ def build_parser() -> argparse.ArgumentParser:
             sp.add_argument("--max-stack", type=int, default=3,
                             help="how many devices will physically stack (a bench fact, not a "
                                  "preference: more coverage per setup, more crowding)")
+            sp.add_argument("--at", action="append", metavar="STATION",
+                            help="the bench is ALREADY in this layout — measure what it admits and "
+                                 "move nothing. Spelled as the grid prints it: `PM3+T55+CU1`. "
+                                 "Repeatable. ⭐ For a rig left standing, or one shared with "
+                                 "another session. ⛔ Cells this layout cannot produce are refused "
+                                 "BY NAME, not dropped. ⚠ A station holding a TAG still needs the "
+                                 "tag lifted out and back for its two null sweeps — only a "
+                                 "tagless layout is genuinely hands-off")
             sp.add_argument("--cross", action="store_true",
                             help="also measure tag cells with the Proxmark on NEITHER side "
                                  "(t55.flip → rd.cu1 and friends). ⚠ Normally redundant: a T5577's "
