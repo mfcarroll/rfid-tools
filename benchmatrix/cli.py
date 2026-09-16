@@ -714,9 +714,15 @@ def cmd_learn(a) -> int:
                 value = _confirm_value(p, reader, text, obs, proposals, not a.no_prompt)
                 if value is None:
                     continue
+            # ⛔ THE EVIDENCE IS THE TRANSCRIPT, NOT THE FILTERED RESULT. `Flipper.read` returns
+            # only anchored success lines, so recording its return value stored `Viking 001A3371`
+            # as the "evidence" for `001A3371` — the value restating itself, which proves nothing
+            # and cannot be re-read later to check the extraction. The Chameleon's records kept the
+            # whole reply and were the better provenance by accident.
             records[(p.key, reader)] = learned.Learned(
                 protocol=p.key, reader=reader, value=value, session=session, source="t55.pm3",
-                when=_dt.datetime.now().isoformat(timespec="seconds"), evidence=text[-800:])
+                when=_dt.datetime.now().isoformat(timespec="seconds"),
+                evidence=(getattr(dev, "last_transcript", "") or text)[-1200:])
             learned_now += 1
             print("      ✓ %s %s expects %r" % (p.key, reader, value))
     learned.save(records, a.learned)

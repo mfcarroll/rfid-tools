@@ -488,3 +488,23 @@ class TheProxmarkChecksItsOwnWriteOutLoud(_ScriptedLearningBench):
         self.assertNotIn("the credential is not what the registry says it is", out)
         for candidate in ("write", "registry", "stack"):
             self.assertIn(candidate, out)
+
+
+class TheRecordKeepsTheTranscriptNotTheAnswer(_ScriptedLearningBench):
+    """⛔ A VALUE RESTATING ITSELF IS NOT PROVENANCE. `Flipper.read` returns only the anchored
+    success lines, so recording its return value stored `Viking 001A3371` as the evidence for
+    `001A3371` — nothing that could later be re-read to check the extraction, which is the one job
+    evidence has. The Chameleon's records kept the whole reply and were better by accident."""
+
+    def test_the_whole_reply_is_kept_where_the_channel_has_one(self):
+        self.dev.cu1.answers[("hidprox", "t5577")] = self.CU_HIDPROX
+        import contextlib
+        import io
+        with contextlib.redirect_stdout(io.StringIO()):
+            cli.cmd_learn(cli.build_parser().parse_args(
+                ["learn", "--no-prompt", "-r", "rd.cu1", "-p", "hidprox",
+                 "--learned", self.path, "--session", "S1"]))
+        rec = learned.load(self.path)[("hidprox", "rd.cu1")]
+        self.assertIn("Card number", rec.evidence, "lines the value itself does not contain")
+        self.assertGreater(len(rec.evidence), len(rec.value) * 2,
+                           "evidence that is just the answer again is not evidence")
