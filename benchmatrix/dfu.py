@@ -61,6 +61,10 @@ DEFAULTS = {
     "wait": 15.0,
     "back_wait": 20.0,
     "options": [],
+    # ⚠ A BEAT BEFORE THE TRIGGER. The caller reads `hw version` and `hw chipid` first, which are two
+    # CDC sessions that each connect and disconnect; the original tool opened the port cold. Half a
+    # second costs nothing and removes the question.
+    "settle": 0.5,
 }
 
 
@@ -86,6 +90,41 @@ def usb(spec):
 
 def ports_matching(ident):
     return [p.device for p in list_ports.comports() if (p.vid, p.pid) == ident]
+
+
+def snapshot():
+    """Every port and its USB ids — what the bus looked like at one moment."""
+    return {p.device: (p.vid or 0, p.pid or 0) for p in list_ports.comports()}
+
+
+def describe_change(before, after, dfu_ident):
+    """What the trigger actually did, for when the expected bootloader did not appear.
+
+    ⛔⛔ REPORTING AN ABSENCE IS NOT A DIAGNOSIS. "The bootloader never enumerated" is true of three
+    completely different faults — the command not taking effect, the device rebooting without the
+    bootloader coming up, and the bootloader coming up under USB ids we are not looking for — and
+    they need three different things done about them. The bus says which, so say what the bus said.
+    """
+    gone = {d: i for d, i in before.items() if d not in after}
+    came = {d: i for d, i in after.items() if d not in before}
+    fmt = lambda m: ", ".join("%s (%04x:%04x)" % (d, i[0], i[1]) for d, i in sorted(m.items()))
+
+    if came:
+        unexpected = {d: i for d, i in came.items() if i != dfu_ident}
+        if unexpected:
+            return ("something DID appear, but not at the bootloader id %04x:%04x we watch for: %s. "
+                    "If that is this device's bootloader, set `dfu_usb` for the target to its ids. "
+                    "%s" % (dfu_ident[0], dfu_ident[1], fmt(unexpected),
+                            ("The target port went away: " + fmt(gone)) if gone else ""))
+        return "the bootloader appeared late, after the wait expired: %s" % fmt(came)
+    if gone:
+        return ("the device REBOOTED — %s went away and nothing came back in its place. The command "
+                "took effect, so this is the bootloader failing to start or to enumerate, not a "
+                "trigger that was ignored. A device flashed over SWD with the application only has "
+                "no bootloader to reach." % fmt(gone))
+    return ("nothing on the bus changed at all: the device did not even reboot, so the command had "
+            "no effect. Check that the port is the device you think it is, and that nothing else "
+            "holds the CDC session open.")
 
 
 def run(cfg):
@@ -119,11 +158,14 @@ def run(cfg):
     emit("preflight", True, "target %s; leaving alone: %s"
          % (cfg["port"], ", ".join(others) or "(none)"), others=others)
 
+    time.sleep(cfg.get("settle", 0))
+    before = snapshot()
     s = serial.Serial(port=cfg["port"], baudrate=115200)
     try:
         s.dtr = 1
         s.timeout = 0
         s.write(bytes.fromhex(cfg["trigger"]))
+        s.flush()
     finally:
         s.close()
 
@@ -138,9 +180,9 @@ def run(cfg):
         time.sleep(0.05)
     if not boot:
         emit("trigger", False,
-             "the bootloader never enumerated within %.0fs — NOTHING was flashed and the device is "
-             "back in the application. This is a TRIGGER failure, not a flash failure."
-             % cfg["wait"])
+             "no bootloader at %s within %.0fs, and NOTHING was flashed. %s"
+             % (cfg["dfu_usb"], cfg["wait"], describe_change(before, snapshot(), dfu)),
+             bus_before=before, bus_after=snapshot())
         return 1
     emit("trigger", True, "bootloader up at %s after %.1fs" % (", ".join(boot), time.time() - t0))
 
