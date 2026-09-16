@@ -197,13 +197,34 @@ class FlipperCLI:
 
     # ------------------------------------------------------------------ the arms
 
-    def read(self, mode: str = "both", attempts: int = 6) -> list[Attempt]:
-        """`rfid read`, returning one `Attempt` per try. No text for a caller to re-parse."""
+    def read(self, mode="both", attempts: int = 6, stop_on_first: bool = True) -> list[Attempt]:
+        """`rfid read`, returning one `Attempt` per try. No text for a caller to re-parse.
+
+        ⭐ IT STOPS AT THE FIRST DECODE, AND THE DEFAULT USED TO BE TO RUN ALL TWELVE. A failed read
+        does not return on its own — it costs the full settle plus the ETX drain, about nine
+        seconds — so asking a front end that has nothing to find, six times, after the other one
+        has already answered, cost 49 seconds per protocol on the bench. Across the Flipper's
+        fourteen unknowns that is eleven minutes of the operator watching a spinner.
+        ⇒ What the harness needs from a read is WHAT the reader prints, and one decode says it.
+
+        ⛔ `stop_on_first=False` IS FOR A HIT RATE, AND A NULL SWEEP IS NOT ONE. A sweep decodes
+        nothing by construction, so it runs every attempt either way — the denominator only matters
+        where something DID answer and the question is how often (C81/C83).
+
+        ⚠ `mode` MAY BE AN ORDER. The front ends are not symmetric: `rfid read indala` decodes ASK
+        perfectly well (C353), but a PSK signal is not recoverable through the ASK front end. So
+        trying the likely one first is free, and trying the other afterwards is what keeps it
+        correct when the guess is wrong.
+        """
+        order = list(MODES) if mode == "both" else ([mode] if isinstance(mode, str) else list(mode))
         out: list[Attempt] = []
-        for m in (list(MODES) if mode == "both" else [mode]):
+        for m in order:
             for _ in range(attempts):
                 lines = self.run("rfid read " + MODES[m], "Reading stopped")
-                out.append(Attempt(mode=m, decode=decode(lines, m), lines=tuple(lines)))
+                got = decode(lines, m)
+                out.append(Attempt(mode=m, decode=got, lines=tuple(lines)))
+                if got and stop_on_first:
+                    return out
         return out
 
     def emulate(self, protocol: str, data: str, seconds: int = 30) -> None:
@@ -226,6 +247,16 @@ class FlipperCLI:
     def write_tag(self, protocol: str, data: str) -> list[str]:
         """`rfid write` — the `t55.flip` writer."""
         return self.run("rfid write %s %s" % (protocol, data), "Writing", settle=20.0)
+
+
+def front_ends_for(family: str) -> tuple:
+    """Which front end to try first for a protocol of this modulation family.
+
+    ⚠ NOT A FILTER, AN ORDER. Both are still tried — `rfid read normal` cannot recover a PSK signal,
+    so guessing wrong must cost time and not a reading. `normal` handles ASK and FSK (HID H10301 is
+    FSK and decodes through it); `indala` is the PSK front end and decodes ASK too (C353).
+    """
+    return ("psk", "ask") if family == "psk" else ("ask", "psk")
 
 
 def decode(lines, mode: str = "") -> Decode | None:

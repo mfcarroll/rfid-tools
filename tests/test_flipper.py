@@ -135,3 +135,62 @@ class ItImportsWithoutPyserial(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class ItStopsAsSoonAsSomethingDecodes(unittest.TestCase):
+    """⭐ A FAILED READ DOES NOT RETURN ON ITS OWN. `rfid read` loops until a tag is decoded or ETX
+    arrives, so a miss costs the full settle plus the drain — about nine seconds. Running all twelve
+    attempts after the answer was already known cost 49 seconds PER PROTOCOL on the bench; across
+    the Flipper's fourteen unknowns, eleven minutes of the operator watching a spinner.
+
+    ⛔ AND THE WASTE WAS ALL IN THE WRONG FRONT END. `rfid read indala` has nothing to find on an
+    FSK tag, and it was asked six times after `normal` had already answered.
+    """
+
+    class FakeCLI(flipper.FlipperCLI):
+        """Only `run` is stubbed — the loop, the ordering and the stop are the real ones."""
+
+        def __init__(self, replies):
+            self.replies, self.asked, self.settle, self.quiet = replies, [], 6.0, True
+            self.transcript = []
+
+        def run(self, command, terminator, settle=None):
+            self.asked.append(command)
+            return self.replies.get(command, ["Reading stopped"])
+
+    HIT = ["H10301 7B11D7", "Reading stopped"]
+
+    def test_one_decode_ends_the_read(self):
+        f = self.FakeCLI({"rfid read normal": self.HIT})
+        got = f.read(("ask", "psk"), attempts=6)
+        self.assertEqual(len(got), 1)
+        self.assertEqual(f.asked, ["rfid read normal"], "eleven reads that answer nothing, skipped")
+
+    def test_the_other_front_end_is_still_tried_when_the_first_is_empty(self):
+        """⛔ The order is a guess, so a wrong guess must cost time and not a reading: `rfid read
+        normal` cannot recover a PSK signal."""
+        f = self.FakeCLI({"rfid read indala": self.HIT})
+        got = f.read(("ask", "psk"), attempts=2)
+        self.assertTrue(got[-1].decode)
+        self.assertEqual(f.asked, ["rfid read normal", "rfid read normal", "rfid read indala"])
+
+    def test_a_null_still_runs_every_attempt(self):
+        """⚠ Nothing decodes, so there is nothing to stop at — which is correct: a sweep proving
+        the field is empty wants its full denominator."""
+        f = self.FakeCLI({})
+        got = f.read(("ask", "psk"), attempts=3)
+        self.assertEqual(len(got), 6)
+        self.assertTrue(all(a.decode is None for a in got))
+
+    def test_a_hit_rate_can_still_be_asked_for(self):
+        f = self.FakeCLI({"rfid read normal": self.HIT})
+        got = f.read(("ask",), attempts=4, stop_on_first=False)
+        self.assertEqual(len(got), 4, "C81/C83 bracketed an arm by how OFTEN it hit")
+
+    def test_the_likely_front_end_goes_first(self):
+        self.assertEqual(flipper.front_ends_for("psk")[0], "psk")
+        for family in ("ask", "fsk"):
+            self.assertEqual(flipper.front_ends_for(family)[0], "ask", family)
+        for family in ("ask", "fsk", "psk"):
+            self.assertEqual(set(flipper.front_ends_for(family)), {"ask", "psk"},
+                             "both are always tried — this orders, it does not filter")

@@ -470,7 +470,7 @@ class Flipper:
         """
         with self._session() as f:
             try:
-                tries = f.read("both", self.attempts)
+                tries = f.read(flipper.front_ends_for(p.family), self.attempts)
             except flipper.FlipperError as e:
                 raise DeviceError(
                     "flipper: the reader is not running — nothing measured against it would mean "
