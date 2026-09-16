@@ -405,3 +405,79 @@ class AWriteIsNotDoneBecauseItReturned(unittest.TestCase):
         for c in res.cells:
             self.assertNotIn("nothing read it back", c.note,
                              "the Proxmark witnessed it at the write station, one stop earlier")
+
+
+class AWriterUnderTestIsNotCreditedWithAnothersWork(unittest.TestCase):
+    """⛔ Every writer in the registry puts the SAME credential on the tag for a given protocol. So
+    after the Proxmark has written it, a byte-exact read following the Chameleon's write is exactly
+    what a write that did nothing would leave behind."""
+
+    PROTOS = ("keri",)
+
+    def _plan(self):
+        from benchmatrix import plan as planning
+        return planning.build(reg.resolve(list(self.PROTOS)), ["t55.pm3", "t55.cu1"],
+                              ["rd.pm3", "rd.cu1"], Bench())
+
+    def test_the_tag_is_parked_before_the_writer_under_test(self):
+        ops = [o for b in self._plan().blocks for o in b.ops]
+        kinds = [(o.kind, o.device, o.protocol.key) for o in ops]
+        park = next(i for i, k in enumerate(kinds) if k[0] == "write" and k[2] == "__park__")
+        cu_write = next(i for i, k in enumerate(kinds) if k[0] == "write" and k[1] == "cu1")
+        self.assertLess(park, cu_write, "the park must precede the write it protects")
+        self.assertEqual(kinds[park + 1][0], "verify", "a park that is not verified protects nothing")
+
+    def test_the_gold_write_needs_no_park(self):
+        """The tag already holds a different protocol, and what a gold row claims is only that the
+        tag carries the credential — not who put it there."""
+        ops = [o for b in self._plan().blocks for o in b.ops]
+        pm3_write = next(o for o in ops if o.kind == "write" and o.device == "pm3"
+                         and o.protocol.key != "__park__")
+        self.assertFalse(pm3_write.after_park)
+
+    def test_the_park_uses_a_credential_no_protocol_in_the_registry_uses(self):
+        park = reg.park_protocol()
+        self.assertNotIn(park.expect, {p.expect for p in reg.TIER0.values()})
+        self.assertTrue(park.key.startswith("__"))
+
+    def test_a_no_op_write_by_the_device_under_test_is_caught(self):
+        """The whole point: the Chameleon's write does nothing, the tag keeps the parking
+        credential, and the cells that claim to be about the Chameleon's writer go UNGRADED."""
+        protos = reg.resolve(list(self.PROTOS))
+        answers = answers_all_exact(protos)
+        park = reg.park_protocol()
+        answers.update({(park.key, e): "[+] EM 410x ID %s" % park.expect
+                        for e in ("t5577", "cu1", "cu2", "flipper")})
+        dev = make_devices(answers=answers)
+        real_write = dev.cu1.write_t55
+        dev.cu1.write_t55 = lambda p: "ok"          # returns cheerfully, changes nothing
+        res = runner.run(self._plan(), dev, interactive=False, session="S", out=quiet)
+        cu_written = [c for c in res.cells if c.source == "t55.cu1"]
+        self.assertTrue(cu_written)
+        for c in cu_written:
+            self.assertIs(c.outcome, Outcome.UNGRADED,
+                          "a write that did nothing must not be scored EXACT")
+
+    def test_an_unverified_park_blocks_the_write_it_was_meant_to_protect(self):
+        protos = reg.resolve(list(self.PROTOS))
+        answers = answers_all_exact(protos)
+        park = reg.park_protocol()
+        # The parking write is issued but nothing reads it back, so the tag's state is unknown and
+        # the write it was meant to protect cannot be told from a write that did nothing.
+        answers.update({(park.key, e): "" for e in ("t5577", "cu1", "cu2", "flipper")})
+        res = runner.run(self._plan(), make_devices(answers=answers), interactive=False,
+                         session="S", out=quiet)
+        cu_written = [c for c in res.cells if c.source == "t55.cu1"]
+        self.assertTrue(cu_written)
+        for c in cu_written:
+            self.assertIs(c.outcome, Outcome.UNGRADED)
+            self.assertIn("parking write did not take", c.note)
+
+    def test_the_gold_rows_are_unaffected_by_any_of_this(self):
+        """The Chameleon's writer being untestable must not cost us the Proxmark's column."""
+        protos = reg.resolve(list(self.PROTOS))
+        res = runner.run(self._plan(), make_devices(answers=answers_all_exact(protos)),
+                         interactive=False, session="S", out=quiet)
+        gold = [c for c in res.cells if c.source == "t55.pm3"]
+        self.assertTrue(gold)
+        self.assertTrue(all(c.outcome is Outcome.EXACT for c in gold))

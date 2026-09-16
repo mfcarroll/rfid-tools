@@ -67,6 +67,10 @@ class TagState:
     writer: str | None = None
     verified: bool = False
     tag: int = 0
+    #: Was the tag put into a state known to DIFFER from this credential before it was written?
+    #: Without that, a byte-exact read cannot tell a successful write from no write at all, because
+    #: every writer in the registry writes the same credential for a given protocol.
+    parked: bool = True
 
 
 @dataclass
@@ -301,10 +305,14 @@ def _routine(report: BlockReport, devices: Devices, res: RunResult, session: str
 
         if op.kind == "write":
             settle()
+            # ⚠ `settle()` has just decided whether the PARKING write took. Read that before it is
+            # overwritten by this write's own state.
+            parked = tag_state.verified if op.after_park else True
             armed_ok = _write(op, devices, out)
             state = (op.protocol, op.device)
             tag_state.protocol, tag_state.writer = op.protocol, op.device
             tag_state.verified = False          # a fresh credential has been witnessed by nothing
+            tag_state.parked = parked
             continue
         if op.kind == "arm":
             settle()
@@ -376,13 +384,29 @@ def _settle(pending: list, state, tag_state: TagState, report: BlockReport, devi
         tag_state.verified = True
     verified = tag_state.verified
     graded = [(op, obs) for op, obs in pending if op.cell is not None]
+
+    # ⛔⛔ A BYTE-EXACT READ AFTER AN UNPARKED WRITE PROVES NOTHING ABOUT THE WRITER. Every writer in
+    # the registry puts the same credential on the tag for a given protocol, so if the tag was not
+    # first put into a state known to differ, what comes back is exactly what a write that did
+    # nothing would have left behind — the gold writer's work, credited to the device under test.
+    if graded and not tag_state.parked:
+        why = ("the tag was not first put into a state differing from this credential, so a "
+               "byte-exact read here cannot tell a successful write from no write at all — the "
+               "parking write did not take (RULES.md §10).")
+        out("      ▒ %-10s UNPARKED — %s" % (state[0].key if state else "?", why[:90]))
+        for op, obs in graded:
+            c = op.cell
+            res.cells.append(ungraded(c.protocol.key, c.source, c.reader, why,
+                                      crowding=op.crowding))
+        return
     if verified:
         for op, obs in graded:
             _grade_one(op, obs, report, res, out, issued)
         return
     if not graded:
+        what = state[0].key if state else "?"
         out("      ▒ %s: the write was issued and the writer could not read it back"
-            % (state[0].key if state else "?"))
+            % ("the parking credential" if what.startswith("__") else what))
         return
 
     protocol = state[0].key if state else pending[0][0].protocol.key

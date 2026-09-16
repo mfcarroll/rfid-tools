@@ -437,17 +437,23 @@ class Scripted:
                 if d != self.id and (self.air.in_stack is None or d in self.air.in_stack)]
 
     def read(self, p: reg.Protocol) -> str:
+        """⛔ ONLY AN EMITTER ACTUALLY HOLDING THIS PROTOCOL CAN ANSWER FOR IT. The scripted answers
+        are keyed by (protocol, device) and it is tempting to look them up directly — but then a
+        reader is told what a device WOULD say if it were emitting that protocol, regardless of what
+        it is emitting now. A test for "the write did nothing, so the tag still holds the parking
+        credential" then passes with flying colours, because the fake answers for the protocol that
+        was never written. The scripted bench must be able to be wrong in the same ways the real one
+        is, or the tests are about nothing.
+        """
         heard = self.audible()
-        first = heard[0][0] if heard else None
-        self.log.append(("read", p.key, first))
-        for dev, key, _ in heard:
+        holding = [(d, k, v) for d, k, v in heard if k == p.key]
+        self.log.append(("read", p.key, holding[0][0] if holding else None))
+        if not holding:
+            return ""
+        for dev, _, _ in holding:
             if (p.key, dev) in self.answers:
                 return self.answers[(p.key, dev)]
-        if (p.key, first) in self.answers:
-            return self.answers[(p.key, first)]
-        texts = ["[+] %s scripted read: %s" % (p.key, exp)
-                 for _, key, exp in heard if key == p.key and exp]
-        return "\n".join(texts)
+        return "\n".join("[+] %s scripted read: %s" % (p.key, exp) for _, _, exp in holding if exp)
 
     def write_t55(self, p: reg.Protocol) -> str:
         self.log.append(("write", p.key))
