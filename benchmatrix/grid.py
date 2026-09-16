@@ -349,14 +349,24 @@ def _exclusions(exclusions: list[Exclusion]) -> list[str]:
     out = ["## refused at plan time", "",
            "Not tested, and not a failure. Each of these was removed from the plan before any bench "
            "time was spent on it, with the rule that removed it.", ""]
-    by_rule: dict[str, list[Exclusion]] = {}
+    # ⛔⛔ GROUPED BY THE REASON, NOT BY THE RULE NAME. `group[0].why` printed the FIRST member's
+    # sentence for the whole rule and dropped the rest — and the reasons here NAME THINGS, so
+    # members of one rule routinely differ. Run 20260916_114253 published "no Proxmark simulation
+    # command is registered for keri" over a group that was half `em410x_electra`, and one
+    # "(emu.pm3, rd.pm3) puts the Proxmark on its own antenna" over a group that was mostly
+    # Chameleon cells. The operator reading it learns why one member was refused and is told
+    # nothing about the others, while looking at a sentence that appears to cover them.
+    #
+    # ⚠ THIRD TIME IN THIS FILE: one string used both as a grouping key and as the text. The note
+    # truncation in `_open_questions` carries the same warning, written after the same bug.
+    by_reason: dict[tuple, list[Exclusion]] = {}
     for e in exclusions:
-        by_rule.setdefault(e.rule, []).append(e)
-    for rule in sorted(by_rule):
-        group = by_rule[rule]
+        by_reason.setdefault((e.rule, e.why), []).append(e)
+    for (rule, why) in sorted(by_reason):
+        group = by_reason[(rule, why)]
         out.append("**%s** — %d cell%s" % (rule, len(group), "" if len(group) == 1 else "s"))
         out.append("")
-        out.append("> %s" % group[0].why)
+        out.append("> %s" % why)
         out.append("")
         pairs = sorted({"%s (%s → %s)" % (e.protocol, e.source, e.reader) for e in group})
         out.append("  " + "; ".join(pairs[:12]) + (" …" if len(pairs) > 12 else ""))

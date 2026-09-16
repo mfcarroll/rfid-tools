@@ -93,3 +93,43 @@ class TheAxesAreDerivedNotRemembered(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class EveryRefusalShowsITSOwnReason(unittest.TestCase):
+    """⛔⛔ THE THIRD TIME IN THIS FILE THAT ONE STRING WAS A GROUPING KEY AND THE TEXT. Refusals
+    were grouped by RULE and printed the first member's `why` for all of them — and these reasons
+    NAME THINGS, so members of one rule routinely differ. Run 20260916_114253 published "no Proxmark
+    simulation command is registered for keri" over a group that was half `em410x_electra`, and one
+    "(emu.pm3, rd.pm3) puts the Proxmark on its own antenna" over a group that was mostly Chameleon
+    cells. Each reads as though it covers the group it heads.
+    """
+
+    def _rendered(self, exclusions):
+        from benchmatrix.plan import Exclusion
+        return "\n".join(grid._exclusions([Exclusion(*e) for e in exclusions]))
+
+    def test_two_reasons_under_one_rule_both_appear(self):
+        md = self._rendered([
+            ("keri", "emu.pm3", "rd.pm3", "no-emitter", "no sim command for keri."),
+            ("em410x_electra", "emu.pm3", "rd.cu1", "no-emitter", "no sim command for electra."),
+        ])
+        self.assertIn("no sim command for keri.", md)
+        self.assertIn("no sim command for electra.", md)
+
+    def test_a_reason_is_never_printed_over_cells_it_does_not_describe(self):
+        """⚠ THE HARM, STATED DIRECTLY: a sentence naming one protocol heading a list of others."""
+        md = self._rendered([
+            ("keri", "emu.pm3", "rd.pm3", "no-emitter", "no sim command for keri."),
+            ("em410x_electra", "emu.pm3", "rd.cu1", "no-emitter", "no sim command for electra."),
+        ])
+        block = md.split("no sim command for keri.", 1)[1].split("**", 1)[0]
+        self.assertNotIn("em410x_electra", block)
+
+    def test_one_shared_reason_still_groups_into_one_block(self):
+        """⚠ The fix must not shatter a rule that genuinely has one reason into a block per cell."""
+        md = self._rendered([
+            ("awid", "t55.cu1", "rd.cu1", "covered", "answered by the two cells beside it."),
+            ("em410x", "t55.cu1", "rd.cu1", "covered", "answered by the two cells beside it."),
+        ])
+        self.assertEqual(md.count("answered by the two cells beside it."), 1)
+        self.assertIn("**covered** — 2 cells", md)
