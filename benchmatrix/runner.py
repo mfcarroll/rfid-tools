@@ -139,9 +139,15 @@ class RunResult:
 
     @property
     def to_isolate(self) -> list[Cell]:
-        """Screened non-EXACT readings, in the order they were taken. The phase-2 work list."""
-        return [c for c in self.cells if c.crowding and c.outcome is Outcome.UNGRADED
-                and c.observation is not None]
+        """Screened non-EXACT readings, in the order they were taken. The phase-2 work list.
+
+        ⛔ `provisional`, NOT `crowding`. The warning against sending the operator to redo a
+        measurement that was fine was written in `_grade_one`'s comments and never in the code that
+        builds the work list, which asked only whether the stack had been crowded. Every unlicensed
+        reading answers yes to that, so a run that was short of a gold row — the one case where
+        rearranging the bench cannot possibly help — bought itself the largest phase 2.
+        """
+        return [c for c in self.cells if c.provisional and c.observation is not None]
 
 
 @dataclass

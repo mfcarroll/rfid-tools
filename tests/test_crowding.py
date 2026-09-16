@@ -10,6 +10,7 @@ import unittest
 
 from tests.helpers import EMITTERS, answers_all_exact, make_devices, quiet, reg, runner
 from benchmatrix import grid, plan as planning
+from benchmatrix import outcomes
 from benchmatrix.outcomes import Outcome
 from benchmatrix.stations import Bench
 
@@ -162,3 +163,65 @@ class TheIsolationPhase(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class AnUnlicensedReadingIsNotAPlaceholder(unittest.TestCase):
+    """⛔⛔ `crowding` IS A FACT ABOUT THE STACK; `provisional` IS A JUDGEMENT ABOUT THE READING.
+
+    Three call sites asked the first and meant the second — the phase-2 work list, the phase-2
+    merge, and the grid's ◌ glyph — and every reading taken in a crowded stack answers yes to
+    `crowding`, INCLUDING a byte-exact one. On 2026-09-15 that sent a byte-exact `t55.cu1 -> rd.cu1`
+    fdxb read back to the bench. It was the only evidence in that run that the Chameleon can see
+    fdxb at all; it was re-measured behind a failed park, overwritten with a non-result, and the
+    published record went on citing the reading it had just deleted.
+    """
+
+    def _unlicensed_exact(self):
+        """fdxb from both tag sources, with the Proxmark's write failing to land.
+
+        ⇒ No gold row passes, so every cell is UNGRADED for want of a licence — but the Chameleon's
+        own tag still reads back byte-exact, in a crowded stack.
+        """
+        protos = reg.resolve(["fdxb"])
+        plan = planning.build(protos, ["t55.pm3", "t55.cu1"], ["rd.pm3", "rd.cu1"], Bench())
+        dev = make_devices()
+        dev.pm3.write_works = False
+        res = runner.run(plan, dev, interactive=False, session="S", out=quiet)
+        return res, [c for c in res.cells if c.source == "t55.cu1" and c.reader == "rd.cu1"][0]
+
+    def test_the_reading_is_exact_and_unlicensed_and_crowded(self):
+        """The fixture is only interesting if it really is all three."""
+        _, cell = self._unlicensed_exact()
+        self.assertIs(cell.outcome, Outcome.UNGRADED, "no gold row passed")
+        self.assertIs(cell.observation.outcome_if_licensed, Outcome.EXACT)
+        self.assertTrue(cell.crowding, "the cycle station has the Proxmark in it too")
+
+    def test_so_it_is_not_provisional(self):
+        _, cell = self._unlicensed_exact()
+        self.assertFalse(cell.provisional,
+                         "a bystander coil cannot manufacture a byte-exact decode (RULES.md §7)")
+
+    def test_and_is_never_sent_back_to_the_bench(self):
+        """⚠ Isolation cannot help: what is missing is a gold row, and no rearrangement supplies
+        one. Re-taking it can only lose the reading."""
+        res, _ = self._unlicensed_exact()
+        self.assertNotIn(("fdxb", "t55.cu1", "rd.cu1"),
+                         {(c.protocol, c.source, c.reader) for c in res.to_isolate})
+
+    def test_and_phase_two_may_not_overwrite_it(self):
+        """⛔ THE DATA LOSS ITSELF. `merge` replaced any cell carrying `crowding`, so a real
+        observation could be replaced by a worse one taken later."""
+        res, cell = self._unlicensed_exact()
+
+        class Phase2:                                   # the same cell, re-measured and silent
+            cells = [outcomes.grade(
+                outcomes.Observation(protocol="fdxb", source="t55.cu1", reader="rd.cu1", text="",
+                                     matched=False, decoded=False, marker_fired=False,
+                                     summary=()), None, note="nothing read it back")]
+            blocks, refusals, finished = [], {}, "later"
+
+        merged = grid.merge(res, Phase2())
+        kept = [c for c in merged.cells if c.source == "t55.cu1" and c.reader == "rd.cu1"][0]
+        self.assertIsNotNone(kept.observation, "the evidence survives")
+        self.assertIs(kept.observation.outcome_if_licensed, Outcome.EXACT)
+        self.assertIn("has no licence", kept.note, "still unlicensed — but still a reading")

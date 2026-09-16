@@ -152,3 +152,42 @@ class AnUnsettledSilenceIsPublishedForALaterRun(unittest.TestCase):
         res = runner.run(plan, dev, interactive=False, session="S", out=quiet)
         self.assertEqual(json.loads(grid.to_json(res, protos))["unattributed"], [],
                          "the later decode settled it, so nothing is left for a future run")
+
+
+class TheOpenQuestionsSectionMustNotCutOffTheReason(unittest.TestCase):
+    """⛔ THE ONE THING THE SECTION IS FOR. A cell is listed there precisely because it is not a
+    finding, so the reason is the whole content — and the reason was being cut mid-word:
+
+        "...so this cannot be told apart from"
+        "...so a byte-exact rea"
+        "...and rd.cu1 has decoded fdxb earlier in this session, so its silence now is about the"
+
+    ⚠ ONE STRING WAS DOING TWO JOBS. `note[:160]` was the key that groups identical reasons together
+    AND the text that gets printed. Grouping wants a bounded key; the reader wants the sentence.
+    """
+
+    def _rendered(self):
+        from tests.helpers import EMITTERS, make_devices, quiet
+        from benchmatrix import grid, plan as planning
+        from benchmatrix.stations import Bench
+        protos = reg.resolve(["fdxb"])
+        plan = planning.build(protos, ["t55.pm3"], ["rd.pm3"], Bench())
+        dev = make_devices(answers={("fdxb", e): "" for e in EMITTERS})
+        res = runner.run(plan, dev, interactive=False, session="S", out=quiet)
+        return grid.render(res, protos), res
+
+    def test_the_whole_note_is_published(self):
+        md, res = self._rendered()
+        notes = [" ".join(c.note.split()) for c in res.cells if c.note]
+        self.assertTrue(notes, "the fixture must produce an ungraded cell with a reason")
+        longest = max(notes, key=len)
+        self.assertGreater(len(longest), 160, "the fixture only bites on a note past the old cut")
+        self.assertIn(longest, md, "the reason reaches the report intact")
+
+    def test_and_it_still_ends_like_a_sentence(self):
+        """⚠ The cheap check the eye does: a reason that stops mid-word is the visible symptom."""
+        md, _ = self._rendered()
+        section = md.split("## open questions", 1)[1]
+        for line in [l for l in section.splitlines() if l.startswith("- **")]:
+            self.assertTrue(line.rstrip().endswith((".", ")")),
+                            "truncated mid-sentence: %r" % line[-60:])
