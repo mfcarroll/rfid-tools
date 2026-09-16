@@ -129,3 +129,27 @@ Say so plainly, then hand off to the **T5577 Flipper deep-read** project under
 `T5577_DATABLOCK_RESULTS.md`, `T5577_DIRECT_READ_CORPUS.md`, the `PREDICTION_*.md` files) but no
 offline process. Carry §1, §3 and §4 of this file across unchanged; they are not specific to this
 project.
+
+---
+
+## 6. Keeping the round alive, and stopping it
+
+The operator has `claude` running at startup and will drive the cadence with a cron/routine, so
+nothing here installs anything.
+
+**Two conventions this round must honour regardless of what fires it:**
+
+⭐ **`STOP` is the kill switch.** If a file named `STOP` exists in this directory, commit what is
+finished, say you are standing down, and stop. It is a *file* because the operator is checking in
+over VNC — creating one in a file browser must be enough, with no terminal and no remembering a
+label.
+
+⭐ **Touch `.loop-heartbeat` as the first action of every tick**, before reading anything. It is the
+only external evidence that the round is alive rather than wedged, and it costs nothing.
+
+⚠ **The honest gap.** Run-on-startup covers a reboot and a cron covers the cadence, but a cron that
+lives inside a session dies with it, so it cannot restart a session that has ended — the one case a
+watchdog exists for. That is a real hole, and the operator has accepted it. What makes it tolerable
+is the VNC check-ins: **a stalled round is visible, and costs idle time rather than wrong results.**
+An unattended round that produces nothing is a bad day; one that produces unlicensed verdicts is
+C473. ⛔ Do not trade the second for the first.
