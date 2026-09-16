@@ -561,3 +561,63 @@ class AnIntermittentReadBackIsRetriedAndSaidOutLoud(_ScriptedLearningBench):
         out, recs = self._learn("-p", "viking")
         self.assertEqual(recs, {})
         self.assertIn("cannot read back what it just wrote", out)
+
+
+class AConfirmedSilenceIsARecordAndIsScopedToItsSource(_ScriptedLearningBench):
+    """⛔⛔ THE UNSCOPED CLAIM WAS FALSE, AND THE BENCH SAID SO. This printed "the Flipper does not
+    decode fdxb" after two isolated reads found nothing — and the Flipper then wrote an FDX-B tag
+    from its own template and read it straight back, with the Proxmark confirming that tag is valid
+    FDX-B. What was measured is that it decoded nothing from the PROXMARK's FRAME. That is an
+    interop finding; the capability gap it was written as does not exist.
+
+    ⭐ AND NOTHING WAS RECORDED AT ALL, so the reading was retaken every session — two bench moves
+    and 76 seconds apiece — and the finding never reached anywhere it could be cited.
+    """
+
+    def setUp(self):
+        super().setUp()
+        self.dev.flipper.answers[("fdxb", "t5577")] = ""      # decodes nothing, stacked or not
+        self._ask, self._choice = cli.cues.ask, cli.cues.ask_choice
+        cli.cues.ask = lambda prompt, spoken="", **kw: None
+        cli.cues.ask_choice = lambda prompt, choices, default, **kw: default
+
+    def tearDown(self):
+        cli.cues.ask, cli.cues.ask_choice = self._ask, self._choice
+        super().tearDown()
+
+    def _learn(self, *argv):
+        import contextlib
+        import io
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            cli.cmd_learn(cli.build_parser().parse_args(
+                ["learn", "-r", "rd.flip", "--learned", self.path, "--session", "S1", *argv]))
+        return buf.getvalue(), learned.load(self.path)
+
+    def test_the_silence_is_recorded_with_the_source_that_produced_it(self):
+        out, recs = self._learn("-p", "fdxb")
+        rec = recs[("fdxb", "rd.flip")]
+        self.assertFalse(rec.decoded)
+        self.assertEqual(rec.value, "", "there is no token — that is the result")
+        self.assertEqual(rec.source, "t55.pm3", "which frame it decoded nothing from")
+
+    def test_the_wording_does_not_claim_a_capability_gap(self):
+        out, _ = self._learn("-p", "fdxb")
+        self.assertIn("t55.pm3 frame", out)
+        self.assertIn("NOT a claim that", out)
+
+    def test_a_negative_is_never_folded_in_as_an_expectation(self):
+        _, recs = self._learn("-p", "fdxb")
+        protos, notes = learned.apply(reg.resolve(["fdxb"]), recs, "A LATER SESSION")
+        self.assertIsNone(protos[0].flip_expect, "an absence is not a token to compare against")
+        self.assertEqual(notes, [])
+
+    def test_and_it_is_not_measured_again_next_session(self):
+        self._learn("-p", "fdxb")
+        out, _ = self._learn("-p", "fdxb")
+        self.assertIn("already known or cannot be taken", out)
+
+    def test_unless_asked_to_relearn(self):
+        self._learn("-p", "fdxb")
+        out, _ = self._learn("-p", "fdxb", "--relearn")
+        self.assertIn("fdxb", out.split("learning")[1][:80])

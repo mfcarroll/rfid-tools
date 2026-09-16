@@ -40,11 +40,21 @@ DEFAULT_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "l
 class Learned:
     protocol: str
     reader: str
-    value: str          # the decoded hex the reader printed
+    value: str          # the decoded hex the reader printed; "" when nothing was decoded
     session: str        # ⛔ the session that learned it — see check_independence
     source: str         # what was on the pad (must be a real tag)
     when: str
     evidence: str
+    #: ⭐⭐ A CONFIRMED SILENCE IS A RESULT AND HAS TO BE WRITTEN DOWN. Nothing was recorded for a
+    #: reader that decoded nothing, so the measurement was repeated every session and the claim
+    #: never reached the gap register in a form anyone could cite.
+    #:
+    #: ⛔⛔ AND IT IS SCOPED TO `source`, WHICH IS THE WHOLE POINT. The Flipper decoded nothing from
+    #: the PROXMARK's FDX-B frame, isolated, twice — and then decoded its OWN written FDX-B tag
+    #: immediately, with the Proxmark confirming that tag is valid FDX-B. So the supportable claim
+    #: is "does not decode the t55.pm3 frame", NOT "cannot decode fdxb". Recorded without the
+    #: source, this becomes a firmware capability gap that the firmware plainly does not have.
+    decoded: bool = True
 
 
 class LearningRefused(Exception):
@@ -67,6 +77,14 @@ def save(records: dict[tuple[str, str], Learned], path: str = DEFAULT_PATH) -> N
     with open(path, "w", encoding="utf-8") as fh:
         json.dump(payload, fh, indent=2)
         fh.write("\n")
+
+
+def negative(protocol: str, reader: str, source: str, session: str, evidence: str) -> Learned:
+    """A confirmed non-decode: the reader was asked, isolated, and produced nothing."""
+    import datetime as _dt
+    return Learned(protocol=protocol, reader=reader, value="", session=session, source=source,
+                   when=_dt.datetime.now().isoformat(timespec="seconds"),
+                   evidence=evidence[-1200:], decoded=False)
 
 
 def check_independence(rec: Learned, session: str) -> None:
@@ -110,7 +128,10 @@ def apply(protocols: list[reg.Protocol], records: dict[tuple[str, str], Learned]
         fields, applied = {}, []
         for reader, field in sorted(FIELD_FOR.items()):
             rec = records.get((p.key, reader))
-            if rec is None or p.expect_for(reader) is not None or field in fields:
+            if rec is None or not rec.decoded or p.expect_for(reader) is not None \
+                    or field in fields:
+                # ⚠ A NEGATIVE RECORD IS NOT AN EXPECTATION. It says this reader produced nothing
+                # from that source's frame; there is no token to fold into the registry.
                 continue
             try:
                 check_independence(rec, session)
