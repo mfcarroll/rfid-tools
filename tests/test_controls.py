@@ -439,7 +439,9 @@ class AWriterUnderTestIsNotCreditedWithAnothersWork(unittest.TestCase):
         """⚠ Weaker: it neither restores the config nor says anything about P if it fails — but the
         tag still demonstrably changed, and only the device under test touched it."""
         from benchmatrix import plan as planning
-        p = planning.build(reg.resolve(["em410x"]), ["t55.cu1"], ["rd.cu2"], Bench())
+        # ⚠ `cross=True`: a station with no Proxmark in it only exists for a cell with the
+        # Proxmark on neither side, which a default plan now refuses as covered.
+        p = planning.build(reg.resolve(["em410x"]), ["t55.cu1"], ["rd.cu2"], Bench(), cross=True)
         pm3less = [b for b in p.blocks if "PM3" not in b.station.name]
         self.assertTrue(pm3less, "the writer-under-test block has no Proxmark in it")
         kinds = [(o.kind, o.protocol.key) for b in pm3less for o in b.ops]
@@ -700,7 +702,10 @@ class AFailedGoldRowMustNotSilenceTheOtherSources(unittest.TestCase):
         # own expectation from the registry is both more faithful and less to keep in step.
         from benchmatrix import plan as planning
         protos = reg.resolve(["fdxb"])
-        plan = planning.build(protos, ["t55.pm3", "t55.cu1"], ["rd.pm3", "rd.cu1"], Bench())
+  # ⚠ `cross=True`: this fixture is ABOUT a cell with the Proxmark on neither side, which
+        # a default plan now refuses as covered by the two reference cells.
+        plan = planning.build(protos, ["t55.pm3", "t55.cu1"], ["rd.pm3", "rd.cu1"],
+                              Bench(), cross=True)
         dev = make_devices()
         dev.pm3.write_works = False      # the Proxmark's fdxb write does not land
         return runner.run(plan, dev, interactive=False, session="S", out=quiet)

@@ -130,8 +130,15 @@ class ThePlanIsPhysicallyPossible(unittest.TestCase):
         by_protocol = {}
         for c in plan.cells:
             by_protocol.setdefault(c.protocol.key, set()).add((c.source, c.reader))
+        # ⭐⭐ THREE, NOT FOUR, AND THE FOURTH WAS NEVER WORTH THE BENCH TIME. The cycle used to
+        # claim `t55.cu1 → rd.cu1` as well — the Chameleon reading back its own write. A T5577's
+        # state after a write is DIGITAL, so nothing of the writer survives into what the tag
+        # transmits, and that cell is answered by (t55.cu1 → rd.pm3) plus (t55.pm3 → rd.cu1), both
+        # of which are right here in the same station. Operator: "there's nothing additional to be
+        # learned that a tag written *by* the chameleon can be read by the flipper."
         for p in full:
-            self.assertEqual(len(by_protocol[p.key]), 4, "%s should yield the full cycle" % p.key)
+            self.assertEqual(len(by_protocol[p.key]), 3, "%s should yield the cycle" % p.key)
+            self.assertNotIn(("t55.cu1", "rd.cu1"), by_protocol[p.key])
         # ...and the two with no Chameleon expectation keep only the Proxmark half of it.
         for key in ("hidprox", "ioprox"):
             self.assertEqual({r for _, r in by_protocol[key]}, {"rd.pm3"})
@@ -169,3 +176,55 @@ class EverySensibleRequestPlans(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class ATagIsADigitalIntermediary(unittest.TestCase):
+    """⭐⭐ WHICH MAKES MOST OF THE TAG GRID REDUNDANT, AND IT WAS BEING MEASURED ANYWAY.
+
+    A T5577's state after a write is a set of configuration and data blocks; the tag transmits from
+    those blocks and nothing of the writer survives into the emission. So `t55.X → rd.Y` asks what
+    (t55.X → rd.pm3) and (t55.pm3 → rd.Y) have already answered between them.
+
+    ⚠ THE OPERATOR SPOTTED IT ON THE BENCH, mid-run, looking at a station built to measure exactly
+    those cells: "Flipper → Tag → Chameleon and Chameleon → tag → Flipper are already covered by
+    PM → tag → Chameleon and Chameleon → tag → PM." Three stations and nine operator interventions
+    to answer nothing new.
+
+    ⛔ AND IT DOES NOT EXTEND TO EMULATION. An emulated waveform IS the emitter's analogue output,
+    so every (emitter, reader) pair is a distinct question.
+    """
+
+    S = ["t55.pm3", "t55.cu1", "t55.cu2", "t55.flip", "emu.cu1", "emu.cu2", "emu.flip"]
+    R = ["rd.pm3", "rd.cu1", "rd.cu2", "rd.flip"]
+
+    def _plan(self, cross):
+        return planning.build(reg.resolve(["em410x"]), self.S, self.R, Bench(tag_count=16),
+                              cross=cross)
+
+    def test_a_tag_cell_needs_the_reference_instrument_on_one_side(self):
+        for c in self._plan(False).cells:
+            if c.source.startswith("t55."):
+                self.assertTrue(c.source == "t55.pm3" or c.reader == "rd.pm3",
+                                "%s → %s has the Proxmark on neither side" % (c.source, c.reader))
+
+    def test_but_every_emulation_pair_is_still_asked(self):
+        """⛔ The analogue path is the whole question there."""
+        emu = {(c.source, c.reader) for c in self._plan(False).cells if c.source.startswith("emu.")}
+        for src, rdr in (("emu.flip", "rd.cu1"), ("emu.cu1", "rd.flip"), ("emu.cu2", "rd.cu1")):
+            self.assertIn((src, rdr), emu)
+
+    def test_the_refusal_names_the_two_cells_that_cover_it(self):
+        covered = [e for e in self._plan(False).exclusions if e.rule == "covered"]
+        self.assertTrue(covered)
+        why = covered[0].why
+        self.assertIn("rd.pm3", why)
+        self.assertIn("--cross", why, "and how to get it back when a covering cell fails")
+
+    def test_it_removes_whole_stations_not_just_cells(self):
+        """⭐ THE SAVING IS IN SETUPS, WHICH IS THE SCARCE RESOURCE. Those cells were the only
+        reason three of the stations existed."""
+        lean, full = self._plan(False), self._plan(True)
+        self.assertLess(lean.interventions, full.interventions)
+        for name in ("FLIP+T55+CU1", "FLIP+T55+CU2", "CU1+T55+CU2"):
+            self.assertNotIn(name, [b.station.name for b in lean.blocks])
+            self.assertIn(name, [b.station.name for b in full.blocks])

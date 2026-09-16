@@ -10,9 +10,14 @@ The consequence is the whole reason this file replaced a one-reader-one-pad mode
     Proxmark ─ T5577 ─ Chameleon 1
 
 one routine covers, for every protocol: the Proxmark writing and reading back, the Chameleon
-reading what the Proxmark wrote, the Chameleon writing, and the Proxmark reading that. Four cells a
-protocol, sixty-four cells, **one** intervention. The same work as a sequence of two-device
-arrangements costs thirty-two.
+reading what the Proxmark wrote, and the Chameleon writing for the Proxmark to read. Three cells a
+protocol, one intervention. The same work as a sequence of two-device arrangements costs many.
+
+⚠ THREE, NOT FOUR. The fourth — the Chameleon reading back its own write — is not measured, because
+a T5577's state after a write is DIGITAL: configuration and data blocks, from which the tag
+transmits. Nothing of the writer survives into the emission, so that cell is answered by the two
+above it. `plan._covered_by_reference` refuses it and `--cross` brings it back for the case where
+one of the covering cells has failed and you need to tell a bad writer from a bad reader.
 
 ⛔ AND THE PRICE IS THE CROWDED-STACK RULE (RULES.md §7). Devices left in the stack detune and load
 the active coil even when idle, so a station tells you less than an isolated pair does. A byte-exact
