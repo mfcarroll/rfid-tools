@@ -86,7 +86,7 @@ def merge(phase1, phase2):
     return phase1
 
 
-def _audit(cells: list[Cell], sources: list[str], readers: list[str],
+def _audit(cells: list[Cell], sources: dict, readers: list[str],
            protocols: list[reg.Protocol]) -> None:
     """Every measured cell must have a square to appear in. ⛔ MEASURED AND NOT SHOWN IS THE WORST
     OF THE THREE STATES: refused says so with a reason, missing is visible as a blank, but a
@@ -101,8 +101,8 @@ def _audit(cells: list[Cell], sources: list[str], readers: list[str],
     """
     keys = {p.key for p in protocols}
     lost = sorted({(c.protocol, c.source, c.reader) for c in cells
-                   if c.source not in sources or c.reader not in readers
-                   or c.protocol not in keys})
+                   if c.reader not in readers or c.protocol not in keys
+                   or c.source not in sources.get(c.reader, ())})
     if lost:
         raise GridError(
             "%d measured cell(s) would not appear anywhere in the grid: %s. The tallies count "
@@ -115,9 +115,20 @@ def render(result, protocols: list[reg.Protocol]) -> str:
     """The terminal/markdown grid: one table per reader, protocols down, sources across."""
     cells = _by_cell(result.cells)
     refused = {(e.protocol, e.source, e.reader) for e in result.plan.exclusions}
-    sources = [s for s in SOURCE_ORDER
-               if any(c.source == s for c in result.cells)]
     readers = [r for r in READER_ORDER if any(c.reader == r for c in result.cells)]
+    # ⛔ COLUMNS ARE PER READER, BECAUSE A SOURCE THIS READER NEVER SAW IS NOT A GAP IN ITS ROW.
+    # One global list put `emu.cu1` in the `rd.cu1` table, refused all the way down — a Chameleon
+    # cannot emulate and read at the same time, so that column was not an omission or a decision
+    # about this run, it was an IMPOSSIBILITY given a whole column of its own. The operator: "that's
+    # not a possible configuration... that should just be dropped from the table, as it's confusing."
+    #
+    # ⚠ A `– refsd` IS ONLY INFORMATIVE BESIDE A MEASUREMENT. In a live column it says this protocol
+    # was refused and the others were not; in a column of nothing else it says only that the column
+    # should not have been drawn. Every refusal keeps its full entry under "refused at plan time",
+    # with the rule that made it — which is where a reason belongs, not spread down a dead column.
+    sources = {r: [s for s in SOURCE_ORDER
+                   if any(c.source == s and c.reader == r for c in result.cells)]
+               for r in readers}
     _audit(result.cells, sources, readers, protocols)
     lines: list[str] = []
     w = max((len(p.key) for p in protocols), default=8)
@@ -158,11 +169,12 @@ def render(result, protocols: list[reg.Protocol]) -> str:
     for rdr in readers:
         lines.append("## reader `%s` — %s" % (rdr, READER_NOTE[rdr]))
         lines.append("")
-        lines.append("| %-*s | %s |" % (w, "protocol", " | ".join("%-8s" % s for s in sources)))
-        lines.append("|" + "|".join(["-" * (w + 2)] + ["-" * 10] * len(sources)) + "|")
+        cols = sources[rdr]
+        lines.append("| %-*s | %s |" % (w, "protocol", " | ".join("%-8s" % s for s in cols)))
+        lines.append("|" + "|".join(["-" * (w + 2)] + ["-" * 10] * len(cols)) + "|")
         for p in protocols:
             row = []
-            for s in sources:
+            for s in cols:
                 c = cells.get((p.key, s, rdr))
                 if c is None:
                     # ⚠ A BLANK CELL READS AS MISSING DATA. A refused cell is a decision with a
