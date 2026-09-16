@@ -97,6 +97,24 @@ def _one_rig_spoken(station) -> str:
     return said
 
 
+def spoken_move(frm, to) -> str:
+    """What to say for one bench change. THE ONE PLACE THAT DECIDES, so every caller agrees.
+
+    ⛔ A MOVE IN ONE DIRECTION IS SAID AS THAT MOVE. Describing the whole arrangement is right when
+    the bench is being rebuilt and noise when one thing goes on or comes off a rig that is otherwise
+    already correct — the operator has to parse the sentence to find the one word in it that is an
+    instruction. At the FIRST station (`frm is None`) there is no previous state for a delta to be
+    against, so the arrangement is the only thing that can be checked against the bench.
+    """
+    from .stations import plan_move
+    move = plan_move(frm, to)
+    if move.remove and not move.place:
+        return spoken_removal(move.remove)
+    if move.place and not move.remove and frm is not None:
+        return spoken_addition(move.place, to)
+    return spoken_arrangement([to])
+
+
 def working(out, what: str) -> "callable":
     """Announce a slow operation BEFORE it blocks, and report how long it took.
 

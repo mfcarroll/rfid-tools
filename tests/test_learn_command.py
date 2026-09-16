@@ -130,7 +130,10 @@ class WhatItRefusesToLearnFrom(_ScriptedLearningBench):
         _, recs = self._run("-r", "rd.cu1", "-p", "hidprox")
         self.assertEqual(recs, {})
         self.assertIn("decode marker", self.printed)
-        self.assertIn("FINDING", self.printed, "and the operator is told which kind of nothing")
+        # ⛔ AND IT MUST NOT CLAIM A FINDING. The Proxmark is in the stack loading the tag, so the
+        # three live possibilities are a deaf reader, a wrong marker, and the crowding.
+        self.assertNotIn("FINDING", self.printed)
+        self.assertIn("RULES.md §7", self.printed, "the operator is told which kinds of nothing")
 
     def test_the_flipper_still_uses_its_anchored_line(self):
         """⛔ RULES.md §6. The Flipper's success line has a shape worth pinning to, and matching on
@@ -300,3 +303,124 @@ class TheDeviceLearnedFromMustBeTheDeviceNAMED(unittest.TestCase):
             for k, v in was.items():
                 if v is not None:
                     os.environ[k] = v
+
+
+class ASilenceFromACrowdedStackIsNotAFinding(_ScriptedLearningBench):
+    """⛔⛔ THE GOLD WRITER HAS TO BE IN THE STACK, SO EVERY LEARNING READ IS A CROWDED READ. The
+    Proxmark must be present to make the tag, and it then sits directly under that tag, loading it,
+    while another device tries to read. `bench learn` inherited none of RULES.md §7 and published
+    the resulting silence as a firmware gap.
+
+    ⚠ FOUR FALSE FINDINGS IN A ROW ON REAL HARDWARE — viking, jablotron, pac, hidprox, twelve failed
+    reads each at ~50s apiece — and the operator then read the same tag on the same Flipper
+    instantly with the Proxmark out of the stack.
+    """
+
+    def setUp(self):
+        super().setUp()
+        self.moves = []
+        self._ask = cli.cues.ask
+        cli.cues.ask = lambda prompt, spoken="", **kw: self.moves.append(spoken)
+
+    def tearDown(self):
+        cli.cues.ask = self._ask
+        super().tearDown()
+
+    def _retry(self, second_read):
+        """⚠ The real `_isolated_retry`, with only the operator and the radio scripted."""
+        import io, contextlib
+        from benchmatrix.stations import Bench, PM3, FLIPPER, T5577, build_station
+        bench = Bench()
+        p = reg.ALL["viking"]
+        # ⚠ THE TAG MUST ACTUALLY HOLD IT. `Scripted.read` answers only for a credential an emitter
+        # is really carrying, so a fixture that just sets `answers` tests nothing.
+        self.dev.pm3.write_t55(p)
+        self.dev.flipper.answers[("viking", "t5577")] = second_read
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            got = cli._isolated_retry(
+                self._args_ns(), p, "rd.flip", self.dev.flipper, bench,
+                build_station({PM3, T5577, FLIPPER}, bench))
+        self.printed = buf.getvalue()
+        return got
+
+    def _args_ns(self):
+        return cli.build_parser().parse_args(["learn", "-r", "rd.flip"])
+
+    def test_the_operator_is_asked_to_take_the_bystander_out_and_put_it_back(self):
+        self._retry("Viking AABBCCDD\n")
+        self.assertEqual(self.moves, ["take out the Proxmark", "put the Proxmark underneath"],
+                         "the TAG does not move — the credential stays where it was written")
+
+    def test_a_reading_that_appears_once_isolated_is_learned(self):
+        text, _, _ = self._retry("Viking AABBCCDD\n")
+        self.assertIsNotNone(text)
+        self.assertIn("AABBCCDD", text)
+        self.assertIn("not a verdict", self.printed)
+
+    def test_and_silence_with_the_stack_cleared_is_entitled_to_be_a_finding(self):
+        """⭐ The asymmetry that makes this worth the two moves: only NOW does the silence mean
+        something about the reader."""
+        text, _, _ = self._retry("")
+        self.assertIsNone(text, "nothing is recorded from it")
+        self.assertIn("still nothing with the stack cleared", self.printed)
+        self.assertIn("entitled to be one", self.printed)
+
+
+class AndTheLearnLoopActuallyAsksForThatRetry(_ScriptedLearningBench):
+    """⚠ TESTING `_isolated_retry` DIRECTLY PROVES NOTHING ABOUT WHETHER IT IS EVER CALLED. Stubbing
+    the call site out left the whole suite green, which is the same shape of gap as a rule written
+    in a comment and never in the code."""
+
+    def setUp(self):
+        super().setUp()
+        p = reg.ALL["viking"]
+        # The bench answers differently once the operator clears the stack — which is the entire
+        # claim being tested, so the fake has to model it rather than be told the answer.
+        self.dev.flipper.answers[("viking", "t5577")] = ""
+        self._ask = cli.cues.ask
+
+        def move(prompt, spoken="", **kw):
+            self.moves.append(spoken)
+            if spoken == "take out the Proxmark":
+                self.dev.flipper.answers[("viking", "t5577")] = "%s AABBCCDD\n" % p.flip_key
+            elif spoken == "put the Proxmark underneath":
+                self.dev.flipper.answers[("viking", "t5577")] = ""
+        self.moves = []
+        cli.cues.ask = move
+        # ⛔ AND THE VALUE PROMPT, or the suite blocks on `input()` forever. A prompted run asks the
+        # operator which proposal to take; a test that stubs the MOVE cue and not the CHOICE cue
+        # hangs with no output, which is how two runs of this suite had to be killed.
+        self._choice = cli.cues.ask_choice
+        cli.cues.ask_choice = lambda prompt, choices, default, **kw: default
+
+    def tearDown(self):
+        cli.cues.ask, cli.cues.ask_choice = self._ask, self._choice
+        super().tearDown()
+
+    def _run_prompted(self, *argv):
+        import contextlib
+        import io
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            cli.cmd_learn(cli.build_parser().parse_args(
+                ["learn", "--learned", self.path, "--session", "S1", *argv]))
+        self.printed = buf.getvalue()
+        return learned.load(self.path)
+
+    def test_a_stacked_silence_triggers_the_isolated_reading(self):
+        recs = self._run_prompted("-r", "rd.flip", "-p", "viking")
+        self.assertIn("take out the Proxmark", self.moves,
+                      "the loop never asked for the bystander to be removed")
+        self.assertIn(("viking", "rd.flip"), recs,
+                      "the isolated reading is what gets learned")
+        self.assertEqual(recs[("viking", "rd.flip")].value, "AABBCCDD")
+
+    def test_and_a_reader_that_works_stacked_is_never_asked_to_move_anything(self):
+        """⭐ The whole reason the stack is tried first: the Chameleon reads through it, and paying
+        two bench moves per protocol for a reader that does not need them is the waste this
+        command was restructured to avoid."""
+        recs = self._run_prompted("-r", "rd.cu1", "-p", "hidprox")
+        self.assertIn(("hidprox", "rd.cu1"), recs)
+        self.assertEqual(self.moves, [self.moves[0]],
+                         "one cue to build the station, and nothing after it")
