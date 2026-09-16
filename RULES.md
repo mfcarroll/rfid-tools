@@ -210,12 +210,21 @@ this tag"* are the same reading. Where there is no Proxmark in the stack, the wr
 a credential of its own instead: sound, since the tag demonstrably changed and only that device
 touched it, but it neither restores the config nor isolates the question to P.
 
-⭐ **And the confirming read is already licensed.** The gold row immediately before it is the same
-reader, reading the same tag, byte-exact — so a silence straight after the wipe can only mean the tag
-changed. That is the A/B/A rule applied to one tag instead of the whole field: silence is evidence
-only when something was expected to speak. A clearing that cannot be confirmed blocks the write it
-was meant to protect, and those reads go UNGRADED saying so rather than being scored against a tag
-whose state was guessed at.
+⭐ **The wipe is confirmed by `lf t55xx detect`, not by silence and not by its own reply.** The wipe
+prints the blocks it sent — what was transmitted, not what the tag now holds. And a silent protocol
+decoder afterwards would be weak evidence: a wiped tag, a tag that is not on the pad and a field that
+is off all look the same. `detect` answers *positively* — a chip replied, and what it is putting on
+the air is the default configuration block.
+
+⚠ **`detect` is not a block read**, and nothing added later should treat it as one. It works the
+modulation and bit rate out from the tag's signal, and the block 0 it reports is *interpreted from
+that signal* rather than fetched from block 0. The Proxmark needs it because it cannot decode an
+addressed block read — block 0 included — without first knowing the signalling. For confirming a wipe
+it is exactly the right instrument, because what matters is the configuration the tag is actually
+transmitting.
+
+A clearing that cannot be confirmed blocks the write it was meant to protect, and those reads go
+UNGRADED saying so rather than being scored against a tag whose state was guessed at.
 
 ⚠ **With only one reader, a failed read-back is ambiguous and is reported as ambiguous.** The
 harness does not pick between "the write did not land" and "this reader is deaf"; it says a second

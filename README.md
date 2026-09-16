@@ -79,6 +79,10 @@ hands-off. At
 
     Proxmark ─ T5577 ─ Chameleon 1
 
+⚠ The tag sits **between** the devices that read it. A Chameleon or a Flipper reaches a tag from one
+face only, so a stack holding a tag serves at most two active devices — `CU1 ─ T55 ─ CU2`, never
+`T55 ─ CU1 ─ CU2`, where the second Chameleon would be working through the first.
+
 one routine covers, per protocol: the Proxmark writes and reads back, the Chameleon reads what the
 Proxmark wrote, the Chameleon writes, the Proxmark reads that. **Four cells a protocol, sixty-four
 cells, one intervention.** The planner generates that cycle itself, from the cells you ask for.
@@ -104,7 +108,7 @@ the one place where swapping tags beats rearranging the bench.
 ./bench scope                      # the registry, and what it can and cannot grade
 ./bench plan                       # the cells, the station script, and what is refused
 ./bench run --dry-run --no-prompt  # rehearse the whole thing with no hardware
-./runtests                         # 135 tests, no hardware, no network
+./runtests                         # 136 tests, no hardware, no network
 ```
 
 ### Setup: which device is on which port
@@ -186,7 +190,7 @@ benchmatrix/
   setup.py            device discovery, chip-id identity, and `.env`
   learned.py          expectations learned from a real tag, and the self-licensing guard
   grid.py             the published grid, the exclusion list, the gap register
-tests/                135 tests, all on the scripted bench — `./runtests`
+tests/                136 tests, all on the scripted bench — `./runtests`
 ```
 
 ## The protocol registry

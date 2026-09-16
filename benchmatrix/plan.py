@@ -27,7 +27,8 @@ from dataclasses import dataclass, field
 from . import registry as reg
 from .stations import (Bench, EMULATED_SOURCES, GOLD_SOURCES, HUMAN, PM3, READERS, SOURCES,
                        STACK_ORDER,
-                       Station, StationError, TAGS, TAG_SOURCES, T5577, build_station,
+                       MAX_ACTIVE_AROUND_A_TAG, Station, StationError, TAGS,
+                       TAG_SOURCES, T5577, build_station,
                        devices_to_measure,
                        devices_to_produce, move_cost, plan_move, station_admits)
 
@@ -72,7 +73,7 @@ class Op:
     wherever a writer can read its own work back and no wanted cell already does that.
     """
 
-    kind: str                       # write | wipe | blank | arm | disarm | read | verify | place
+    kind: str                       # write | wipe | arm | disarm | read | verify | place
     device: str
     protocol: reg.Protocol
     cell: PlannedCell | None = None
@@ -165,7 +166,7 @@ class RunPlan:
                     held = (o.protocol.key, o.device)
                 elif o.kind == "wipe":
                     held = None
-                elif o.kind in ("verify", "blank"):
+                elif o.kind == "verify":
                     pass
                 elif o.kind == "place":
                     held = (o.protocol.key, None)
@@ -338,6 +339,8 @@ def choose_stations(cells: list[PlannedCell], bench: Bench) -> list[Station]:
                     trial = frozenset(cand | {dev})
                     if len(trial) > bench.max_stack or len(trial & TAGS) > 1:
                         continue
+                    if trial & TAGS and len(trial - TAGS) > MAX_ACTIVE_AROUND_A_TAG:
+                        continue        # only two faces on a tag
                     hits = len(_covered(trial, uncovered))
                     if gain is None or hits > gain[0]:
                         gain = (hits, dev)
@@ -476,7 +479,9 @@ def _clear_ops(p: reg.Protocol, station: Station, writer: str, tag: int = 0) -> 
     but it neither restores the config nor says anything about P specifically if it fails.
     """
     if PM3 in station.devices:
-        return [Op("wipe", PM3, p, tag=tag), Op("blank", PM3, p, tag=tag)]
+        # ⚠ ONE OP, because the wipe and the `detect` that confirms it run in one client invocation
+        # — each one costs a connect, and sixteen protocols pay it sixteen times.
+        return [Op("wipe", PM3, p, tag=tag)]
     park = reg.park_protocol()
     return [Op("write", writer, park, tag=tag)] + _verify_ops(park, writer, station, [], tag=tag)
 

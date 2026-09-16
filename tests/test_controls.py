@@ -425,10 +425,7 @@ class AWriterUnderTestIsNotCreditedWithAnothersWork(unittest.TestCase):
         wipe = next(i for i, k in enumerate(kinds) if k[0] == "wipe")
         cu_write = next(i for i, k in enumerate(kinds) if k == ("write", "cu1"))
         self.assertLess(wipe, cu_write, "the wipe must precede the write it protects")
-        self.assertEqual(kinds[wipe + 1][0], "blank", "a wipe that is not confirmed protects nothing")
-        self.assertIn(("read", "pm3"), kinds[:wipe],
-                      "the confirming reader must have read the credential back BEFORE the wipe, "
-                      "or its silence afterwards is not evidence")
+        self.assertEqual(kinds[wipe][1], "pm3", "only the Proxmark wipes")
 
     def test_the_gold_write_needs_no_clearing(self):
         """The tag already holds a different protocol, and what a gold row claims is only that the
@@ -468,7 +465,7 @@ class AWriterUnderTestIsNotCreditedWithAnothersWork(unittest.TestCase):
     def test_an_unconfirmed_wipe_blocks_the_write_it_was_meant_to_protect(self):
         protos = reg.resolve(list(self.PROTOS))
         dev = make_devices(answers=answers_all_exact(protos))
-        dev.pm3.wipe_t55 = lambda: "ok"             # returns cheerfully, clears nothing
+        dev.pm3.wipe_works = False                  # returns, but the tag keeps its configuration
         res = runner.run(self._plan(), dev, interactive=False, session="S", out=quiet)
         cu_written = [c for c in res.cells if c.source == "t55.cu1"]
         self.assertTrue(cu_written)
@@ -476,16 +473,34 @@ class AWriterUnderTestIsNotCreditedWithAnothersWork(unittest.TestCase):
             self.assertIs(c.outcome, Outcome.UNGRADED)
             self.assertIn("did not take", c.note)
 
-    def test_a_wipe_is_confirmed_by_silence_from_a_reader_that_just_spoke(self):
-        """⭐ The null-sweep discipline applied to one tag. The Proxmark read the credential back
-        byte-exact one step earlier, so its silence now can only mean the tag changed."""
+    def test_a_wipe_is_confirmed_by_detect_not_by_silence(self):
+        """⛔ A silent protocol decoder is weak evidence: a wiped tag, a tag off the pad and a dead
+        field all look the same. `lf t55xx detect` answers positively — a chip replied, and what it
+        is transmitting is the wiped configuration."""
         said = []
         protos = reg.resolve(list(self.PROTOS))
         runner.run(self._plan(), make_devices(answers=answers_all_exact(protos)),
                    interactive=False, session="S", out=lambda m="": said.append(str(m)))
-        joined = "\n".join(said)
-        self.assertIn("tag clear", joined)
-        self.assertIn("read it byte-exact before the wipe", joined)
+        self.assertIn("tag wiped — detect reports the default configuration block",
+                      "\n".join(said))
+
+    def test_detect_output_is_what_decides_it(self):
+        from benchmatrix.devices import Pm3
+        pm3 = Pm3()
+        pm3.exec = lambda *c, **k: ("[=] Begin wiping...\n[=]  Chip type......... T55x7\n"
+                                    "[=]  Block0............ 000880E0 (auto detect)\n")
+        self.assertTrue(pm3.wipe_t55()[0])
+
+        pm3.exec = lambda *c, **k: ("[=] Begin wiping...\n[=]  Chip type......... T55x7\n"
+                                    "[=]  Block0............ 00148040 (auto detect)\n")
+        ok, why = pm3.wipe_t55()
+        self.assertFalse(ok)
+        self.assertIn("00148040", why)
+
+        pm3.exec = lambda *c, **k: "[=] Begin wiping...\n[!] No known 125/134 kHz tag found\n"
+        ok, why = pm3.wipe_t55()
+        self.assertFalse(ok)
+        self.assertIn("no tag answered", why)
 
     def test_the_gold_rows_are_unaffected_by_any_of_this(self):
         """The Chameleon's writer being untestable must not cost us the Proxmark's column."""
