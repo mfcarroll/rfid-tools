@@ -131,6 +131,9 @@ class RunPlan:
     blocks: list[Block]
     exclusions: list[Exclusion]
     phase: int = 1
+    #: How many times each cell's READ is taken. ⚠ On the PLAN because it changes what a run
+    #: measures, not how it prints — and so `--at` and the isolation phase inherit it.
+    repeat: int = 1
 
     @property
     def cells(self) -> list[PlannedCell]:
