@@ -47,6 +47,15 @@
       "evidence": "H10301 7B11D7"
     },
     {
+      "protocol": "indala",
+      "reader": "rd.flip",
+      "value": "CD7A1D30",
+      "session": "20260916_002719",
+      "source": "t55.pm3",
+      "when": "2026-09-16T00:29:29",
+      "evidence": "rfid read indala\nReading RFID...\nPress Ctrl+C to abort\nIndala26 CD7A1D30\nFC: 52\nCard: 63612\nParity: +\nChecksum: -\nReading stopped"
+    },
+    {
       "protocol": "indala224",
       "reader": "rd.flip",
       "value": "80000001B23523A6C2E31EBA3CBEE4AFB3C6AD1FCF649393928C14E5",
@@ -81,6 +90,15 @@
       "source": "t55.pm3",
       "when": "2026-09-15T23:39:05",
       "evidence": "Jablotron 0899AABBCC"
+    },
+    {
+      "protocol": "nexwatch",
+      "reader": "rd.flip",
+      "value": "0012776A2F202800",
+      "session": "20260916_002719",
+      "source": "t55.pm3",
+      "when": "2026-09-16T00:29:35",
+      "evidence": "rfid read indala\nReading RFID...\nPress Ctrl+C to abort\nNexwatch 0012776A2F202800\nID: 87654321\nMode: 2\nType: Nexkey\nReading stopped"
     },
     {
       "protocol": "noralsy",

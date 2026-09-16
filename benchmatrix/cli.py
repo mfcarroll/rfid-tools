@@ -476,8 +476,17 @@ def _isolated_retry(a, p, reader, dev, bench, write_station):
     else:
         done("      %s %s answered" % (ui.mark("ok"), reader))
         if not _decoded(p, reader, text, obs):
-            print("      · still nothing with the stack cleared. THAT is a finding about %s and "
-                  "%s, and it is now entitled to be one." % (reader, p.key))
+            # ⛔⛔ SCOPED TO THE SOURCE, BECAUSE THE UNSCOPED CLAIM IS FALSE. "The Flipper does not
+            # decode fdxb" was what this used to say — and the Flipper then wrote an FDX-B tag from
+            # its own template and read it straight back, with the Proxmark confirming the tag is
+            # valid FDX-B. What was actually measured is that it produced nothing from the
+            # PROXMARK's frame, which is an interop finding and not a capability gap.
+            print("      · still nothing with the stack cleared. %s decodes nothing from the "
+                  "t55.pm3 frame of %s — a finding about THAT FRAME, and it is entitled to be one."
+                  % (reader, p.key))
+            print("      ⚠ it is NOT a claim that %s cannot decode %s. Write one from another "
+                  "source and ask again before putting that in the gap register."
+                  % (reader, p.key))
             text = None
     # ⚠ THE WRITER GOES BACK, because the next protocol needs a wipe and a fresh gold write.
     _cue_station(write_station, bench, frm=read_station)
@@ -570,9 +579,13 @@ def cmd_learn(a) -> int:
     bench = Bench(has=frozenset({PM3, FLIPPER, CU1, CU2, T5577}))
     readers = a.reader or [r for r in DEFAULT_LEARN_READERS]
 
+    # ⚠ A RECORDED NON-DECODE IS ANSWERED, NOT OUTSTANDING. Without this the confirmed findings
+    # are re-measured every session — two bench moves and 76 seconds apiece — and never settle.
+    settled = {k for k, rec in learned.load(a.learned).items() if not rec.decoded}
     todo, refused = {}, []
     for r in readers:
-        want = [p for p in protos if p.expect_for(r) is None or a.relearn]
+        want = [p for p in protos
+                if (p.expect_for(r) is None and (p.key, r) not in settled) or a.relearn]
         keep = []
         for p in want:
             why = _why_not_learnable(p, r)
@@ -725,6 +738,13 @@ def cmd_learn(a) -> int:
                     # (the Chameleon does) never sees this; one that does not is still measured.
                     text, obs, proposals = _isolated_retry(a, p, reader, dev, bench, station)
                     if text is None:
+                        # ⭐ A CONFIRMED SILENCE IS A RESULT, SO IT IS WRITTEN DOWN. Recording
+                        # nothing meant the reading was retaken every session and the finding never
+                        # reached anywhere it could be cited.
+                        records[(p.key, reader)] = learned.negative(
+                            p.key, reader, "t55.pm3", session,
+                            getattr(dev, "last_transcript", "") or "")
+                        learned_now += 1
                         continue
             if reader == "rd.flip":
                 # ⛔ THE FLIPPER KEEPS ITS ANCHORED EXTRACTOR (RULES.md §6). Its success line has a
