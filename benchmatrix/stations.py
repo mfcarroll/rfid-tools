@@ -49,8 +49,15 @@ HUMAN = {
 SPOKEN = dict(HUMAN, cu1="Chameleon one", cu2="Chameleon two",
               t5577="the tag", oemtag="the O E M card")
 
-#: Bottom to top. The Proxmark is the bench anchor, a tag sits in the middle, the rest go on top.
-STACK_ORDER = (PM3, FLIPPER, T5577, OEMTAG, CU1, CU2)
+#: The order active devices are stacked in. The Proxmark is the bench anchor and goes at the bottom.
+#: A TAG IS NOT IN THIS LIST — see `build_station`, which puts it between the active devices.
+STACK_ORDER = (PM3, FLIPPER, CU1, CU2, T5577, OEMTAG)
+
+#: ⛔ A CHAMELEON AND A FLIPPER READ AND WRITE FROM ONE FACE ONLY. So a passive tag in a stack has
+#: to sit BETWEEN the devices that need to reach it — `CU1 ─ T55 ─ CU2`, never `T55 ─ CU1 ─ CU2`,
+#: where the second Chameleon would be working through the first. Two faces, two devices: a stack
+#: holding a tag can serve at most this many active devices however high `max_stack` is set.
+MAX_ACTIVE_AROUND_A_TAG = 2
 
 SHORT = {PM3: "PM3", FLIPPER: "FLIP", CU1: "CU1", CU2: "CU2", T5577: "T55", OEMTAG: "OEM"}
 
@@ -191,10 +198,21 @@ def build_station(devices, bench: Bench | None = None) -> Station:
     if bench is not None and not devs <= bench.devices:
         raise StationError("this bench does not have: %s"
                            % ", ".join(sorted(devs - bench.devices)))
-    if len(devs & TAGS) > 1:
+    tags = sorted(devs & TAGS)
+    if len(tags) > 1:
         raise StationError("a stack may hold at most one tag; both %s answer any field they are in"
-                           % " and ".join(HUMAN[d] for d in sorted(devs & TAGS)))
-    return Station(tuple(d for d in STACK_ORDER if d in devs))
+                           % " and ".join(HUMAN[d] for d in tags))
+    active = [d for d in STACK_ORDER if d in devs and d not in TAGS]
+    if tags and len(active) > MAX_ACTIVE_AROUND_A_TAG:
+        raise StationError(
+            "%d active devices around one tag: %s. A Chameleon or a Flipper reaches a tag from one "
+            "face only, so at most %d can touch it — any more would be working through each other."
+            % (len(active), ", ".join(HUMAN[d] for d in active), MAX_ACTIVE_AROUND_A_TAG))
+    if not tags:
+        return Station(tuple(active))
+    # ⭐ THE TAG GOES IN THE MIDDLE, so each active device faces it directly.
+    at = min(1, len(active))
+    return Station(tuple(active[:at] + tags + active[at:]))
 
 
 # ------------------------------------------------------------------ what a cell needs

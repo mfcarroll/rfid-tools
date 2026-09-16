@@ -57,6 +57,21 @@ PM3_ALIVE = ("communicating with pm3 over", "max frame size:")
 #: prevent, so the write says so itself rather than being inferred from what came after it.
 PM3_WROTE = ("done!", "done:")
 
+#: ⛔⛔ `lf t55xx detect` IS A PREREQUISITE FOR EVERY DIRECT T5577 BLOCK READ, AND IT IS NOT ITSELF A
+#: BLOCK READ. It works out the modulation and bit rate from what the tag is putting on the air, and
+#: the block 0 it reports is INTERPRETED FROM THAT SIGNAL rather than fetched from block 0. The
+#: Proxmark needs it because it cannot decode an addressed block read — block 0 included — without
+#: first knowing the signalling. Anything added later that reads blocks directly must run it first,
+#: and must not treat its block 0 as a direct read.
+#:
+#: ⭐ IT IS ALSO THE RIGHT WAY TO CONFIRM A WIPE, and better than the silence this used to check. A
+#: silent protocol decoder could mean a wiped tag, a tag that is not on the pad, or a field that is
+#: off. `detect` answering with the default configuration is POSITIVE evidence: a chip replied, and
+#: what it is transmitting is the wiped config.
+T55_DEFAULT_BLOCK0 = ("000880e0",)          # T55x7 default; a Q5/T5555 wipes to 6001f004
+T55_Q5_BLOCK0 = ("6001f004",)
+T55_PRESENT = ("chip type", "block0")
+
 #: The Flipper's success line, from `flipper.py`: name, one space, an even number of uppercase hex
 #: digits, alone on the line. ⛔ The name MAY CONTAIN SPACES ("Radio Key"), and assuming it could
 #: not scored a working emulation 0 of 6 and put that number in FINDINGS.md as a defect.
@@ -139,8 +154,8 @@ class Pm3:
                 % (p.pm3_write, p.key, tail[:200] or "nothing at all"))
         return out
 
-    def wipe_t55(self) -> str:
-        """Wipe the tag and restore the default config block (0x000880E0).
+    def wipe_t55(self) -> tuple[bool, str]:
+        """Wipe the tag, then make it prove it. Returns (confirmed, what the client said).
 
         ⭐ TWO JOBS AT ONCE. It puts the tag into a state that cannot be mistaken for any credential
         — so a later read can only have come from the write under test — and it restores a config
@@ -149,11 +164,19 @@ class Pm3:
         without one, "the Flipper cannot write this protocol" and "the Flipper cannot write this
         TAG" look identical.
 
-        ⚠ The reply is not the confirmation. Nothing here says the wipe took — only a read that
-        comes back silent, on a reader that was reading the credential a moment earlier, can say
-        that (RULES.md §10).
+        ⚠ THE WIPE'S OWN REPLY IS NOT THE CONFIRMATION — it lists the blocks it sent, not what the
+        tag now holds. `detect` is, and the two run in one client invocation because each one costs
+        a connect (RULES.md §10).
         """
-        return self.exec("lf t55xx wipe", timeout=max(self.timeout, 120))
+        out = self.exec("lf t55xx wipe", "lf t55xx detect", timeout=max(self.timeout, 120))
+        low = (out or "").lower()
+        if not any(m in low for m in T55_PRESENT):
+            return False, "no tag answered `lf t55xx detect` after the wipe"
+        if any(b in low for b in T55_DEFAULT_BLOCK0 + T55_Q5_BLOCK0):
+            return True, "detect reports the default configuration block"
+        m = re.search(r"block0\.*\s*([0-9a-f]{8})", low)
+        return False, ("the tag answers but its configuration is %s, not the wiped default"
+                       % (m.group(1).upper() if m else "unreadable"))
 
     def disarm(self) -> None:
         """A no-op, and deliberately present.
@@ -476,12 +499,17 @@ class Scripted:
         self.air.armed[T5577] = (p.key, p.expect)      # the tag now holds this credential
         return "ok"
 
-    def wipe_t55(self) -> str:
+    #: Set False to model a wipe that returns cheerfully and changes nothing.
+    wipe_works: bool = True
+
+    def wipe_t55(self) -> tuple[bool, str]:
         """⚠ ACTUALLY CLEARS THE FAKE TAG. A wipe that only logged itself would let a test for "the
         write did nothing, so the tag is still empty" pass against a tag that was never emptied."""
         self.log.append(("wipe",))
+        if not self.wipe_works:
+            return False, "the tag answers but its configuration is 00148040, not the wiped default"
         self.air.armed.pop(T5577, None)
-        return "ok"
+        return True, "detect reports the default configuration block"
 
     def arm(self, p: reg.Protocol) -> None:
         self.log.append(("arm", p.key))

@@ -65,8 +65,6 @@ class TagState:
 
     protocol: object | None = None
     writer: str | None = None
-    #: Witnesses as they stood immediately before the last wipe.
-    pre_wipe: set = field(default_factory=set)
     verified: bool = False
     tag: int = 0
     #: Was the tag put into a state known to DIFFER from this credential before it was written?
@@ -316,9 +314,6 @@ def _routine(report: BlockReport, devices: Devices, res: RunResult, session: str
             _wipe(op, devices, out, tag_state)
             state = None
             continue
-        if op.kind == "blank":
-            _blank(op, devices, res, session, pad, out, tag_state)
-            continue
         if op.kind == "write":
             settle()
             # ⚠ `settle()` has just decided whether the PARKING write took. Read that before it is
@@ -498,41 +493,26 @@ def _grade_one(op: Op, obs, report: BlockReport, res: RunResult, out, issued: li
 
 
 def _wipe(op: Op, devices: Devices, out, tag_state: TagState) -> None:
-    """Clear the tag and restore its default config. Verified by `_blank`, never by the reply."""
-    tag_state.pre_wipe = set(tag_state.witnesses)
-    try:
-        devices.by_dev(op.device).wipe_t55()
-        out("      ⌫ wiped the tag and restored the default config block")
-    except DeviceError as e:
-        out("      ⛔ wipe refused — %s" % e)
-    tag_state.protocol, tag_state.writer = None, None
-    tag_state.verified, tag_state.witnesses, tag_state.cleared = False, set(), False
+    """Clear the tag, restore its default config, and make it prove both.
 
+    ⛔⛔ CONFIRMED BY `detect`, NOT BY SILENCE AND NOT BY THE WIPE'S OWN REPLY. The wipe lists the
+    blocks it sent; that is what was transmitted, not what the tag now holds. And a silent protocol
+    decoder afterwards would be weak evidence at best — a wiped tag, a tag that is not on the pad
+    and a field that is off all look the same. `lf t55xx detect` answers positively: a chip replied,
+    and what it is putting on the air is the wiped configuration.
 
-def _blank(op: Op, devices: Devices, res: RunResult, session: str, pad: str, out,
-           tag_state: TagState) -> None:
-    """Confirm the tag is clear, by silence from a reader that was speaking a moment ago.
-
-    ⛔⛔ SILENCE IS ONLY EVIDENCE WHEN SOMETHING WAS EXPECTED TO SPEAK. This is the null-sweep
-    discipline applied to one tag: the reader used here read the pre-wipe credential byte-exact in
-    the step immediately before, so its silence now can only mean the tag changed. A silent read
-    from a reader that has said nothing all along would prove nothing at all, and the write that
-    follows would be graded against a tag whose state we had guessed at.
+    ⚠ `detect` IS NOT A BLOCK READ. It works the modulation and bit rate out from the signal, and
+    the block 0 it reports is interpreted from that — which is exactly the right thing here, because
+    what matters is the configuration the tag is actually transmitting.
     """
-    reader = _reader_id(op.device)
-    if op.device not in getattr(tag_state, "pre_wipe", set()):
-        out("      ▒ cannot confirm the wipe — %s did not read the credential back before it, so "
-            "its silence now is not evidence" % reader)
-        return
-    obs = _read(op, devices, session, pad, out, protocol=op.protocol,
-                source="t55.pm3", reader=reader)
-    if obs is None:
-        return
-    if obs.decoded or obs.matched:
-        out("      ⛔ the tag still answers after the wipe — it was not cleared")
-        return
-    tag_state.cleared = True
-    out("      ✓ tag clear — %s read it byte-exact before the wipe and hears nothing now" % reader)
+    try:
+        ok, detail = devices.by_dev(op.device).wipe_t55()
+    except DeviceError as e:
+        ok, detail = False, str(e)
+    tag_state.protocol, tag_state.writer = None, None
+    tag_state.verified, tag_state.witnesses = False, set()
+    tag_state.cleared = bool(ok)
+    out("      %s tag wiped — %s" % ("⌫" if ok else "⛔", detail))
 
 
 def _write(op: Op, devices: Devices, out) -> bool:
