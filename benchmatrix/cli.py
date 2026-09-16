@@ -644,6 +644,30 @@ def cmd_learn(a) -> int:
                 if p.expect:
                     done = ui.working(print, "the Proxmark reads its own write back")
                     back = pm3.read(p)
+                    # ⛔⛔ ONE RETRY, AND IT IS RECORDED. This read-back failed for seven protocols
+                    # in one session and for two in the next, and NOTHING reproduces it: the same
+                    # three commands in a shell pass 9/9 with no gap, the same protocol through
+                    # this same loop passes alone, and passes again with the preceding protocol's
+                    # 76-second Flipper read in between. The operator has ruled out the stack by
+                    # hand. Whatever it is, it is intermittent and it is ours.
+                    #
+                    # ⚠ A RETRY IS NOT A FIX AND MUST NOT LOOK LIKE ONE. It is here because losing
+                    # a protocol to a one-off costs a bench session, and because "it took two
+                    # tries" is DATA about an intermittency nobody can yet reproduce — so it is
+                    # printed, and the cost of not noticing is a line of output rather than a
+                    # silent papering-over. If retries start succeeding often, that is the finding.
+                    if outcomes._flat(p.expect) not in outcomes._flat(back):
+                        done("      %s nothing came back — asking once more" % ui.mark("warn"))
+                        first = back
+                        done = ui.working(print, "the Proxmark reads its own write back, again")
+                        back = pm3.read(p)
+                        if outcomes._flat(p.expect) in outcomes._flat(back):
+                            done("      %s the credential IS on the tag, on the second read — the "
+                                 "first read of this write returned nothing. Not a clean result; "
+                                 "the write landed and something ate the first look."
+                                 % ui.mark("warn"))
+                            print("          first     %s"
+                                  % " / ".join((first or "").strip().splitlines()[-2:])[:110])
                     if outcomes._flat(p.expect) in outcomes._flat(back):
                         done("      %s the credential is on the tag — %r"
                              % (ui.mark("ok"), p.expect))
