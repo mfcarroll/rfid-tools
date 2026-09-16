@@ -23,6 +23,7 @@ from __future__ import annotations
 import os
 import re
 import shlex
+import signal
 import subprocess
 import time
 from dataclasses import dataclass, field
@@ -181,6 +182,16 @@ def _run(argv: list[str], timeout: int) -> str:
         cues._sane()
 
 
+def _group_alive(pgid: int) -> bool:
+    """Is anything still running in that process group? ⚠ `proc.poll()` answers only for the process
+    we spawned — and with a wrapper script that is the one that matters least."""
+    try:
+        os.killpg(pgid, 0)
+        return True
+    except (ProcessLookupError, PermissionError, OSError):
+        return False
+
+
 def _read_until(proc, markers, deadline: float) -> str:
     """Collect a child's output until one of `markers` appears or the deadline passes.
 
@@ -276,11 +287,19 @@ class Pm3:
         argv = shlex.split(self.binary) + ["-c", p.pm3_emulate]
         self.disarm()
         try:
+            # ⛔⛔ ITS OWN PROCESS GROUP, BECAUSE `pm3` IS A BASH WRAPPER THAT DOES NOT EXEC. It
+            # SPAWNS the real `proxmark3` client, so what Popen holds is bash and what holds the
+            # serial port is its child. Stopping the parent orphans the client: it keeps the port
+            # and keeps EMITTING. One did, for over an hour, after a run that had already ended —
+            # blocking every later command with "claimed by another process" and putting a carrier
+            # on the air that no null sweep in any later run would have been able to account for.
             proc = subprocess.Popen(argv, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
                                     stderr=subprocess.STDOUT, text=True, errors="replace",
-                                    bufsize=1)
+                                    bufsize=1, start_new_session=True)
         except OSError as e:
             raise DeviceError("pm3: could not start `%s` — %s" % (p.pm3_emulate, e)) from e
+        # ⚠ REMEMBERED NOW, because after the wrapper exits it cannot be looked up. See `disarm`.
+        proc._bench_pgid = proc.pid
         self._sim = proc
         seen = _read_until(proc, PM3_SIM_STARTED, deadline=time.time() + 25)
         fault = self._fault(seen, "simulating %s" % p.key)
@@ -298,20 +317,41 @@ class Pm3:
         proc, self._sim = self._sim, None
         if proc is None:
             return
+        pgid = getattr(proc, "_bench_pgid", proc.pid)
+        # 1. The documented abort path, in case stdin reaches the client at all.
         try:
             if proc.stdin and not proc.stdin.closed:
                 proc.stdin.write("\n")
                 proc.stdin.flush()
-            proc.wait(timeout=15)
+            proc.wait(timeout=6)
         except Exception:                                      # noqa: BLE001
-            proc.kill()
+            pass
+        # 2. ⛔⛔ THE WHOLE GROUP, BY AN ID CAPTURED AT ARM TIME. Killing bash leaves the client
+        # holding the port — and by the time we want to kill the group, bash has usually ALREADY
+        # exited, so `os.getpgid(proc.pid)` raises and there is nothing left to ask. `start_new_session`
+        # makes the group id equal to the pid we spawned, so it is knowable in advance and survives
+        # the parent. Looking it up afterwards is what made the first version of this fix do nothing.
+        for sig in (signal.SIGINT, signal.SIGKILL):
+            if not _group_alive(pgid):
+                break
             try:
-                proc.wait(timeout=5)
-            except Exception:                                  # noqa: BLE001
-                pass
-            # ⚠ THE BELT AND BRACES THE HELP TEXT HANDS US. Any USB command stops a simulation, so
-            # once the holding client is gone one more invocation guarantees the field is down.
-            self.exec("hw status", timeout=20)
+                os.killpg(pgid, sig)
+            except (ProcessLookupError, PermissionError, OSError):
+                break
+            time.sleep(0.8)
+        # 3. ⛔⛔ AND PROVE THE PORT IS BACK, because everything after this needs it and a simulation
+        # that is still running is indistinguishable — from the next command's point of view — from
+        # a Proxmark that has gone away. Any USB command also ends a simulation, so this both checks
+        # and enforces.
+        for _ in range(4):
+            if not self._fault(self.exec("hw status", timeout=20), "releasing the simulation"):
+                return
+            time.sleep(1.0)
+        raise DeviceError(
+            "pm3: the simulation client will not let go of the port. Something is still holding "
+            "%s — and while it does, the Proxmark may still be EMITTING, which would put a carrier "
+            "on the air that no later null sweep could account for. Check for a stray "
+            "`proxmark3 ... sim` process." % self.binary)
 
     def read(self, p: reg.Protocol) -> str:
         """⛔ A FAILED INVOCATION IS NOT A SILENCE. It raises, and a raising reader aborts the block
@@ -364,15 +404,6 @@ class Pm3:
         m = re.search(r"block0\.*\s*([0-9a-f]{8})", low)
         return False, ("the tag answers but its configuration is %s, not the wiped default"
                        % (m.group(1).upper() if m else "unreadable"))
-
-    def disarm(self) -> None:
-        """A no-op, and deliberately present.
-
-        ⚠ EVERY CHANNEL ANSWERS `disarm()` whether or not it can emit, because the null sweep calls
-        it on everything in the stack and must not have to know which devices those are. The
-        Proxmark client exits after each `-c` invocation, so this harness cannot leave it
-        simulating; if that ever changes, this is where stopping it belongs.
-        """
 
     def decode_marker(self, p: reg.Protocol) -> str:
         return p.pm3_decode_marker

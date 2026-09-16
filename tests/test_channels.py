@@ -404,3 +404,81 @@ class ACrashMustSayWhatCrashed(unittest.TestCase):
     def test_an_ordinary_refusal_is_unchanged(self):
         self.assertEqual(devices.Chameleon._refused("WARNING: econfig writes the credential only"),
                          "WARNING: econfig writes the credential only")
+
+
+class TheProxmarkMustLetGoOfTheSimulation(RealChannelBase):
+    """⛔⛔ A LEAKED SIMULATION HOLDS THE PORT AND KEEPS EMITTING. One survived a run by over an
+    hour: every later command failed with "claimed by another process", and the Proxmark was putting
+    a carrier on the air that no null sweep in any later run could have accounted for.
+
+    ⛔ `pm3` IS A BASH WRAPPER THAT DOES NOT EXEC. It SPAWNS the real `proxmark3` client, so what
+    `Popen` holds is bash and what holds the serial port is its child. Stopping the parent orphans
+    the client. The group id has to be captured at ARM time, because by the time we want to kill the
+    group the wrapper has usually already exited and `os.getpgid` raises.
+    """
+
+    def test_there_is_exactly_one_disarm_on_each_channel(self):
+        """⛔⛔ THE BUG THAT MADE ALL OF THE ABOVE INVISIBLE. `Pm3` carried a no-op `disarm` from
+        when it could not emit — whose own docstring said "if that ever changes, this is where
+        stopping it belongs". It changed, the stopping went somewhere else, and the stale one was
+        defined LATER and silently won. A second definition is not an override, it is a deletion."""
+        import inspect
+        import re
+        src = inspect.getsource(devices)
+        for cls in ("Pm3", "Chameleon", "Flipper", "Scripted"):
+            body = re.search(r"\nclass %s[^\n]*:\n(.*?)(?=\n@|\n# ===|\nclass |\Z)" % cls,
+                             src, re.S)
+            self.assertIsNotNone(body, cls)
+            n = len(re.findall(r"\n    def disarm\(", body.group(1)))
+            self.assertEqual(n, 1, "%s defines disarm() %d times — the last one wins" % (cls, n))
+
+    def test_disarm_kills_the_group_not_just_the_process(self):
+        killed = []
+
+        class FakeProc:
+            pid, stdin, returncode = 4242, None, None
+
+            def poll(self):
+                return 0                      # the WRAPPER has exited, as it usually has by now
+
+            def wait(self, timeout=None):
+                return 0
+
+        p3 = Pm3(binary="pm3")
+        p3._sim = FakeProc()
+        p3._sim._bench_pgid = 4242
+        real_killpg, real_alive = devices.os.killpg, devices._group_alive
+        real_sleep = devices.time.sleep
+        devices.os.killpg = lambda pgid, sig: killed.append((pgid, sig))
+        devices._group_alive = lambda pgid: len(killed) == 0
+        devices.time.sleep = lambda s: None
+        self.stub("[#] Debug log level\n")
+        try:
+            p3.disarm()
+        finally:
+            devices.os.killpg, devices._group_alive = real_killpg, real_alive
+            devices.time.sleep = real_sleep
+        self.assertTrue(killed, "an exited wrapper must not stop us killing its group")
+        self.assertEqual(killed[0][0], 4242, "the group id captured at arm time")
+
+    def test_and_it_proves_the_port_came_back(self):
+        """⛔ Everything after this needs the port, and a simulation still running is — from the next
+        command's point of view — indistinguishable from a Proxmark that has gone away."""
+        class FakeProc:
+            pid, stdin, returncode = 1, None, 0
+            def poll(self): return 0
+            def wait(self, timeout=None): return 0
+
+        p3 = Pm3(binary="pm3")
+        p3._sim = FakeProc()
+        p3._sim._bench_pgid = 1
+        real_alive, real_sleep = devices._group_alive, devices.time.sleep
+        devices._group_alive = lambda pgid: False
+        devices.time.sleep = lambda s: None          # the retry delay is bench timing, not logic
+        self.stub("[!] ERROR: serial port is claimed by another process\n")
+        try:
+            with self.assertRaises(DeviceError) as cm:
+                p3.disarm()
+        finally:
+            devices._group_alive, devices.time.sleep = real_alive, real_sleep
+        self.assertIn("still be EMITTING", str(cm.exception))
