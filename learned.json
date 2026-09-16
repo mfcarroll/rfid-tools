@@ -5,19 +5,28 @@
       "protocol": "awid",
       "reader": "rd.flip",
       "value": "1A3D829CC000000000",
-      "session": "20260915_232249",
+      "session": "20260915_233837",
       "source": "t55.pm3",
-      "when": "2026-09-15T23:26:34",
+      "when": "2026-09-15T23:42:45",
       "evidence": "AWID 1A3D829CC000000000"
     },
     {
       "protocol": "em410x_electra",
       "reader": "rd.flip",
       "value": "22446688007E1EAA",
-      "session": "20260915_232249",
+      "session": "20260915_233837",
       "source": "t55.pm3",
-      "when": "2026-09-15T23:30:23",
+      "when": "2026-09-15T23:48:53",
       "evidence": "Electra 22446688007E1EAA"
+    },
+    {
+      "protocol": "gallagher",
+      "reader": "rd.flip",
+      "value": "120010E100001A85",
+      "session": "20260915_233837",
+      "source": "t55.pm3",
+      "when": "2026-09-15T23:44:39",
+      "evidence": "Gallagher 120010E100001A85"
     },
     {
       "protocol": "hidprox",
@@ -32,9 +41,9 @@
       "protocol": "hidprox",
       "reader": "rd.flip",
       "value": "7B11D7",
-      "session": "20260915_232249",
+      "session": "20260915_233837",
       "source": "t55.pm3",
-      "when": "2026-09-15T23:24:48",
+      "when": "2026-09-15T23:42:33",
       "evidence": "H10301 7B11D7"
     },
     {
@@ -59,19 +68,46 @@
       "protocol": "ioprox",
       "reader": "rd.flip",
       "value": "53010539",
-      "session": "20260915_232249",
+      "session": "20260915_233837",
       "source": "t55.pm3",
-      "when": "2026-09-15T23:25:40",
+      "when": "2026-09-15T23:42:38",
       "evidence": "IoProxXSF 53010539"
     },
     {
       "protocol": "jablotron",
       "reader": "rd.flip",
       "value": "0899AABBCC",
-      "session": "20260915_232249",
+      "session": "20260915_233837",
       "source": "t55.pm3",
-      "when": "2026-09-15T23:23:49",
+      "when": "2026-09-15T23:39:05",
       "evidence": "Jablotron 0899AABBCC"
+    },
+    {
+      "protocol": "noralsy",
+      "reader": "rd.flip",
+      "value": "BB0214FF0110002233070000",
+      "session": "20260915_233837",
+      "source": "t55.pm3",
+      "when": "2026-09-15T23:44:50",
+      "evidence": "Noralsy BB0214FF0110002233070000"
+    },
+    {
+      "protocol": "securakey",
+      "reader": "rd.flip",
+      "value": "0035FAA988C0",
+      "session": "20260915_233837",
+      "source": "t55.pm3",
+      "when": "2026-09-15T23:44:44",
+      "evidence": "Radio Key 0035FAA988C0"
+    },
+    {
+      "protocol": "viking",
+      "reader": "rd.flip",
+      "value": "001A3371",
+      "session": "20260915_233837",
+      "source": "t55.pm3",
+      "when": "2026-09-15T23:39:00",
+      "evidence": "Viking 001A3371"
     }
   ]
 }
