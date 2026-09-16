@@ -106,6 +106,13 @@ class Protocol:
             return self.flip_line()
         if reader in ("rd.cu1", "rd.cu2"):
             return self.cu_expect
+        if reader != "rd.pm3":
+            # ⛔ NO QUIET FALLBACK. This returned `self.expect` — the Proxmark's rendering — for any
+            # unrecognised reader, so a caller that built a reader id slightly wrong got a
+            # confident answer in the wrong client's wording, which is the exact failure this
+            # method exists to prevent. Caught when the scripted bench asked for `rd.flipper`.
+            raise RegistryError("no expectation is defined for reader %r (known: rd.pm3, rd.flip, "
+                                "rd.cu1, rd.cu2)" % reader)
         return self.expect
 
     def marker_for(self, reader: str) -> Optional[str]:
@@ -377,8 +384,30 @@ ALL: dict[str, Protocol] = {p.key: p for p in [
     _p(key="fdxb", tier=0, family="ask", t55_capable=True,
        pm3_write="lf fdxb clone --country 999 --national 1337",
        pm3_read="lf fdxb reader",
-       pm3_decode_marker=r"FDX-B / ISO 11784/5 Animal Tag ID Found",
-       expect="00339a080402079f8040797788040201",
+       # ⛔⛔ TWO FAULTS HERE AT ONCE, AND THEY HID EACH OTHER. Corrected 2026-09-15 from the
+       # operator's own `lf fdxb reader` against the tag this harness had just written.
+       #
+       # The marker was `FDX-B / ISO 11784/5 Animal Tag ID Found` — a string the client never
+       # prints. It prints the header `FDX-B / ISO 11784/5 Animal` and, at the end, `Valid FDX-B ID
+       # found!`. So the marker could never fire and EVERY pm3 fdxb read reported SILENT whatever
+       # it decoded. Same fault as em410x's `EM410X:`, same cause: written from the source instead
+       # of from the device.
+       #
+       # And `expect` was the T5577 BLOCK IMAGE — blocks 01-04 of the written tag, which is what
+       # the Chameleon`--raw` takes and prints back (hence a byte-exact `t55.cu1 -> rd.cu1`). The
+       # Proxmark prints the DECODED credential. Matching is a plain substring, so the block image
+       # could never appear in pm3 output. That is what `expect_for(reader)` is for, and this entry
+       # was the one not using it.
+       #
+       # ⇒ `999-000000001337` is `--country 999 --national 1337` as that client renders it: the
+       # credential we wrote, not an artefact of formatting. The `Raw` line is byte-exact but
+       # space-separated (`9C A0 00 ...`), which would make a substring match whitespace-fragile.
+       #
+       # ⚠ AND `_check_marker` COULD NOT CATCH EITHER, because it only fires on a byte-exact read
+       # and the expectation was wrong too. A bad marker and a bad expectation are ONE mistake, so
+       # they arrive together — precisely when the detector is blind. See `bad_markers`.
+       pm3_decode_marker=r"FDX-B / ISO 11784/5 Animal|Valid FDX-B ID found",
+       expect="999-000000001337",
        cu_type="FDXB",
        cu_emulate="lf fdxb econfig -s {slot} --raw 00339a080402079f8040797788040201",
        cu_read="lf fdxb read",

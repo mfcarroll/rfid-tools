@@ -112,6 +112,11 @@ READERS: dict[str, str] = {
     "rd.cu2":  CU2,
 }
 
+#: device id -> the reader id that device reads as. ⛔ NOT `"rd." + device`: the Flipper's device is
+#: `flipper` and its reader is `rd.flip`. Derived from `READERS` rather than spelled again, because a
+#: second copy is a second thing to get out of step.
+READER_OF: dict[str, str] = {dev: rid for rid, dev in READERS.items()}
+
 READER_NOTE = {
     "rd.pm3":  "Proxmark3 — `lf <proto> reader`",
     "rd.flip": "Flipper — `rfid read`",

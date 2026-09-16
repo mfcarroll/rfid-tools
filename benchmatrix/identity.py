@@ -20,7 +20,7 @@ from dataclasses import dataclass, field
 from . import registry as reg
 from .devices import DeviceError
 from .outcomes import _strip_ansi
-from .stations import CU1, CU2, HUMAN, READERS, Station
+from .stations import CU1, CU2, HUMAN, READER_OF, READERS, Station
 
 #: Device-unique probe ids, distinct in every nibble so a partial decode still names one device,
 #: and deliberately unlike any credential in the registry.
@@ -200,7 +200,15 @@ def null_sweep(label: str, readers: list, protocols: list, emitters: list) -> Nu
     for reader in readers:
         for p in protocols:
             text = _strip_ansi(reader.read(p))
-            want = p.expect_for(getattr(reader, "id", "rd.pm3")) or p.expect
+            # ⛔⛔ THIS PASSED A DEVICE ID TO A FUNCTION THAT TAKES A READER ID, and the `or
+            # p.expect` behind it hid the mistake completely: every reader in the null sweep was
+            # checked against the PROXMARK's rendering. A Chameleon hearing a stray emitter would
+            # not have been detected unless the pm3's token happened to be in its output — and the
+            # null sweep is the control that proves no stray field is present.
+            #
+            # ⚠ It looked right for as long as every entry had `expect == cu_expect`. Found when
+            # `expect_for` was made to refuse an unrecognised reader instead of guessing.
+            want = p.expect_for(READER_OF.get(getattr(reader, "id", ""), "rd.pm3"))
             if want and want.lower() in text.lower():
                 hits.add(p.key)
                 detail[p.key] = text.strip()[:200]

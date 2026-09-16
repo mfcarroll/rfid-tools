@@ -200,3 +200,51 @@ class TheStandInMirrorsTheRealChannel(unittest.TestCase):
         """If these were ever the same the test above would pass while proving nothing."""
         p = reg.ALL["keri"]
         self.assertNotEqual(p.cu_decode_marker, p.pm3_decode_marker)
+
+
+class TheScriptedBenchMustBeWrongInTheSameWaysTheRealOneIs(unittest.TestCase):
+    """⛔⛔ SIXTH TIME. `Scripted` has now disagreed with the real classes about answering regardless
+    of tag contents, about which decode marker a Chameleon uses, about whether a wipe clears
+    anything — and about this: it rendered ONE expectation to every reader.
+
+    ⭐ THE REAL CLASSES DO NOT. Three clients decode the same credential and print it three
+    different ways, which is the entire reason `expect_for(reader)` exists. The fake stashed
+    `p.expect` — the Proxmark's rendering — at arm time and replayed it to whoever asked, so the
+    split could not be exercised: every scripted Chameleon read compared the Proxmark's token
+    against the Proxmark's token and agreed.
+
+    ⚠ IT WENT UNNOTICED BECAUSE EVERY ENTRY HAD THEM EQUAL. `fdxb` is the first where `expect` and
+    `cu_expect` genuinely differ — and they differ because the registry had been comparing pm3
+    output against a Chameleon token since the day it was written. The fixture agreed with the code
+    because both were built from the same wrong source.
+    """
+
+    def _air_with_tag_holding(self, key):
+        from benchmatrix.devices import Air, Scripted
+        from benchmatrix.stations import T5577
+        air = Air()
+        p = reg.ALL[key]
+        writer = Scripted(id="pm3", role="pm3", air=air)
+        writer.write_t55(p)
+        self.assertIn(T5577, air.armed, "the fixture only means anything if the tag is written")
+        return air, p
+
+    def test_each_reader_is_answered_in_its_own_wording(self):
+        from benchmatrix.devices import Scripted
+        air, p = self._air_with_tag_holding("fdxb")
+        self.assertNotEqual(p.expect_for("rd.pm3"), p.expect_for("rd.cu1"),
+                            "fdxb is the entry that makes this testable at all")
+        pm3_text = Scripted(id="pm3", role="pm3", air=air).read(p)
+        cu_text = Scripted(id="cu1", role="cu1", air=air).read(p)
+        self.assertIn(p.expect_for("rd.pm3"), pm3_text)
+        self.assertIn(p.expect_for("rd.cu1"), cu_text)
+        self.assertNotIn(p.expect_for("rd.cu1"), pm3_text,
+                         "the Proxmark does not print the Chameleon's rendering")
+
+    def test_a_reader_with_no_registered_expectation_says_nothing(self):
+        """⚠ Not "prints the other reader's token". An unknown expectation is a planning refusal,
+        and a fake that invents one hides the cell that should never have been planned."""
+        from benchmatrix.devices import Scripted
+        air, p = self._air_with_tag_holding("fdxb")
+        self.assertIsNone(p.expect_for("rd.flip"), "fdxb's Flipper encoding is still unknown")
+        self.assertEqual(Scripted(id="flipper", role="flipper", air=air).read(p), "")
