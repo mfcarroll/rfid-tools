@@ -78,6 +78,12 @@ class TagState:
     witnesses: set = field(default_factory=set)
     #: Set by a `blank` read that came back silent on a witness. Clears on the next write.
     cleared: bool = False
+    #: Was the tag, immediately before this write, in a state known to DIFFER from what was written?
+    #: Either it had just been cleared, or it held a different protocol. When it was, a DECODE — not
+    #: only a byte-exact one — proves the write landed, because a reader asked for P cannot decode a
+    #: credential that is not there. That is what turns a registry mismatch from an ambiguous "no
+    #: reader saw it" into an informative WRONG.
+    distinct: bool = False
 
 
 @dataclass
@@ -349,6 +355,8 @@ def _routine(report: BlockReport, devices: Devices, res: RunResult, session: str
             # ⚠ `settle()` has just decided whether the PARKING write took. Read that before it is
             # overwritten by this write's own state.
             parked = tag_state.cleared if op.after_park else True
+            prev = tag_state.protocol
+            distinct = tag_state.cleared or (prev is not None and prev.key != op.protocol.key)
             armed_ok = _write(op, devices, out)
             state = (op.protocol, op.device)
             tag_state.protocol, tag_state.writer = op.protocol, op.device
@@ -356,6 +364,7 @@ def _routine(report: BlockReport, devices: Devices, res: RunResult, session: str
             tag_state.witnesses = set()
             tag_state.cleared = False
             tag_state.parked = parked
+            tag_state.distinct = distinct
             continue
         if op.kind == "arm":
             settle()
@@ -424,9 +433,18 @@ def _settle(pending: list, state, tag_state: TagState, report: BlockReport, devi
     # as long as the tag holds it — including at the next station, which is where a carried tag is
     # usually read.
     for op, obs in pending:
-        if obs is not None and obs.matched:
+        if obs is None:
+            continue
+        if obs.matched:
             tag_state.verified = True
             tag_state.witnesses.add(op.device)
+        elif obs.decoded and tag_state.distinct:
+            # ⭐ A DECODE IS EVIDENCE THE WRITE LANDED, EVEN A WRONG ONE. The tag held something
+            # else a moment ago, and a reader asked for this protocol cannot decode a credential
+            # that is not there — so the write took, and what came back is a genuine WRONG rather
+            # than a silence nobody can attribute. This is what makes a registry mismatch legible
+            # on a single-reader station instead of ambiguous.
+            tag_state.verified = True
     verified = tag_state.verified
     graded = [(op, obs) for op, obs in pending if op.cell is not None]
 
@@ -457,9 +475,9 @@ def _settle(pending: list, state, tag_state: TagState, report: BlockReport, devi
     protocol = state[0].key if state else pending[0][0].protocol.key
     readers = sorted({op.cell.reader if op.cell else _reader_id(op.device) for op, _ in pending})
     if len(readers) == 1:
-        why = ("the write was issued but nothing read it back. With only %s in the stack this "
-               "cannot be told apart from %s being unable to decode %s — a second reader on the "
-               "same tag would separate them (RULES.md §10)."
+        why = ("the write was issued and nothing decoded anything at all. With only %s in the stack "
+               "this cannot be told apart from %s being unable to decode %s — a second reader on "
+               "the same tag would separate them (RULES.md §10)."
                % (readers[0], readers[0], protocol))
     else:
         why = ("the write was issued and none of %s read it back, so the credential is not on the "

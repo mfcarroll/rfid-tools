@@ -178,6 +178,12 @@ everything that is going to read it:
   reads may be attributed to their readers. A silence there is as likely to be a write that never
   landed as a decoder that cannot see it, and reporting it as "this reader cannot judge this
   protocol" would be a bench verdict for what may be a one-line registry error.
+- **A decode that does not match still settles it**, provided the tag was in a state known to differ
+  from what was written — cleared, or holding a different protocol. A reader asked for P cannot
+  decode a credential that is not there, so the write landed and what came back is a genuine
+  `WRONG`. Without this, a registry whose write command and expectation disagree reports an
+  ambiguity on a single-reader station instead of naming itself; with it, each tag block opens by
+  clearing the tag so the very first write is covered too.
 - **If any one reader read it back byte-exact**, that settles it for all of them. A credential we
   chose cannot be conjured out of a tag that does not hold it, so one witness proves the write
   landed — and every *other* reader's silence on the same tag turns from an ambiguity into a genuine

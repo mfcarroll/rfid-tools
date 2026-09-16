@@ -350,7 +350,7 @@ class AWriteIsNotDoneBecauseItReturned(unittest.TestCase):
         self.assertTrue(res.cells)
         for c in res.cells:
             self.assertIs(c.outcome, Outcome.UNGRADED)
-            self.assertIn("nothing read it back", c.note)
+            self.assertIn("nothing decoded anything at all", c.note)
             self.assertNotIn("cannot judge", c.note,
                              "a bench verdict must not be issued for an unwitnessed write")
         self.assertEqual(res.licences, {})
@@ -370,7 +370,7 @@ class AWriteIsNotDoneBecauseItReturned(unittest.TestCase):
         self.assertTrue(all(c.outcome is Outcome.EXACT for c in pm3))
         self.assertTrue(cu1)
         for c in cu1:
-            self.assertNotIn("nothing read it back", c.note,
+            self.assertNotIn("nothing decoded", c.note,
                              "the Proxmark witnessed the write, so this is about the reader")
 
     def test_the_writer_reads_back_even_when_no_cell_asks_it_to(self):
@@ -403,7 +403,7 @@ class AWriteIsNotDoneBecauseItReturned(unittest.TestCase):
                          interactive=False, session="S", out=quiet)
         self.assertTrue(res.cells)
         for c in res.cells:
-            self.assertNotIn("nothing read it back", c.note,
+            self.assertNotIn("nothing decoded", c.note,
                              "the Proxmark witnessed it at the write station, one stop earlier")
 
 
@@ -510,3 +510,41 @@ class AWriterUnderTestIsNotCreditedWithAnothersWork(unittest.TestCase):
         gold = [c for c in res.cells if c.source == "t55.pm3"]
         self.assertTrue(gold)
         self.assertTrue(all(c.outcome is Outcome.EXACT for c in gold))
+
+
+class AWrongCredentialIsLegibleOnOneReader(unittest.TestCase):
+    """⭐ The registry's `pm3.write` strings were read out of the client's usage text and never run,
+    so several are expected to disagree with `expect`. That has to arrive as a REGISTRY fault, not
+    as an ambiguity — otherwise the most informative run available reports five shrugs."""
+
+    def _run(self, answers, keys=("awid",), readers=("rd.pm3",)):
+        from benchmatrix import plan as planning
+        protos = reg.resolve(list(keys))
+        plan = planning.build(protos, ["t55.pm3"], list(readers), Bench())
+        return runner.run(plan, make_devices(answers=answers), interactive=False, session="S",
+                          out=quiet)
+
+    def test_a_decode_that_does_not_match_is_a_registry_fault(self):
+        wrong = {("awid", e): "[+] AWID - len: 26 - Raw: 011d8171deadbeefdeadbeef"
+                 for e in ("t5577", "cu1", "cu2", "flipper")}
+        res = self._run(wrong)
+        self.assertTrue(res.cells)
+        for c in res.cells:
+            self.assertIn("DECODED, but not what was written", c.note)
+            self.assertNotIn("nothing decoded", c.note)
+
+    def test_a_total_silence_is_still_ambiguous_on_one_reader(self):
+        """The distinction the whole change rests on: decoding the wrong thing proves the write
+        landed; decoding nothing proves nothing."""
+        silent = {("awid", e): "" for e in ("t5577", "cu1", "cu2", "flipper")}
+        res = self._run(silent)
+        self.assertTrue(all("nothing decoded anything at all" in c.note for c in res.cells))
+
+    def test_the_block_clears_the_tag_before_its_first_write(self):
+        """⭐ Without it the FIRST protocol of a block is the one case where a wrong credential and
+        a dead reader cannot be told apart, because the tag's prior contents are unknown."""
+        from benchmatrix import plan as planning
+        plan = planning.build(reg.resolve(["awid"]), ["t55.pm3"], ["rd.pm3"], Bench())
+        kinds = [o.kind for b in plan.blocks for o in b.ops]
+        self.assertEqual(kinds[0], "wipe", "the block must open by putting the tag in a known state")
+        self.assertLess(kinds.index("wipe"), kinds.index("write"))
