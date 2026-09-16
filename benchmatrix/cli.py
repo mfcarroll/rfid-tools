@@ -443,6 +443,57 @@ def _why_not_learnable(p, reader: str) -> str | None:
     return None
 
 
+def _decoded(p, reader: str, text: str, obs) -> bool:
+    """Did the reader actually produce a credential? Per reader, because the Flipper is anchored."""
+    if reader == "rd.flip":
+        return learned.observed_value(text, p.flip_key) is not None
+    return bool(obs.marker_fired)
+
+
+def _isolated_retry(a, p, reader, dev, bench, write_station):
+    """Take the bystander out of the stack and ask again (RULES.md §7).
+
+    ⛔ THE PROXMARK IS A BYSTANDER DURING THE READ. It has to be in the stack to make the gold tag,
+    and then it sits under that tag loading it while another device tries to read. A silence there
+    says nothing about the reader, and recording it as "does not decode" manufactures a firmware gap
+    out of a bench topology.
+
+    ⭐ THE TAG DOES NOT MOVE — the Proxmark does. It is a pure removal, so the cue is "take out the
+    Proxmark" rather than a description of a rig the operator can already see, and the credential
+    stays exactly where it was written.
+    """
+    read_station = build_station({READERS[reader], T5577}, bench)
+    print("      %s nothing decoded — and the Proxmark is in the stack, loading the tag. That is "
+          "not a verdict about %s (RULES.md §7)." % (ui.mark("screen"), reader))
+    _cue_station(read_station, bench, frm=write_station)
+    done = ui.working(print, "%s reads it again, isolated" % reader)
+    try:
+        text, obs, proposals = _learn_read(dev, p, reader)
+    except DeviceError as e:
+        print("      ⛔ %s" % e)
+        text, obs, proposals = None, None, None
+    else:
+        done("      %s %s answered" % (ui.mark("ok"), reader))
+        if not _decoded(p, reader, text, obs):
+            print("      · still nothing with the stack cleared. THAT is a finding about %s and "
+                  "%s, and it is now entitled to be one." % (reader, p.key))
+            text = None
+    # ⚠ THE WRITER GOES BACK, because the next protocol needs a wipe and a fresh gold write.
+    _cue_station(write_station, bench, frm=read_station)
+    return text, obs, proposals
+
+
+def _cue_station(station, bench, frm=None) -> None:
+    """⚠ THE SAME WORDING A RUN USES, from the same function. Taking the Proxmark out of a stack is
+    "take out the Proxmark", not a re-description of the two things that did not move."""
+    print("")
+    for line in ui.diagram([station], sorted(bench.devices - station.devices)):
+        print(line)
+    print("")
+    cues.ask("     press Enter when the bench looks like that: ",
+             spoken=ui.spoken_move(frm, station))
+
+
 def _learn_read(dev, p, reader):
     """Read with one device and turn the text into (observation, proposals)."""
     text = dev.read(p)
@@ -468,12 +519,11 @@ def _confirm_value(p, reader, text, obs, proposals, interactive) -> str | None:
         # and it is a different result from "it printed something the marker did not match".
         print("        (nothing at all — not even a banner)")
     if not obs.marker_fired:
-        # ⚠ A FINDING, NOT A FAILURE TO LEARN — and not a value to record either: an expectation
-        # taken from output the decode marker did not match would license a reader that never
-        # decoded anything.
+        # ⚠ NOT A VALUE TO RECORD EITHER WAY: an expectation taken from output the decode marker
+        # did not match would license a reader that never decoded anything.
         print("      ⛔ the decode marker for %s did not fire. Either this reader does not decode "
-              "%s from a real tag — which is a FINDING — or the marker is wrong. Not recording."
-              % (reader, p.key))
+              "%s from a real tag, or the marker is wrong, or the Proxmark in the stack is loading "
+              "the tag (RULES.md §7). Not recording." % (reader, p.key))
         return None
     if not proposals:
         print("      ⛔ nothing in that output looks like a credential. Not recording.")
@@ -600,15 +650,38 @@ def cmd_learn(a) -> int:
                     print("      ⛔ %s" % e)
                     continue
                 done("      %s %s answered" % (ui.mark("ok"), reader))
+                if not _decoded(p, reader, text, obs) and not a.no_prompt:
+                    # ⛔⛔ A SILENCE FROM A CROWDED STACK IS NOT A FINDING (RULES.md §7), AND THIS
+                    # COMMAND HAD NO IDEA. The gold writer has to be present to make the tag, so
+                    # the reader is ALWAYS being asked through a Proxmark sitting directly under it
+                    # — and that is a bystander coil, loading the tag, for the whole read.
+                    #
+                    # ⚠ IT IS NOT HYPOTHETICAL. The Flipper reported "does not decode" for viking,
+                    # jablotron, pac and hidprox in a row, 12 failed reads each, ~50s apiece — and
+                    # the operator then read the same tag on the same Flipper instantly with the
+                    # Proxmark out of the stack. Four false findings, and they would have been
+                    # recorded as firmware gaps.
+                    #
+                    # ⇒ Try the stack first because it costs nothing, and pay for an isolated
+                    # reading ONLY where the stack came up empty. A reader that works stacked
+                    # (the Chameleon does) never sees this; one that does not is still measured.
+                    text, obs, proposals = _isolated_retry(a, p, reader, dev, bench, station)
+                    if text is None:
+                        continue
             if reader == "rd.flip":
                 # ⛔ THE FLIPPER KEEPS ITS ANCHORED EXTRACTOR (RULES.md §6). Its success line has a
                 # shape worth pinning to, and `flip_expect` is the bare hex that `flip_line()`
                 # composes a full expectation from — not a line the operator picked.
                 value = learned.observed_value(text, p.flip_key)
                 if value is None:
-                    print("      · no `%s <HEX>` line — the Flipper does not decode %s from a real "
-                          "tag on this bench. That is a FINDING, not a learning failure."
-                          % (p.flip_key, p.key))
+                    # ⛔ ONLY REACHABLE WITH `--no-prompt`, where nobody can be asked to clear the
+                    # stack — so it must NOT claim a finding. It said "the Flipper does not decode
+                    # viking from a real tag on this bench" four times in a row about a Flipper
+                    # that decodes all of them with the Proxmark out of the stack.
+                    print("      · no `%s <HEX>` line. The Proxmark is in the stack loading the "
+                          "tag, so this is SCREENED, not a verdict about %s (RULES.md §7) — and "
+                          "--no-prompt means nobody can be asked to clear it. Re-run without it to "
+                          "have the reading retaken isolated." % (p.flip_key, p.key))
                     continue
                 print("      ✓ anchored `%s %s`" % (p.flip_key, value))
             else:
