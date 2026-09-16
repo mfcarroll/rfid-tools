@@ -184,3 +184,54 @@ class TheCliOffersNoWayAround(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class AnIsolatedGoldRowGrantsItsLicence(unittest.TestCase):
+    """⛔⛔ PHASE 2 EARNED A LICENCE AND THE MERGE THREW IT AWAY. When the cell phase 2 goes back for
+    is a CALIBRATION row, settling it is not one cell's business — every reading of that
+    (protocol, reader) was UNGRADED for want of exactly the licence phase 2 has now produced.
+
+    ⚠ RUN 20260916_125646 DID ALL THE WORK AND PUBLISHED IT AS OUTSTANDING. `em410x t55.pm3 →
+    rd.cu1` was screened SILENT in a crowded stack, isolated across two stations and six
+    interventions, and read byte-exact. The grid still said "⛔ no licence — the calibration row was
+    screened SILENT in a crowded stack and awaits isolation", with `em410x emu.pm3 → rd.cu1`
+    UNGRADED beside a note recording that it had read EXACT.
+    """
+
+    def _cells(self):
+        from tests.helpers import pm3_exact
+        from benchmatrix.outcomes import Outcome, grade, observe
+        p = reg.ALL["em410x"]
+        gold = grade(observe(p.key, "t55.pm3", "rd.cu1", pm3_exact(p), p.expect_for("rd.cu1"),
+                             p.marker_for("rd.cu1")), None)
+        dep = grade(observe(p.key, "emu.pm3", "rd.cu1", pm3_exact(p), p.expect_for("rd.cu1"),
+                            p.marker_for("rd.cu1")), None)
+        self.assertIs(gold.outcome, Outcome.UNGRADED, "both start unlicensed")
+        self.assertIs(dep.outcome, Outcome.UNGRADED)
+        import dataclasses
+        return [dataclasses.replace(gold, outcome=Outcome.EXACT), dep]
+
+    def test_the_licence_is_granted_and_the_dependent_cell_regraded(self):
+        from benchmatrix import grid
+        from benchmatrix.outcomes import Outcome
+        licences = {}
+        out = grid._relicense(self._cells(), licences)
+        self.assertIn(("em410x", "rd.cu1"), licences, "the isolated gold row licenses the pair")
+        dep = [c for c in out if c.source == "emu.pm3"][0]
+        self.assertIs(dep.outcome, Outcome.EXACT, "the cell that was waiting on it is now scored")
+
+    def test_a_licence_scores_a_reading_it_does_not_improve_one(self):
+        """⛔ THE LINE THAT MUST NOT MOVE. A licence decides whether a reading may be SCORED, never
+        what it scores — a silence stays a silence once licensed."""
+        from benchmatrix import grid
+        from benchmatrix.outcomes import Outcome, grade, observe
+        import dataclasses
+        from tests.helpers import pm3_exact
+        p = reg.ALL["em410x"]
+        gold = dataclasses.replace(
+            grade(observe(p.key, "t55.pm3", "rd.cu1", pm3_exact(p), p.expect_for("rd.cu1"),
+                          p.marker_for("rd.cu1")), None), outcome=Outcome.EXACT)
+        deaf = grade(observe(p.key, "emu.pm3", "rd.cu1", "", p.expect_for("rd.cu1"),
+                             p.marker_for("rd.cu1")), None)
+        out = grid._relicense([gold, deaf], {})
+        self.assertIs([c for c in out if c.source == "emu.pm3"][0].outcome, Outcome.SILENT)
