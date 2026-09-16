@@ -21,11 +21,36 @@ from collections import OrderedDict
 from . import registry as reg
 from .outcomes import GLYPH, Cell, Outcome
 from .plan import Exclusion
-from .stations import READER_NOTE
+from .stations import EMULATED_SOURCES, READER_NOTE, REAL_SOURCES
 
-SOURCE_ORDER = ("t55.pm3", "oem", "t55.flip", "t55.cu1", "t55.cu2",
-                "emu.flip", "emu.cu1", "emu.cu2")
-READER_ORDER = ("rd.pm3", "rd.flip", "rd.cu1", "rd.cu2")
+#: Sources across the top of every table, left to right. ⚠ ORDERED, so the grid reads the same way
+#: in every run and two runs can be diffed.
+#:
+#: ⛔⛔ AND DERIVED, BECAUSE THE HAND-MAINTAINED VERSION LOST A COLUMN. This was a fourth copy of
+#: the source list and `emu.pm3` was never added to it when the Proxmark became an emitter. The
+#: filter below keeps only sources that appear in SOURCE_ORDER, so ten MEASURED cells — every
+#: `emu.pm3 → rd.cu1` reading in run 20260916_114253 — were dropped from the published grid without
+#: a word. The tallies counted 27 for that reader and the table showed 17, and the operator read the
+#: missing column as the Chameleon failing to read.
+#:
+#: ⚠ `plan.py` had already been given exactly this treatment for `EMULATED_ORDER`, with a comment
+#: saying a new emitter "cannot be added to one and forgotten in the other". It was added to that
+#: one and forgotten in THIS one.
+SOURCE_ORDER = tuple(s for s in ("t55.pm3", "oem", "t55.flip", "t55.cu1", "t55.cu2",
+                                 "emu.pm3", "emu.flip", "emu.cu1", "emu.cu2")
+                     if s in REAL_SOURCES | EMULATED_SOURCES)
+assert set(SOURCE_ORDER) == REAL_SOURCES | EMULATED_SOURCES, (
+    "SOURCE_ORDER is missing %s — every cell from it would vanish from the grid"
+    % ((REAL_SOURCES | EMULATED_SOURCES) - set(SOURCE_ORDER),))
+
+READER_ORDER = tuple(r for r in ("rd.pm3", "rd.flip", "rd.cu1", "rd.cu2") if r in READER_NOTE)
+assert set(READER_ORDER) == set(READER_NOTE), (
+    "READER_ORDER is missing %s — that reader would get no table at all"
+    % (set(READER_NOTE) - set(READER_ORDER),))
+
+
+class GridError(Exception):
+    """The grid cannot be rendered honestly."""
 
 
 def _by_cell(cells: list[Cell]) -> dict:
@@ -61,6 +86,31 @@ def merge(phase1, phase2):
     return phase1
 
 
+def _audit(cells: list[Cell], sources: list[str], readers: list[str],
+           protocols: list[reg.Protocol]) -> None:
+    """Every measured cell must have a square to appear in. ⛔ MEASURED AND NOT SHOWN IS THE WORST
+    OF THE THREE STATES: refused says so with a reason, missing is visible as a blank, but a
+    reading that was taken, graded, counted in the tallies and then rendered NOWHERE makes the grid
+    disagree with itself — and the reader of it blames the device. `rd.cu1` scored 26 EXACT and
+    displayed 17 (run 20260916_114253), and the ten `emu.pm3` readings holding the difference were
+    the very ones that proved the Proxmark's emitter fixes had worked.
+
+    ⚠ THE AXIS LISTS ARE NOT THE TEST — the cells are. An assertion on `SOURCE_ORDER` proves it
+    agrees with `stations.py`; this proves the grid agrees with what actually happened, which is
+    what the earlier assertion would still have missed had the source been absent from both.
+    """
+    keys = {p.key for p in protocols}
+    lost = sorted({(c.protocol, c.source, c.reader) for c in cells
+                   if c.source not in sources or c.reader not in readers
+                   or c.protocol not in keys})
+    if lost:
+        raise GridError(
+            "%d measured cell(s) would not appear anywhere in the grid: %s. The tallies count "
+            "them and no table shows them, so the published grid contradicts its own totals. "
+            "Check SOURCE_ORDER / READER_ORDER against stations.py."
+            % (len(lost), "; ".join("%s %s → %s" % k for k in lost[:6])))
+
+
 def render(result, protocols: list[reg.Protocol]) -> str:
     """The terminal/markdown grid: one table per reader, protocols down, sources across."""
     cells = _by_cell(result.cells)
@@ -68,6 +118,7 @@ def render(result, protocols: list[reg.Protocol]) -> str:
     sources = [s for s in SOURCE_ORDER
                if any(c.source == s for c in result.cells)]
     readers = [r for r in READER_ORDER if any(c.reader == r for c in result.cells)]
+    _audit(result.cells, sources, readers, protocols)
     lines: list[str] = []
     w = max((len(p.key) for p in protocols), default=8)
 
