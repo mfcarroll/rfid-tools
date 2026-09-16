@@ -72,6 +72,17 @@ T55_DEFAULT_BLOCK0 = ("000880e0",)          # T55x7 default; a Q5/T5555 wipes to
 T55_Q5_BLOCK0 = ("6001f004",)
 T55_PRESENT = ("chip type", "block0")
 
+#: ⛔⛔ A GRID THAT CANNOT SAY WHICH FIRMWARE PRODUCED IT CANNOT BE CITED LATER. The two Chameleons
+#: on this bench run different builds on purpose — that is half of why there are two — so "the
+#: Chameleon decodes Keri" is not a claim about anything until it says WHICH Chameleon and which
+#: build. The versions come out of the `hw version` that proof of life already runs, so recording
+#: them costs nothing but must not be skipped.
+#: ⚠ THE CLIENT VERSION MATTERS TOO, NOT ONLY THE FIRMWARE. A mismatched Proxmark client fails every
+#: command while looking cheerful, and that pairing has cost a bench session before now.
+PM3_OS_RE = re.compile(r"^\s*OS\.*\s+(.+?)\s*$", re.M)
+PM3_CLIENT_RE = re.compile(r"^\s*Client\.*\s+(.+?)\s*$", re.M)
+CU_VERSION_RE = re.compile(r"Chameleon\s+(\w+),\s*Version:\s*(\S+)\s*\(([^)]+)\)")
+
 #: The Flipper's success line, from `flipper.py`: name, one space, an even number of uppercase hex
 #: digits, alone on the line. ⛔ The name MAY CONTAIN SPACES ("Radio Key"), and assuming it could
 #: not scored a working emulation 0 of 6 and put that number in FINDINGS.md as a defect.
@@ -122,6 +133,8 @@ class Pm3:
     binary: str = DEFAULT_PM3
     timeout: int = 90
     id: str = "rd.pm3"
+    #: Filled in by `alive()` from the same `hw version` it already runs.
+    reported: str = ""
 
     def exec(self, *cmds: str, timeout: Optional[int] = None) -> str:
         return _run(shlex.split(self.binary) + ["-c", " ; ".join(cmds)], timeout or self.timeout)
@@ -138,7 +151,8 @@ class Pm3:
             return False, ("pm3: the client ran but the device never answered — no proof of life in "
                            "`hw version`. Check the CLIENT/FIRMWARE pairing first: a shimmed or "
                            "mismatched client fails EVERY command while looking cheerful.")
-        return True, "pm3: alive"
+        self.reported = _pm3_version(out)
+        return True, "pm3: alive — %s" % self.reported
 
     def read(self, p: reg.Protocol) -> str:
         return self.exec(p.pm3_read)
@@ -215,6 +229,7 @@ class Chameleon:
     slot: int = 8
     timeout: int = 60
     id: str = "rd.cu"
+    reported: str = ""
     #: The permanent hardware id `bench setup` recorded for this label. Checked at proof of life,
     #: because a port can be reassigned between sessions and the silicon cannot.
     expect_chipid: str = ""
@@ -274,8 +289,9 @@ class Chameleon:
         # ⚠ NOTHING EXTRA IS CHECKED HERE. `exec` above already proved this is the right
         # device, and it proves it again on every subsequent action — a single startup check would
         # leave the rest of the run unguarded against a cable being moved mid-session.
-        return True, "%s: alive%s" % (
-            self.name,
+        self.reported = _cu_version(out)
+        return True, "%s: alive — %s%s" % (
+            self.name, self.reported,
             " (chip %s, re-proved on every action)" % self.expect_chipid if self.expect_chipid
             else " — ⚠ no chip id recorded, so nothing checks that commands reach this device "
                  "rather than the other one. Run `bench setup`.")
@@ -343,6 +359,11 @@ class Flipper:
     attempts: int = 6
     timeout: int = 180
     id: str = "rd.flip"
+    #: ⚠ HONESTLY UNKNOWN. `flipper.py` exposes read / emulate / reboot / heap and no version query,
+    #: and this harness does not reach past it to the serial port — two readers on one `/dev/cu.*`
+    #: is how a session's replies get eaten. Recorded as unknown rather than guessed; a one-line
+    #: `version` subcommand in `flipper.py` would fill it in.
+    reported: str = "firmware not reported by this channel"
 
     def _py(self) -> str:
         cand = os.path.join(os.path.dirname(DEFAULT_CU_PY), ".venv", "bin", "python")
@@ -461,6 +482,7 @@ class Scripted:
     air: Air = field(default_factory=Air)
     armed: Optional[str] = None
     alive_ok: bool = True
+    reported: str = "scripted, no firmware"
     log: list = field(default_factory=list)
 
     def alive(self) -> tuple[bool, str]:
@@ -523,6 +545,24 @@ class Scripted:
 
     def decode_marker(self, p: reg.Protocol) -> str:
         return FLIP_DECODE_MARKER if self.role == "flipper" else p.pm3_decode_marker
+
+
+def _pm3_version(out: str) -> str:
+    os_m, cl_m = PM3_OS_RE.search(out or ""), PM3_CLIENT_RE.search(out or "")
+    if not (os_m or cl_m):
+        return "firmware version not reported"
+    bits = []
+    if os_m:
+        bits.append("os %s" % os_m.group(1))
+    if cl_m:
+        bits.append("client %s" % cl_m.group(1))
+    return ", ".join(bits)
+
+
+def _cu_version(out: str) -> str:
+    m = CU_VERSION_RE.search(out or "")
+    return ("Chameleon %s %s (%s)" % (m.group(1), m.group(2), m.group(3)) if m
+            else "firmware version not reported")
 
 
 def scripted_bench(answers: dict | None = None, *, flipper: bool = True, cu2: bool = True):
