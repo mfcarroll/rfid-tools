@@ -249,6 +249,36 @@ class FlipperCLI:
         return self.run("rfid write %s %s" % (protocol, data), "Writing", settle=20.0)
 
 
+#: Everything `rfid read` prints whatever happens: the echoed command, the two status lines, and
+#: the terminator. ⭐ ANYTHING ELSE IS THE DEVICE SAYING SOMETHING.
+_BOILERPLATE = ("rfid read", "reading rfid", "press ctrl+c", "reading stopped", "reading raw")
+
+
+def unrecognised(lines) -> list[str]:
+    """Lines the device printed that are neither boilerplate nor a decode we matched.
+
+    ⛔⛔ THIS IS THE DIFFERENCE BETWEEN "THE READER FOUND NOTHING" AND "WE DID NOT UNDERSTAND THE
+    READER", AND EVERY BUG IN THIS HARNESS SO FAR HAS BEEN THE SECOND REPORTED AS THE FIRST. The
+    anchored `^name HEX$` pattern is an assumption about output shape; a protocol that renders
+    differently produces no match, and a no-match was being published as a decoder gap. It already
+    happened: `rd.flip` returned nothing for EVERY protocol while the Flipper decoded perfectly,
+    and `fdxb` was written up as a Flipper FDX-B gap against a firmware that reads FDX-B fine.
+
+    ⇒ A null is only evidence with a positive control (F05), and this is the control that is always
+    available: if the device printed lines we cannot account for, the fault is OURS and must not be
+    recorded as a finding. If it printed only the boilerplate, it genuinely heard nothing.
+    """
+    out = []
+    for line in lines or ():
+        t = line.strip()
+        if not t or any(b in t.lower() for b in _BOILERPLATE):
+            continue
+        if SUCCESS.match(t):
+            continue                       # a decode we DID match is accounted for
+        out.append(t)
+    return out
+
+
 def front_ends_for(family: str) -> tuple:
     """Which front end to try first for a protocol of this modulation family.
 

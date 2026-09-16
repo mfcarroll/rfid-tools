@@ -471,6 +471,9 @@ class Flipper:
     #: (RULES.md §6) — but a channel that discards its evidence cannot be debugged, and this one
     #: could not be.
     last_transcript: str = ""
+    #: Lines the device printed that were neither boilerplate nor a decode we matched. Non-empty
+    #: after a read with no hits means WE failed to parse it, not that the reader heard nothing.
+    last_unrecognised: list = field(default_factory=list)
     #: ⚠ HONESTLY UNKNOWN. The `lfrfid` CLI has no version query, and this harness will not open a
     #: second reader on the same `/dev/cu.*` to go looking — that is how a session's replies get
     #: eaten. Recorded as unknown rather than guessed.
@@ -538,6 +541,11 @@ class Flipper:
             if t.decode and t.decode.line not in seen:
                 seen.add(t.decode.line)
                 hits.append(t.decode.line)
+        # ⭐ WHAT THE DEVICE SAID THAT WE COULD NOT ACCOUNT FOR. Kept so a caller can tell "the
+        # reader heard nothing" from "the reader answered and this harness did not understand it" —
+        # the distinction every bug in this channel has turned on (see `flipper.unrecognised`).
+        self.last_unrecognised = flipper.unrecognised(
+            [l for t in tries for l in t.lines]) if not hits else []
         return "\n".join(hits)
 
     def write_t55(self, p: reg.Protocol) -> str:
