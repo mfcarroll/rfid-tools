@@ -65,12 +65,20 @@ class TagState:
 
     protocol: object | None = None
     writer: str | None = None
+    #: Witnesses as they stood immediately before the last wipe.
+    pre_wipe: set = field(default_factory=set)
     verified: bool = False
     tag: int = 0
     #: Was the tag put into a state known to DIFFER from this credential before it was written?
     #: Without that, a byte-exact read cannot tell a successful write from no write at all, because
     #: every writer in the registry writes the same credential for a given protocol.
     parked: bool = True
+    #: Devices that have read the CURRENT credential back byte-exact. A wipe is confirmed by one of
+    #: them then hearing nothing: silence from a reader that was speaking a moment ago is evidence,
+    #: where silence from a reader that has never spoken is not.
+    witnesses: set = field(default_factory=set)
+    #: Set by a `blank` read that came back silent on a witness. Clears on the next write.
+    cleared: bool = False
 
 
 @dataclass
@@ -303,15 +311,25 @@ def _routine(report: BlockReport, devices: Devices, res: RunResult, session: str
             tag_state.tag = op.tag
             tag_state.verified = False
 
+        if op.kind == "wipe":
+            settle()
+            _wipe(op, devices, out, tag_state)
+            state = None
+            continue
+        if op.kind == "blank":
+            _blank(op, devices, res, session, pad, out, tag_state)
+            continue
         if op.kind == "write":
             settle()
             # ⚠ `settle()` has just decided whether the PARKING write took. Read that before it is
             # overwritten by this write's own state.
-            parked = tag_state.verified if op.after_park else True
+            parked = tag_state.cleared if op.after_park else True
             armed_ok = _write(op, devices, out)
             state = (op.protocol, op.device)
             tag_state.protocol, tag_state.writer = op.protocol, op.device
             tag_state.verified = False          # a fresh credential has been witnessed by nothing
+            tag_state.witnesses = set()
+            tag_state.cleared = False
             tag_state.parked = parked
             continue
         if op.kind == "arm":
@@ -380,8 +398,10 @@ def _settle(pending: list, state, tag_state: TagState, report: BlockReport, devi
     # ⚠ STICKY ACROSS STATIONS. Once anything has read this credential back, it stays verified for
     # as long as the tag holds it — including at the next station, which is where a carried tag is
     # usually read.
-    if any(obs is not None and obs.matched for _, obs in pending):
-        tag_state.verified = True
+    for op, obs in pending:
+        if obs is not None and obs.matched:
+            tag_state.verified = True
+            tag_state.witnesses.add(op.device)
     verified = tag_state.verified
     graded = [(op, obs) for op, obs in pending if op.cell is not None]
 
@@ -475,6 +495,44 @@ def _grade_one(op: Op, obs, report: BlockReport, res: RunResult, out, issued: li
         out("      %s %-10s %-9s %-7s %s" % (graded.glyph, cell.protocol.key, cell.source,
                                              cell.reader, graded.outcome))
     res.cells.append(graded)
+
+
+def _wipe(op: Op, devices: Devices, out, tag_state: TagState) -> None:
+    """Clear the tag and restore its default config. Verified by `_blank`, never by the reply."""
+    tag_state.pre_wipe = set(tag_state.witnesses)
+    try:
+        devices.by_dev(op.device).wipe_t55()
+        out("      ⌫ wiped the tag and restored the default config block")
+    except DeviceError as e:
+        out("      ⛔ wipe refused — %s" % e)
+    tag_state.protocol, tag_state.writer = None, None
+    tag_state.verified, tag_state.witnesses, tag_state.cleared = False, set(), False
+
+
+def _blank(op: Op, devices: Devices, res: RunResult, session: str, pad: str, out,
+           tag_state: TagState) -> None:
+    """Confirm the tag is clear, by silence from a reader that was speaking a moment ago.
+
+    ⛔⛔ SILENCE IS ONLY EVIDENCE WHEN SOMETHING WAS EXPECTED TO SPEAK. This is the null-sweep
+    discipline applied to one tag: the reader used here read the pre-wipe credential byte-exact in
+    the step immediately before, so its silence now can only mean the tag changed. A silent read
+    from a reader that has said nothing all along would prove nothing at all, and the write that
+    follows would be graded against a tag whose state we had guessed at.
+    """
+    reader = _reader_id(op.device)
+    if op.device not in getattr(tag_state, "pre_wipe", set()):
+        out("      ▒ cannot confirm the wipe — %s did not read the credential back before it, so "
+            "its silence now is not evidence" % reader)
+        return
+    obs = _read(op, devices, session, pad, out, protocol=op.protocol,
+                source="t55.pm3", reader=reader)
+    if obs is None:
+        return
+    if obs.decoded or obs.matched:
+        out("      ⛔ the tag still answers after the wipe — it was not cleared")
+        return
+    tag_state.cleared = True
+    out("      ✓ tag clear — %s read it byte-exact before the wipe and hears nothing now" % reader)
 
 
 def _write(op: Op, devices: Devices, out) -> bool:

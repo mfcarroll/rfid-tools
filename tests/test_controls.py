@@ -419,15 +419,18 @@ class AWriterUnderTestIsNotCreditedWithAnothersWork(unittest.TestCase):
         return planning.build(reg.resolve(list(self.PROTOS)), ["t55.pm3", "t55.cu1"],
                               ["rd.pm3", "rd.cu1"], Bench())
 
-    def test_the_tag_is_parked_before_the_writer_under_test(self):
+    def test_the_tag_is_wiped_before_the_writer_under_test(self):
         ops = [o for b in self._plan().blocks for o in b.ops]
-        kinds = [(o.kind, o.device, o.protocol.key) for o in ops]
-        park = next(i for i, k in enumerate(kinds) if k[0] == "write" and k[2] == "__park__")
-        cu_write = next(i for i, k in enumerate(kinds) if k[0] == "write" and k[1] == "cu1")
-        self.assertLess(park, cu_write, "the park must precede the write it protects")
-        self.assertEqual(kinds[park + 1][0], "verify", "a park that is not verified protects nothing")
+        kinds = [(o.kind, o.device) for o in ops]
+        wipe = next(i for i, k in enumerate(kinds) if k[0] == "wipe")
+        cu_write = next(i for i, k in enumerate(kinds) if k == ("write", "cu1"))
+        self.assertLess(wipe, cu_write, "the wipe must precede the write it protects")
+        self.assertEqual(kinds[wipe + 1][0], "blank", "a wipe that is not confirmed protects nothing")
+        self.assertIn(("read", "pm3"), kinds[:wipe],
+                      "the confirming reader must have read the credential back BEFORE the wipe, "
+                      "or its silence afterwards is not evidence")
 
-    def test_the_gold_write_needs_no_park(self):
+    def test_the_gold_write_needs_no_clearing(self):
         """The tag already holds a different protocol, and what a gold row claims is only that the
         tag carries the credential — not who put it there."""
         ops = [o for b in self._plan().blocks for o in b.ops]
@@ -435,21 +438,25 @@ class AWriterUnderTestIsNotCreditedWithAnothersWork(unittest.TestCase):
                          and o.protocol.key != "__park__")
         self.assertFalse(pm3_write.after_park)
 
-    def test_the_park_uses_a_credential_no_protocol_in_the_registry_uses(self):
+    def test_a_station_without_the_proxmark_parks_on_a_distinct_credential_instead(self):
+        """⚠ Weaker: it neither restores the config nor says anything about P if it fails — but the
+        tag still demonstrably changed, and only the device under test touched it."""
+        from benchmatrix import plan as planning
+        p = planning.build(reg.resolve(["em410x"]), ["t55.cu1"], ["rd.cu2"], Bench())
+        pm3less = [b for b in p.blocks if "PM3" not in b.station.name]
+        self.assertTrue(pm3less, "the writer-under-test block has no Proxmark in it")
+        kinds = [(o.kind, o.protocol.key) for b in pm3less for o in b.ops]
+        self.assertNotIn("wipe", [k for k, _ in kinds], "nothing there can wipe")
+        self.assertIn(("write", reg.PARK_KEY), kinds)
         park = reg.park_protocol()
-        self.assertNotIn(park.expect, {p.expect for p in reg.TIER0.values()})
-        self.assertTrue(park.key.startswith("__"))
+        self.assertNotIn(park.expect, {q.expect for q in reg.TIER0.values()},
+                         "the parking credential must not collide with a registry entry")
 
     def test_a_no_op_write_by_the_device_under_test_is_caught(self):
         """The whole point: the Chameleon's write does nothing, the tag keeps the parking
         credential, and the cells that claim to be about the Chameleon's writer go UNGRADED."""
         protos = reg.resolve(list(self.PROTOS))
-        answers = answers_all_exact(protos)
-        park = reg.park_protocol()
-        answers.update({(park.key, e): "[+] EM 410x ID %s" % park.expect
-                        for e in ("t5577", "cu1", "cu2", "flipper")})
-        dev = make_devices(answers=answers)
-        real_write = dev.cu1.write_t55
+        dev = make_devices(answers=answers_all_exact(protos))
         dev.cu1.write_t55 = lambda p: "ok"          # returns cheerfully, changes nothing
         res = runner.run(self._plan(), dev, interactive=False, session="S", out=quiet)
         cu_written = [c for c in res.cells if c.source == "t55.cu1"]
@@ -458,20 +465,27 @@ class AWriterUnderTestIsNotCreditedWithAnothersWork(unittest.TestCase):
             self.assertIs(c.outcome, Outcome.UNGRADED,
                           "a write that did nothing must not be scored EXACT")
 
-    def test_an_unverified_park_blocks_the_write_it_was_meant_to_protect(self):
+    def test_an_unconfirmed_wipe_blocks_the_write_it_was_meant_to_protect(self):
         protos = reg.resolve(list(self.PROTOS))
-        answers = answers_all_exact(protos)
-        park = reg.park_protocol()
-        # The parking write is issued but nothing reads it back, so the tag's state is unknown and
-        # the write it was meant to protect cannot be told from a write that did nothing.
-        answers.update({(park.key, e): "" for e in ("t5577", "cu1", "cu2", "flipper")})
-        res = runner.run(self._plan(), make_devices(answers=answers), interactive=False,
-                         session="S", out=quiet)
+        dev = make_devices(answers=answers_all_exact(protos))
+        dev.pm3.wipe_t55 = lambda: "ok"             # returns cheerfully, clears nothing
+        res = runner.run(self._plan(), dev, interactive=False, session="S", out=quiet)
         cu_written = [c for c in res.cells if c.source == "t55.cu1"]
         self.assertTrue(cu_written)
         for c in cu_written:
             self.assertIs(c.outcome, Outcome.UNGRADED)
-            self.assertIn("parking write did not take", c.note)
+            self.assertIn("did not take", c.note)
+
+    def test_a_wipe_is_confirmed_by_silence_from_a_reader_that_just_spoke(self):
+        """⭐ The null-sweep discipline applied to one tag. The Proxmark read the credential back
+        byte-exact one step earlier, so its silence now can only mean the tag changed."""
+        said = []
+        protos = reg.resolve(list(self.PROTOS))
+        runner.run(self._plan(), make_devices(answers=answers_all_exact(protos)),
+                   interactive=False, session="S", out=lambda m="": said.append(str(m)))
+        joined = "\n".join(said)
+        self.assertIn("tag clear", joined)
+        self.assertIn("read it byte-exact before the wipe", joined)
 
     def test_the_gold_rows_are_unaffected_by_any_of_this(self):
         """The Chameleon's writer being untestable must not cost us the Proxmark's column."""
