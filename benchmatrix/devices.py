@@ -242,6 +242,11 @@ class Chameleon:
     timeout: int = 60
     id: str = "rd.cu"
     reported: str = ""
+    #: ⚠ BENCH TIMING, NOT LOGIC. The slot needs a moment to come up after `hw mode -e`, and the
+    #: field a moment to die after `hw mode -r`. Attributes rather than literals so a test suite
+    #: does not spend a second per protocol waiting for hardware that is not there.
+    arm_settle: float = 1.0
+    disarm_settle: float = 0.5
     #: The permanent hardware id `bench setup` recorded for this label. Checked at proof of life,
     #: because a port can be reassigned between sessions and the silicon cannot.
     expect_chipid: str = ""
@@ -330,7 +335,7 @@ class Chameleon:
             if why:
                 raise DeviceError("%s: %s REFUSED for %s — %s" % (self.name, step, p.key, why))
         self.exec("hw slot change -s %d" % self.slot, "hw mode -e")
-        time.sleep(1.0)
+        time.sleep(self.arm_settle)
 
     def disarm(self) -> None:
         """Reader mode: the device emits nothing. This is what a null sweep is taken against.
@@ -341,17 +346,38 @@ class Chameleon:
         confirmation. `arm()` ends with `hw mode -e` for that reason.
         """
         self.exec("hw mode -r")
-        time.sleep(0.5)
+        time.sleep(self.disarm_settle)
 
     def read(self, p: reg.Protocol) -> str:
-        raise DeviceError(
-            "rd.cu is not wired to a per-protocol decoder in this build. The Chameleon's reader "
-            "arms are the thing under test in the owning project; until a read command per protocol "
-            "is registered here, plan.py must not emit (*, rd.cu) cells."
-        )
+        """⭐ THE ARM UNDER TEST, POINTED AT A REAL TAG. An emulation is a waveform driven onto a
+        coil; only a tag's silicon produces genuine load modulation, so this is the only measurement
+        that says whether our decoders work on real RF."""
+        if p.cu_read is None:
+            raise DeviceError("%s: no read command is registered for %s" % (self.name, p.key))
+        return self.exec("hw mode -r", p.cu_read)
+
+    def write_t55(self, p: reg.Protocol) -> str:
+        """The Chameleon's own T5577 writer — an arm under test in its own right.
+
+        ⚠ READER MODE FIRST. Writing needs the field, and a previous arm may have left the device
+        emulating; a write issued in emulator mode never reaches the tag.
+        """
+        if p.cu_write is None:
+            raise DeviceError("%s: no write command is registered for %s" % (self.name, p.key))
+        out = self.exec("hw mode -r", p.cu_write, timeout=max(self.timeout, 120))
+        why = self._refused(out)
+        if why:
+            raise DeviceError("%s: write REFUSED for %s — %s" % (self.name, p.key, why))
+        return out
 
     def decode_marker(self, p: reg.Protocol) -> str:
-        return p.pm3_decode_marker
+        """⛔ THE CHAMELEON'S OWN WORDING, NOT THE PROXMARK'S. It prints `Keri PSK1`, not
+        `KERI - Internal ID:`. Using the Proxmark's pattern here would make every non-matching
+        Chameleon read SILENT instead of WRONG — the merge the four outcomes forbid."""
+        if p.cu_decode_marker is None:
+            raise DeviceError("%s: no decode marker registered for %s, so WRONG and SILENT could "
+                              "not be told apart" % (self.name, p.key))
+        return p.cu_decode_marker
 
 
 # ===================================================================== Flipper Zero
