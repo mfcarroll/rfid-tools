@@ -475,6 +475,21 @@ def _isolated_retry(a, p, reader, dev, bench, write_station):
         text, obs, proposals = None, None, None
     else:
         done("      %s %s answered" % (ui.mark("ok"), reader))
+        odd = list(getattr(dev, "last_unrecognised", []))
+        if not _decoded(p, reader, text, obs) and odd:
+            # ⛔⛔ THE READER ANSWERED AND WE DID NOT UNDERSTAND IT. That is OUR gap, and recording
+            # it as the reader's is the single mistake this harness has made over and over: the
+            # anchored `^name HEX$` pattern is an assumption about output shape, and a protocol
+            # that renders differently produces no match. `fdxb` was written up as a Flipper FDX-B
+            # gap against a firmware that reads FDX-B fine and prints it as `ISO FDX-B` with the id
+            # on its own line. A null is only evidence with a positive control (F05) — and lines we
+            # cannot account for ARE the control, pointing the other way.
+            print("      ⛔ %s PRINTED SOMETHING THIS HARNESS DOES NOT RECOGNISE. Nothing is "
+                  "recorded and this is NOT a finding about %s — the registry's `flip_key` or the "
+                  "anchored success pattern does not match what this reader prints:" % (reader, p.key))
+            for line in odd[:8]:
+                print("          said      %s" % line[:110])
+            return None, None, None
         if not _decoded(p, reader, text, obs):
             # ⛔⛔ SCOPED TO THE SOURCE, BECAUSE THE UNSCOPED CLAIM IS FALSE. "The Flipper does not
             # decode fdxb" was what this used to say — and the Flipper then wrote an FDX-B tag from

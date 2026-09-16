@@ -194,3 +194,40 @@ class ItStopsAsSoonAsSomethingDecodes(unittest.TestCase):
         for family in ("ask", "fsk", "psk"):
             self.assertEqual(set(flipper.front_ends_for(family)), {"ask", "psk"},
                              "both are always tried — this orders, it does not filter")
+
+
+class TheReaderAnsweredAndWeDidNotUnderstandIt(unittest.TestCase):
+    """⛔⛔ EVERY BUG IN THIS HARNESS SO FAR HAS BEEN THAT, REPORTED AS "THE READER FOUND NOTHING".
+    The anchored `^name HEX$` pattern is an assumption about output shape; a protocol that renders
+    differently produces no match, and a no-match was published as a decoder gap. `rd.flip` returned
+    nothing for EVERY protocol while the Flipper decoded perfectly, and `fdxb` was written up as a
+    Flipper FDX-B gap against a firmware that reads FDX-B fine.
+
+    ⇒ A null is only evidence with a positive control (F05). Lines we cannot account for ARE a
+    control, and they point at us.
+    """
+
+    QUIET = ["rfid read normal", "Reading RFID...", "Press Ctrl+C to abort", "Reading stopped"]
+
+    def test_a_genuinely_silent_read_has_nothing_unaccounted_for(self):
+        self.assertEqual(flipper.unrecognised(self.QUIET), [])
+
+    def test_a_decode_we_matched_is_accounted_for(self):
+        self.assertEqual(flipper.unrecognised(self.QUIET[:3] + ["H10301 7B11D7"] + self.QUIET[3:]),
+                         [])
+
+    def test_but_a_shape_we_do_not_match_is_flagged_as_ours(self):
+        """⚠ The Flipper renders FDX-B as `ISO FDX-B` with the id on its own line — no hex on the
+        name line at all, so no anchored line exists to match."""
+        said = self.QUIET[:3] + ["ISO FDX-B", "ID: 999-000000001337",
+                                 "Country: 999 Unknown; Temp: ---"] + self.QUIET[3:]
+        got = flipper.unrecognised(said)
+        self.assertIn("ISO FDX-B", got)
+        self.assertIn("ID: 999-000000001337", got)
+        self.assertNotIn("Reading stopped", got)
+
+    def test_the_channel_reports_it(self):
+        from benchmatrix import devices
+        f = devices.Flipper(port="/dev/null")
+        f.last_unrecognised = []
+        self.assertEqual(f.last_unrecognised, [], "empty until a read with no hits says otherwise")
