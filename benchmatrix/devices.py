@@ -105,6 +105,18 @@ T55_PRESENT = ("chip type", "block0")
 #: them costs nothing but must not be skipped.
 #: ⚠ THE CLIENT VERSION MATTERS TOO, NOT ONLY THE FIRMWARE. A mismatched Proxmark client fails every
 #: command while looking cheerful, and that pairing has cost a bench session before now.
+#: ⛔⛔ `lf <proto> sim` NEVER RETURNS. `lfsim_wait_check` in `cmdlf.c` loops forever until the pm3
+#: button is pressed or ENTER arrives on stdin — and `kbd_enter_pressed` reads stdin non-blocking,
+#: so with `stdin=DEVNULL` it sees EOF, returns false, and the client blocks until something kills
+#: it. That is the same shape as the Flipper's `rfid emulate`, and the same trap: a simulation
+#: cannot be started with `subprocess.run`.
+#:
+#: ⚠ AND KILLING THE CLIENT DOES NOT STOP THE DEVICE. The client's own help says the simulation runs
+#: "until the button is pressed or another USB command is issued" — so a killed client leaves the
+#: Proxmark EMITTING, which would quietly poison every null sweep that follows. It is stopped
+#: through the documented abort path instead: a newline on stdin.
+PM3_SIM_STARTED = ("to abort simulation", "starting simulating", "simulating")
+
 PM3_OS_RE = re.compile(r"^\s*OS\.*\s+(.+?)\s*$", re.M)
 PM3_CLIENT_RE = re.compile(r"^\s*Client\.*\s+(.+?)\s*$", re.M)
 CU_VERSION_RE = re.compile(r"Chameleon\s+(\w+),\s*Version:\s*(\S+)\s*\(([^)]+)\)")
@@ -169,6 +181,30 @@ def _run(argv: list[str], timeout: int) -> str:
         cues._sane()
 
 
+def _read_until(proc, markers, deadline: float) -> str:
+    """Collect a child's output until one of `markers` appears or the deadline passes.
+
+    ⚠ A READER THREAD, because a pipe read blocks and the point here is NOT to block: the client is
+    meant to keep running afterwards. Nothing is closed — the process outlives this call.
+    """
+    import threading
+    lines: list[str] = []
+
+    def pump():
+        try:
+            for line in proc.stdout:
+                lines.append(line)
+                if any(m in line.lower() for m in markers):
+                    return
+        except Exception:                                      # noqa: BLE001
+            pass
+
+    t = threading.Thread(target=pump, daemon=True)
+    t.start()
+    t.join(timeout=max(0.0, deadline - time.time()))
+    return "".join(lines)
+
+
 # ===================================================================== Proxmark3
 
 @dataclass
@@ -217,6 +253,65 @@ class Pm3:
         if not low.strip():
             return "%s: the client produced no output at all" % doing
         return None
+
+    #: The running `lf <proto> sim` client, if this Proxmark is emulating. See `arm`.
+    _sim: object = None
+
+    def arm(self, p: reg.Protocol) -> None:
+        """`emu.pm3` — the reference instrument as an EMITTER, held until `disarm`.
+
+        ⭐ WHY THIS SOURCE IS WORTH HAVING. Every emulation cell in the grid is read by a device
+        whose ability to decode an EMULATION has no control of its own: the calibration rule
+        licenses a reader from a gold TAG row, which proves its decoder against silicon. A reader
+        that decodes no emulation at all is then indistinguishable from every emitter being bad.
+        A known-good emitter separates them — the emulation analogue of the gold tag.
+
+        ⛔ IT IS A HELD PROCESS, NOT A COMMAND. `lf <proto> sim` loops until the button is pressed
+        or Enter arrives; `subprocess.run` would block until the timeout killed it, and a killed
+        client leaves the DEVICE still emitting (its own help: "until the button is pressed or
+        another USB command is issued"). A Proxmark left emitting poisons every null sweep after it.
+        """
+        if p.pm3_emulate is None:
+            raise DeviceError("pm3: no simulation command is registered for %s" % p.key)
+        argv = shlex.split(self.binary) + ["-c", p.pm3_emulate]
+        self.disarm()
+        try:
+            proc = subprocess.Popen(argv, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+                                    stderr=subprocess.STDOUT, text=True, errors="replace",
+                                    bufsize=1)
+        except OSError as e:
+            raise DeviceError("pm3: could not start `%s` — %s" % (p.pm3_emulate, e)) from e
+        self._sim = proc
+        seen = _read_until(proc, PM3_SIM_STARTED, deadline=time.time() + 25)
+        fault = self._fault(seen, "simulating %s" % p.key)
+        if fault or not any(m in seen.lower() for m in PM3_SIM_STARTED):
+            self.disarm()
+            raise DeviceError(
+                "pm3: `%s` did not start simulating. Nothing was put on the air, so any read that "
+                "followed would be about an empty field. Client said: %s"
+                % (p.pm3_emulate, " / ".join(seen.strip().splitlines()[-3:])[:220] or "nothing"))
+
+    def disarm(self) -> None:
+        """⛔⛔ ENTER, NOT A KILL. `kbd_enter_pressed` is the client's own abort path and it is what
+        tells the DEVICE to stop; terminating the process leaves the Proxmark emitting, and the next
+        station's null sweep would be measuring our own leftover field."""
+        proc, self._sim = self._sim, None
+        if proc is None:
+            return
+        try:
+            if proc.stdin and not proc.stdin.closed:
+                proc.stdin.write("\n")
+                proc.stdin.flush()
+            proc.wait(timeout=15)
+        except Exception:                                      # noqa: BLE001
+            proc.kill()
+            try:
+                proc.wait(timeout=5)
+            except Exception:                                  # noqa: BLE001
+                pass
+            # ⚠ THE BELT AND BRACES THE HELP TEXT HANDS US. Any USB command stops a simulation, so
+            # once the holding client is gone one more invocation guarantees the field is down.
+            self.exec("hw status", timeout=20)
 
     def read(self, p: reg.Protocol) -> str:
         """⛔ A FAILED INVOCATION IS NOT A SILENCE. It raises, and a raising reader aborts the block

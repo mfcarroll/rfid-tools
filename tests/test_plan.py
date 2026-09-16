@@ -228,3 +228,68 @@ class ATagIsADigitalIntermediary(unittest.TestCase):
         for name in ("FLIP+T55+CU1", "FLIP+T55+CU2", "CU1+T55+CU2"):
             self.assertNotIn(name, [b.station.name for b in lean.blocks])
             self.assertIn(name, [b.station.name for b in full.blocks])
+
+
+class TheProxmarkAsAGoldEmitter(unittest.TestCase):
+    """⭐ `emu.pm3` — THE CONTROL THE EMULATION HALF OF THE GRID NEVER HAD. A reader is licensed from
+    a gold TAG row, which proves its decoder against silicon and says nothing about an emulated
+    waveform. Without a known-good emitter, a reader that decodes NO emulation is indistinguishable
+    from every emitter being bad.
+
+    ⚠ ITS COMMANDS ARE CLASS 2 — the client's own documented `sim` examples with our credential
+    substituted, never run. A wrong one fails at ARM time, which scores no cell.
+    """
+
+    def test_it_is_an_emulated_source_and_the_two_lists_agree(self):
+        from benchmatrix.stations import EMULATED_SOURCES
+        from benchmatrix.plan import EMULATED_ORDER
+        self.assertIn("emu.pm3", EMULATED_SOURCES)
+        self.assertEqual(set(EMULATED_ORDER), set(EMULATED_SOURCES),
+                         "a new emitter added to one list and forgotten in the other loses cells")
+
+    def test_the_proxmark_cannot_judge_its_own_emission(self):
+        p = planning.build(reg.resolve(["em410x"]), ["t55.pm3", "emu.pm3"], ["rd.pm3"], Bench())
+        self.assertNotIn(("emu.pm3", "rd.pm3"), [(c.source, c.reader) for c in p.cells])
+        self.assertIn("self-judging", [e.rule for e in p.exclusions])
+
+    def test_but_every_other_reader_is_asked(self):
+        p = planning.build(reg.resolve(["em410x"]), ["t55.pm3", "emu.pm3"],
+                           ["rd.pm3", "rd.cu1", "rd.cu2", "rd.flip"], Bench())
+        got = {c.reader for c in p.cells if c.source == "emu.pm3"}
+        self.assertEqual(got, {"rd.cu1", "rd.cu2", "rd.flip"})
+
+    def test_a_protocol_with_no_sim_is_refused_by_name(self):
+        """⛔ `lf em 410x sim` has no `--electra`, so nothing here may guess at one."""
+        p = planning.build(reg.resolve(["em410x_electra"]), ["t55.pm3", "emu.pm3"], ["rd.cu1"],
+                           Bench())
+        self.assertIn("no-emitter", [e.rule for e in p.exclusions])
+
+    def test_the_subcarrier_rule_still_applies_to_it(self):
+        """⚠ It is the GOLD emitter, not a magic one: a subcarrier-dependent read arm judged against
+        any emulation measures the bench, not the arm (RULES.md §2)."""
+        p = planning.build(reg.resolve(["indala"]), ["t55.pm3", "emu.pm3"], ["rd.cu1"], Bench())
+        self.assertIn("subcarrier", [e.rule for e in p.exclusions])
+
+
+class ACellIsRefusedOrMeasuredNeverLost(unittest.TestCase):
+    """⛔⛔ A REFUSAL IS A PUBLISHED DECISION; A DISAPPEARANCE IS A HOLE NOTHING NAMES. `_routine`
+    walked a hardcoded tuple of emulated sources, so `emu.pm3` cells were created by `_cells`,
+    covered by `choose_stations`, and then never given a read op — gone from the plan with no
+    exclusion to explain them. `audit()` now refuses to hand back a plan that has lost one."""
+
+    def test_audit_checks_every_requested_cell_reached_a_routine(self):
+        p = planning.build(reg.resolve(["em410x"]), ["t55.pm3", "emu.pm3"],
+                           ["rd.pm3", "rd.cu1", "rd.flip"], Bench())
+        self.assertTrue(p.requested)
+        self.assertEqual(p.audit(), [])
+        planned = {c.key for c in p.cells}
+        for c in p.requested:
+            self.assertIn(c.key, planned)
+
+    def test_and_says_so_when_one_is_missing(self):
+        p = planning.build(reg.resolve(["em410x"]), ["t55.pm3"], ["rd.pm3"], Bench())
+        ghost = planning.PlannedCell(reg.ALL["em410x"], "emu.cu2", "rd.flip")
+        p.requested = list(p.requested) + [ghost]
+        bad = p.audit()
+        self.assertTrue(bad)
+        self.assertIn("never measured", bad[0])
