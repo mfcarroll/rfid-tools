@@ -1,0 +1,52 @@
+# Build and flash targets. `bench build <target>` and `bench flash <target> --device <name>`.
+#
+# ⭐ THIS FILE IS THE ADAPTABLE PART. Nothing about a particular project is compiled into the
+# harness: a target names where to build, what environment that build needs, which artifacts prove
+# it worked, and how to get those onto a device. Adding a second firmware project is a section here,
+# not a code change.
+#
+# ⛔ PATHS ARE RELATIVE TO THIS FILE, so a target can point anywhere without absolute paths that
+# only work on one machine.
+#
+# ⛔⛔ AN ENV VALUE BEGINNING `!` IS A COMMAND WHOSE OUTPUT BECOMES THE VALUE. That is how a build
+# gets `GNU_VERSION=$(arm-none-eabi-gcc -dumpversion)` without a shell — worth the small feature,
+# because the alternative is pinning a compiler version in a file and having it rot silently.
+
+[targets.chameleon-ultra]
+description = "ChameleonUltra nRF52 application firmware"
+
+[targets.chameleon-ultra.build]
+cwd = "../ChameleonUltra/firmware"
+command = ["bash", "build.sh"]
+
+# ⛔ ALL THREE PIECES ARE REQUIRED. `Makefile.posix` hardcodes /usr/bin for the ARM toolchain, which
+# is wrong here — it is Homebrew's — and nrfutil is not on the default PATH.
+path_prepend = ["../.tools/bin"]
+
+# ⭐ THE ARTIFACTS ARE THE SUCCESS CRITERION, NOT THE EXIT CODE. `build.sh` ends with a `mergehex`
+# step that produces the SWD artifact and fails harmlessly here, AFTER the DFU zips are already
+# written. Judging by exit status would throw away a good build; judging by fresh artifacts is both
+# stricter and correct. And because `build.sh` begins with `rm -rf objects`, a build that dies
+# midway leaves NO zip rather than a stale one — so "the file exists" would nearly be enough on its
+# own, and "the file is newer than this build started" removes the nearly.
+artifacts = ["objects/ultra-dfu-app.zip", "objects/ultra-dfu-full.zip"]
+
+[targets.chameleon-ultra.build.env]
+GNU_INSTALL_ROOT = "/opt/homebrew/bin/"
+GNU_VERSION = "!arm-none-eabi-gcc -dumpversion"
+
+[targets.chameleon-ultra.build.docker]
+# ⚠ The image carries its own nrfutil and toolchain, so nothing needs installing. The FLASH still
+# has to run on the host: Docker Desktop on macOS passes no USB through.
+command = ["docker", "compose", "up", "--pull=always", "build-ultra"]
+
+[targets.chameleon-ultra.flash]
+method = "nrf-dfu"
+artifact = "objects/ultra-dfu-app.zip"
+devices = ["cu1", "cu2"]
+nrfutil = "../.tools/bin/nrfutil"
+app_usb = "6868:8686"
+dfu_usb = "1915:521F"
+trigger = "11ef03f2000000000b00"
+# The interpreter used for the DFU step; it needs pyserial, which the system python here has not.
+python = "../ChameleonUltra/software/script/.venv/bin/python"
