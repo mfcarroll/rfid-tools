@@ -102,3 +102,53 @@ class AGridSaysWhatProducedIt(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class AnUnsettledSilenceIsPublishedForALaterRun(unittest.TestCase):
+    """⛔ WHAT A RUN ASSERTS IS SCOPED TO THAT RUN. Within one sitting we can confirm a write or be
+    unable to; a silence nothing present could interpret is not ours to settle. It is published as
+    OUTSTANDING so a later run — a better decoder on any one device — can license it, which is how
+    a negative result gets asserted at all.
+
+    ⚠ Buried in a prose note it is not usable. This is the machine-readable handle."""
+
+    def _outstanding(self):
+        import json
+        from tests.helpers import EMITTERS, make_devices, quiet, tiny_plan
+        from benchmatrix import grid, plan as planning
+        from benchmatrix.stations import Bench
+        protos = reg.resolve(["fdxb"])
+        plan = planning.build(protos, ["t55.pm3"], ["rd.pm3"], Bench())
+        dev = make_devices(answers={("fdxb", e): "" for e in EMITTERS})
+        dev.pm3.reported = "os Iceman/master/v4.20469"
+        res = runner.run(plan, dev, interactive=False, session="S", out=quiet)
+        return json.loads(grid.to_json(res, protos))["unattributed"], res
+
+    def test_it_names_the_protocol_the_reader_and_the_source(self):
+        rows, _ = self._outstanding()
+        self.assertEqual(len(rows), 1)
+        self.assertEqual((rows[0]["protocol"], rows[0]["reader"], rows[0]["source"]),
+                         ("fdxb", "t55.pm3" and "rd.pm3", "t55.pm3"))
+
+    def test_it_carries_the_readers_firmware(self):
+        """⚠ A reader reflashed since licenses nothing — a cell is a claim about a firmware."""
+        rows, _ = self._outstanding()
+        self.assertIn("v4.20469", rows[0]["reader_firmware"])
+
+    def test_it_says_what_would_settle_it(self):
+        rows, _ = self._outstanding()
+        self.assertIn("decode of fdxb on rd.pm3", rows[0]["settled_by"])
+        self.assertIn("same firmware", rows[0]["settled_by"])
+
+    def test_a_silence_settled_within_the_run_is_not_published_as_outstanding(self):
+        import json
+        from tests.helpers import answers_all_exact, make_devices, quiet
+        from benchmatrix import grid, plan as planning
+        from benchmatrix.stations import Bench
+        protos = reg.resolve(["em410x"])
+        plan = planning.build(protos, ["t55.pm3", "t55.cu1"], ["rd.pm3"], Bench())
+        dev = make_devices(answers=answers_all_exact(protos))
+        dev.pm3.write_works = False
+        res = runner.run(plan, dev, interactive=False, session="S", out=quiet)
+        self.assertEqual(json.loads(grid.to_json(res, protos))["unattributed"], [],
+                         "the later decode settled it, so nothing is left for a future run")

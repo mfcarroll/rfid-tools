@@ -250,7 +250,13 @@ step-three silence becomes a statement about that tag. The reading never changes
 interpretation does, as the corpus grows. So the run revisits its own silences once every station
 is in, and says how many it was able to license retrospectively.
 
-⚠ The same holds across runs, and is deliberately not built yet. A reader shown to decode a protocol
+⛔ **WHAT A RUN ASSERTS IS SCOPED TO THAT RUN.** Within one sitting we can confirm a write, or be
+unable to — and that is what a run publishes, because it is what the bench in front of us controls.
+A cell nothing present could interpret is published as **outstanding**, machine-readably: which
+protocol, which reader, and what firmware that reader was running. A later run with a better decoder
+on any one device can then license it, which is how a negative result gets asserted at all.
+
+⚠ The cross-run pass itself is deliberately not built yet. A reader shown to decode a protocol
 last week can license a silence recorded today — but only while it is running the same firmware,
 because a cell is a claim about a firmware and not about a device (§11). A persisted corpus has to
 be keyed on that, and a half-built one that forgets it would license silences with evidence from a
