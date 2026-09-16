@@ -195,6 +195,19 @@ bench: to grade **one Chameleon**, against the Proxmark and the tag, leave the r
 | `emu.pm3 → rd.cu1` | its reader against a gold **emission** |
 | `t55.pm3 → rd.pm3` | the calibration rows that license all of it |
 
+Any device can be left out — `--no-cu1`, `--no-cu2`, `--no-flipper` — so the same shape grades the
+*other* Chameleon, which matters because the two are deliberately flashed differently:
+
+```bash
+./bench run --tags 16 --no-cu1 --no-flipper \
+  -s t55.pm3 -s t55.cu2 -s emu.pm3 -s emu.cu2 \
+  -r rd.pm3 -r rd.cu2
+```
+
+⛔ Excluding **everything but the Proxmark** is refused, with the reason: every cell a Proxmark can
+reach alone is self-judging, so the plan would refuse them all and print an empty grid — which reads
+as "this bench has no capabilities" rather than "you excluded every device that could answer".
+
 ### `--at`: the bench is already in this layout
 
 For a rig left standing, or one shared with another session, the useful question is the inverse of

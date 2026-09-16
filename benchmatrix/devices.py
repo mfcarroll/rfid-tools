@@ -987,7 +987,8 @@ def _cu_version(out: str) -> str:
             else "firmware version not reported")
 
 
-def scripted_bench(answers: dict | None = None, *, flipper: bool = True, cu2: bool = True):
+def scripted_bench(answers: dict | None = None, *, flipper: bool = True, cu2: bool = True,
+                   cu1: bool = True):
     """A complete scripted bench sharing one `Air`, plus the operator who performs the moves.
 
     ⭐ THIS IS WHAT MAKES `--dry-run` A REHEARSAL RATHER THAN A STUB. With separate `Air`s and no
@@ -1004,7 +1005,7 @@ def scripted_bench(answers: dict | None = None, *, flipper: bool = True, cu2: bo
         "pm3": Scripted(id="pm3", role="pm3", answers=answers or {}, air=air),
         "flipper": Scripted(id="flipper", role="flipper", answers=answers or {}, air=air)
                    if flipper else None,
-        "cu1": Scripted(id="cu1", role="cu1", air=air),
+        "cu1": Scripted(id="cu1", role="cu1", air=air) if cu1 else None,
         "cu2": Scripted(id="cu2", role="cu2", air=air) if cu2 else None,
     }
     return kw, air
