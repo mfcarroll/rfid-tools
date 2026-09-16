@@ -52,12 +52,19 @@ class Protocol:
 
     key: str
     tier: int
-    pm3_write: str               # writes a real T5577 — the gold reference source `t55.pm3`
-    pm3_read: str                # `lf <proto> reader`
-    pm3_decode_marker: str       # "a demod happened", from the client's own SUCCESS line
-    expect: str                  # byte-exact token that must appear in the pm3 read
+    #: ⛔⛔ EVERY CAPABILITY IS OPTIONAL, BECAUSE THE FIRMWARE'S ARE. The first version of this
+    #: registry assumed every protocol could be emulated, read and written by every device, which is
+    #: false in three different directions: `fdxa`, `paradox` and `pyramid` are read and cloned but
+    #: have no emitter; `instafob` is scan-only; `em410x_electra` is emulated and written but has no
+    #: scan command at all. A `None` here is a fact about the firmware, and the planner refuses the
+    #: cells it makes impossible with that fact as the reason — which is a different statement from
+    #: a cell that was measured and failed.
+    pm3_write: Optional[str]     # writes a real T5577 — the gold reference source `t55.pm3`
+    pm3_read: Optional[str]      # `lf <proto> reader`
+    pm3_decode_marker: Optional[str]   # "a demod happened", from the client's own SUCCESS line
+    expect: Optional[str]        # byte-exact token that must appear in the pm3 read
     cu_type: str                 # `hw slot type -t <this>`
-    cu_emulate: str              # `lf <proto> econfig -s {slot} ...`
+    cu_emulate: Optional[str]    # `lf <proto> econfig -s {slot} ...`; None = no emitter exists
     flip_key: str                # `.name` in lfrfid_protocols.c
     family: str                  # ask | fsk | psk — the modulation actually on the coil
     t55_capable: bool
@@ -68,10 +75,23 @@ class Protocol:
     cu_expect: Optional[str] = None     # None = not known; the rd.cu* column cannot be planned
     flip_expect: Optional[str] = None   # None = not known; the rd.flip column cannot be planned
     flip_write: bool = True      # False = the Flipper is known to refuse to write this to a T5577
+    #: ⛔ Needs `LF_RESEARCH_CMDS_ENABLED`, which defaults to 0 and is set only on our own branch. A
+    #: step using one of these cannot run against stock or upstream firmware, and a run that forgets
+    #: that reports a TOOL gap as a FIRMWARE gap — this project's own failure mode, committed by its
+    #: own harness.
+    research_only: bool = False
     notes: str = ""
 
     def emulate_cmd(self, slot: int) -> str:
+        if self.cu_emulate is None:
+            raise RegistryError("%s has no emitter in this firmware" % self.key)
         return self.cu_emulate.format(slot=slot)
+
+    def can(self, what: str) -> bool:
+        """`emulate` | `cu_read` | `cu_write` | `pm3_read` | `pm3_write` — what the firmware has."""
+        return bool({"emulate": self.cu_emulate, "cu_read": self.cu_read,
+                     "cu_write": self.cu_write, "pm3_read": self.pm3_read,
+                     "pm3_write": self.pm3_write}[what])
 
     def flip_line(self) -> Optional[str]:
         """The normalised `<name> <HEX>` line a successful Flipper read must produce."""
@@ -103,7 +123,12 @@ class Protocol:
 # re-admit four cells the design refuses; deriving `family` from the rule would falsify the
 # modulation record. So both are stored, and the disagreement is visible here instead of resolved
 # by whichever one got read first.
-SUBCARRIER_RULE = frozenset({"indala", "gallagher", "securakey", "noralsy", "gproxii"})
+SUBCARRIER_RULE = frozenset({"indala", "indala224", "gallagher", "securakey", "noralsy",
+                             "gproxii"})
+
+#: ⛔ Protocols the Chameleon can emulate and write but CANNOT scan — `data_cmd.h` has no
+#: `*_SCAN` for them. Listed so that a missing `cu_read` is a recorded fact and not an omission.
+NO_CU_SCAN = frozenset({"em410x_electra"})
 
 
 def _p(**kw) -> Protocol:
@@ -111,7 +136,7 @@ def _p(**kw) -> Protocol:
     return Protocol(**kw)
 
 
-TIER0: dict[str, Protocol] = {p.key: p for p in [
+ALL: dict[str, Protocol] = {p.key: p for p in [
     _p(key="em410x", tier=0, family="ask", t55_capable=True,
        pm3_write="lf em 410x clone --id 2244668800",
        pm3_read="lf em 410x reader",
@@ -352,20 +377,144 @@ TIER0: dict[str, Protocol] = {p.key: p for p in [
        cu_expect="00339a080402079f8040797788040201",
        flip_key="FDX-B",
        notes="FDXB_DECODED_DATA_SIZE = 11 against a 16-byte armed raw — different encodings."),
+    # ---------------------------------------------------------------- tier 0b: built, never tested
+    # ⭐ These two are not new work. The firmware dispatches them (`lf_tag_em.c`, 18 entries) and has
+    # done all along; they are grid rows nobody has run. The first draft of SCOPE.md counted our
+    # capability off `pm3grade.sh`'s arm list — a test script — and so reported 16 where the firmware
+    # emulates 18. A number taken from the nearest artefact rather than from the thing it describes.
+
+    _p(key="em410x_electra", tier=0, family="ask", t55_capable=True,
+       pm3_write="lf em 410x clone --id 2244668800 --electra",
+       pm3_read="lf em 410x reader",
+       pm3_decode_marker=r"EM 410x (XL )?ID",
+       # ⛔ THE TWO WRITERS DO NOT WRITE THE SAME CREDENTIAL HERE, which no other entry has to deal
+       # with. `--electra` is a FLAG: the Proxmark appends its own fixed Electra blocks to a 5-byte
+       # EM410X id, while the Chameleon takes a 13-byte id that carries the Electra half itself. So
+       # there is no single byte-exact token that both produce, and `expect = None` refuses the
+       # `rd.pm3` column until the bench says what the Proxmark prints for a Chameleon-written tag.
+       expect=None,
+       cu_type="EM410X_ELECTRA",
+       cu_emulate="lf em 410x econfig -s {slot} --id deadbeef880102030405060708",
+       cu_read=None,
+       cu_write="lf em 410x write --id deadbeef880102030405060708",
+       cu_decode_marker=None,
+       cu_expect=None,
+       flip_key="Electra",
+       notes="⛔ NO `EM410X_ELECTRA_SCAN` EXISTS — the Chameleon emulates and writes Electra but "
+             "cannot read it, so `rd.cu*` is refused for it. Emulated since before the first "
+             "grid; never once tested."),
+
+    _p(key="indala224", tier=0, family="psk", t55_capable=True,
+       pm3_write="lf indala clone -r 80000001b23523a6c2e31eba3cbee4afb3c6ad1fcf649393928c14e5",
+       pm3_read="lf indala reader",
+       pm3_decode_marker=r"Indala \(len",
+       expect="80000001b23523a6c2e31eba3cbee4afb3c6ad1fcf649393928c14e5",
+       cu_type="Indala224",
+       cu_emulate="lf indala econfig -s {slot} "
+                  "--id 80000001b23523a6c2e31eba3cbee4afb3c6ad1fcf649393928c14e5 --224",
+       cu_read="lf indala read --224",
+       cu_write="lf indala write --raw "
+                "80000001b23523a6c2e31eba3cbee4afb3c6ad1fcf649393928c14e5 --224",
+       cu_decode_marker=r"Indala224 PSK1",
+       cu_expect="80000001b23523a6c2e31eba3cbee4afb3c6ad1fcf649393928c14e5",
+       flip_key="Indala224", flip_write=False,
+       notes="Emulated and never tested. ⛔ The Flipper emulates Indala224 but cannot WRITE it, and "
+             "the Proxmark does not decode the Flipper's emulation of it — two registered gaps "
+             "meeting on one protocol."),
+
+    # ---------------------------------------------------------------- tier 1: read and clone, but
+    # no emitter. ⛔ A DIFFERENT ROW SHAPE, NOT A MISSING PROTOCOL. `(t55.cu*, rd.pm3)` is testable
+    # today; `(emu.cu*, *)` cannot exist. The planner refuses the emulated cells with that as the
+    # reason, which is a different statement from a cell that was measured and failed.
+
+    _p(key="paradox", tier=1, family="fsk", t55_capable=True,
+       pm3_write="lf paradox clone --raw 0f55555695596a6a9999a59a",
+       pm3_read="lf paradox reader",
+       pm3_decode_marker=r"Paradox -",
+       expect="0f55555695596a6a9999a59a",
+       cu_type="Paradox",
+       cu_emulate=None,
+       cu_read="lf paradox read",
+       cu_write="lf paradox write --raw 0f55555695596a6a9999a59a",
+       cu_decode_marker=r"Paradox FSK2a",
+       cu_expect="0f55555695596a6a9999a59a",
+       flip_key="Paradox",
+       notes="Reader and T55xx writer exist; no emitter. Both clients use the same raw frame, so "
+             "the calibration row should agree on the first run."),
+
+    _p(key="pyramid", tier=1, family="fsk", t55_capable=True,
+       pm3_write="lf pyramid clone --raw 0001010101010101010440013223921c",
+       pm3_read="lf pyramid reader",
+       pm3_decode_marker=r"Pyramid - (Unknown )?len:",
+       expect="0001010101010101010440013223921c",
+       cu_type="Pyramid",
+       cu_emulate=None,
+       cu_read="lf pyramid read",
+       cu_write="lf pyramid write --raw 0001010101010101010440013223921c",
+       cu_decode_marker=r"Pyramid FSK2a",
+       cu_expect="0001010101010101010440013223921c",
+       flip_key="Pyramid",
+       notes="⚠ The two clients ship DIFFERENT example frames; this uses the Proxmark's for both "
+             "so the writers agree. If the Chameleon's writer rejects it, that is the finding."),
+
+    _p(key="fdxa", tier=1, family="fsk", t55_capable=True,
+       # ⛔ `lf destron clone` exists but its argument shape is not recorded in the client's own
+       # examples, so there is no gold writer for this protocol yet and the planner will say so.
+       pm3_write=None,
+       pm3_read="lf destron reader",
+       pm3_decode_marker=r"FDX-A FECAVA Destron",
+       expect=None,
+       cu_type="FDXA",
+       cu_emulate=None,
+       cu_read="lf fdxa read",
+       cu_write="lf fdxa write --raw 551d95aa96a999a69aa5a59a",
+       cu_decode_marker=r"FDX-A FSK2a",
+       cu_expect="551d95aa96a999a69aa5a59a",
+       flip_key="FDX-A",
+       notes="The Proxmark calls it Destron. Reader and Chameleon writer exist; no emitter, and no "
+             "Proxmark clone signature recorded yet — so nothing can license it."),
+
+    _p(key="instafob", tier=1, family="ask", t55_capable=False,
+       pm3_write=None, pm3_read=None, pm3_decode_marker=None, expect=None,
+       cu_type="InstaFob",
+       cu_emulate=None,
+       cu_read="lf instafob read",
+       cu_write=None,
+       cu_decode_marker=r"InstaFob ASK/Manchester",
+       cu_expect=None,
+       flip_key="InstaFob",
+       notes="⛔ SCAN ONLY — no T55xx write, no emitter, and no Proxmark command at all. Nothing on "
+             "this bench can put an InstaFob credential anywhere, so no reader can be licensed for "
+             "it. Registered so the capability is recorded, not because it can be measured."),
 ]}
 
 
-#: `ORDER` from pm3grade.sh, kept verbatim so a grid from this harness sits beside one from that
-#: script without the rows having to be re-sorted by hand.
+
+#: ⭐ EIGHTEEN, NOT SIXTEEN. The first sixteen are `pm3grade.sh`'s `ORDER`, kept in place so a grid
+#: from this harness sits beside one from that script without re-sorting; `em410x_electra` and
+#: `indala224` follow, because the firmware has emulated them all along and nobody had run them.
 TIER0_ORDER = ("em410x", "viking", "jablotron", "pac", "hidprox", "ioprox", "awid", "indala",
-               "keri", "nexwatch", "idteck", "gallagher", "securakey", "noralsy", "gproxii", "fdxb")
+               "keri", "nexwatch", "idteck", "gallagher", "securakey", "noralsy", "gproxii", "fdxb",
+               "em410x_electra", "indala224")
+
+#: Read and cloned by the firmware but not emulated — a different row shape, not a gap.
+TIER1_ORDER = ("paradox", "pyramid", "fdxa", "instafob")
+
+
+#: Tier 0 alone, which is what a default run measures.
+TIER0: dict = {}
 
 
 class RegistryError(Exception):
     pass
 
 
-def validate(protocols: dict[str, Protocol] = TIER0) -> None:
+def _partition() -> None:
+    TIER0.clear()
+    TIER0.update({k: v for k, v in ALL.items() if v.tier == 0})
+
+
+def validate(protocols: dict[str, Protocol] | None = None) -> None:
     """Refuse a registry that cannot produce the four outcomes.
 
     ⛔ A MISSING `pm3_decode_marker` IS A HARD ERROR, NOT A DEFAULT. Without it the harness cannot
@@ -373,45 +522,55 @@ def validate(protocols: dict[str, Protocol] = TIER0) -> None:
     which is exactly the merge RULES.md §1 forbids. Refusing here is cheaper than discovering it
     in a grid.
     """
+    protocols = ALL if protocols is None else protocols
     problems = []
     for key, p in protocols.items():
         if p.key != key:
             problems.append("%s: key mismatch (%s)" % (key, p.key))
         if p.family not in FAMILIES:
             problems.append("%s: family %r not in %s" % (key, p.family, FAMILIES))
-        if not p.pm3_decode_marker:
-            problems.append("%s: no pm3_decode_marker — WRONG and SILENT would be "
+        if p.pm3_read and not p.pm3_decode_marker:
+            problems.append("%s: has a pm3 reader but no decode marker — WRONG and SILENT would be "
                             "indistinguishable, which the four outcomes forbid" % key)
-        if not p.expect:
-            problems.append("%s: no byte-exact expectation" % key)
-        if "{slot}" not in p.cu_emulate:
+        if p.expect and not p.pm3_read:
+            problems.append("%s: has a pm3 expectation but no pm3 reader to produce it" % key)
+        if p.cu_emulate and "{slot}" not in p.cu_emulate:
             problems.append("%s: cu_emulate has no {slot} placeholder" % key)
+        if p.cu_read and not p.cu_decode_marker:
+            problems.append("%s: has a Chameleon reader but no decode marker" % key)
+        if not any(p.can(w) for w in ("emulate", "cu_read", "cu_write", "pm3_read")):
+            problems.append("%s: no capability at all — nothing could be measured" % key)
         if p.subcarrier != (key in SUBCARRIER_RULE):
             problems.append("%s: m52 flag disagrees with SUBCARRIER_RULE" % key)
-        # ⛔ BOTH CHAMELEON ARMS ARE REQUIRED. Every tier-0 protocol has `read` and `write` in the
-        # client, and a missing entry here would silently drop the one column that tests our own
-        # decoders against real silicon.
-        for field_name in ("cu_read", "cu_write", "cu_decode_marker"):
-            if not getattr(p, field_name):
-                problems.append("%s: no %s — the Chameleon has this arm and it must be tested"
-                                % (key, field_name))
+        # ⚠ A CAPABILITY THE FIRMWARE HAS MUST BE REGISTERED. The check is no longer "every
+        # protocol has every arm" — that was the false assumption — but a `None` still has to be a
+        # deliberate statement about the firmware rather than an entry nobody got round to.
+        if p.tier == 0 and not p.cu_read and p.key not in NO_CU_SCAN:
+            problems.append("%s: no cu_read, and it is not in NO_CU_SCAN — say which it is" % key)
     missing = set(TIER0_ORDER) - set(protocols)
-    if protocols is TIER0 and missing:
+    if protocols is ALL and missing:
         problems.append("tier 0 is incomplete, missing: %s" % ", ".join(sorted(missing)))
     if problems:
         raise RegistryError("registry is not fit to grade with:\n  - " + "\n  - ".join(problems))
 
 
+ORDER = TIER0_ORDER + TIER1_ORDER
+
+
 def resolve(names: list[str] | tuple[str, ...] | None) -> list[Protocol]:
-    """Names -> protocols, in TIER0_ORDER. Unknown names are an error, never a silent skip."""
+    """Names -> protocols, in registry order. A default run is tier 0; tier 1 must be asked for.
+
+    ⚠ Unknown names are an error, never a silent skip — a typo that quietly measures fifteen
+    protocols instead of sixteen is the kind of thing that reaches a published grid.
+    """
     if not names:
-        return [TIER0[k] for k in TIER0_ORDER]
-    unknown = [n for n in names if n not in TIER0]
+        return [ALL[k] for k in TIER0_ORDER]
+    unknown = [n for n in names if n not in ALL]
     if unknown:
         raise RegistryError("unknown protocol(s): %s\nknown: %s"
-                            % (", ".join(unknown), ", ".join(TIER0_ORDER)))
+                            % (", ".join(unknown), ", ".join(ORDER)))
     wanted = set(names)
-    return [TIER0[k] for k in TIER0_ORDER if k in wanted]
+    return [ALL[k] for k in ORDER if k in wanted]
 
 
 #: ⛔⛔ YOU CANNOT VERIFY A WRITE THAT WRITES WHAT IS ALREADY THERE. Every writer in this registry
@@ -438,3 +597,6 @@ def park_protocol(protocols: dict[str, Protocol] | None = None) -> Protocol:
                        "flip_expect": PARK_ID,
                        "pm3_write": "lf em 410x clone --id %s" % PARK_ID,
                        "cu_write": "lf em 410x write --id %s" % PARK_ID.lower()})
+
+
+_partition()

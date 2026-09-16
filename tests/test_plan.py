@@ -39,10 +39,18 @@ class WhatCannotBeMeasured(unittest.TestCase):
         own decoders work on real RF, and it is both the control for the column and the headline
         result of the run. All 16 must plan."""
         plan = tiny_plan(keys=reg.TIER0_ORDER, sources=("t55.pm3",), readers=("rd.cu1",))
-        known = [p.key for p in reg.TIER0.values() if p.cu_expect]
+        known = [p.key for p in reg.TIER0.values()
+                 if p.cu_expect and p.can("cu_read") and p.can("pm3_write") and p.expect]
         self.assertEqual({c.protocol.key for c in plan.cells}, set(known))
         self.assertTrue(all(c.is_calibration for c in plan.cells))
-        self.assertEqual({e.rule for e in plan.exclusions}, {"no-expectation"})
+        # Two distinct reasons the rest drop out, and the grid must not conflate them:
+        #   no-expectation — the Chameleon renders it in wording nobody has recorded
+        #   unlicensable   — nothing can produce a gold tag it and the Proxmark agree on
+        self.assertEqual({e.rule for e in plan.exclusions}, {"no-expectation", "unlicensable"})
+        electra = [e for e in plan.exclusions if e.protocol == "em410x_electra"]
+        self.assertTrue(electra)
+        self.assertIn("different credentials", electra[0].why,
+                      "it must name the real cause, not claim a T5577 cannot hold it")
 
     def test_a_protocol_with_no_registered_read_arm_is_still_refused(self):
         """Defensive: every tier-0 protocol has one, but a tier-1 addition might not."""

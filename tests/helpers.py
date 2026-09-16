@@ -13,14 +13,18 @@ cues.silence()
 
 #: A pm3 read that decodes the registry credential byte-exact, per protocol.
 def pm3_exact(p: reg.Protocol) -> str:
+    """The pm3 text for a byte-exact read. Only meaningful for protocols the pm3 can judge."""
     stem = {"em410x": "EM 410x ID", "viking": "Viking - Card", "jablotron": "Jablotron - Card:",
             "pac": "PAC/Stanley - Card:", "hidprox": "raw: 2006ec0c86aabbccddeeff00",
             "ioprox": "IO Prox - ", "awid": "AWID - len: 26", "indala": "Indala (len 64)",
             "keri": "KERI - Internal ID:", "nexwatch": "NexWatch raw id : 0x1",
             "idteck": "IDTECK Tag Found: Card ID", "gallagher": "GALLAGHER - Region:",
             "securakey": "Securakey - len: 26", "noralsy": "Noralsy - Card:",
-            "gproxii": "G-Prox-II - Len: 26", "fdxb": "FDX-B / ISO 11784/5 Animal Tag ID Found"}[p.key]
-    return "[+] %s %s\n" % (stem, p.expect)
+            "gproxii": "G-Prox-II - Len: 26", "fdxb": "FDX-B / ISO 11784/5 Animal Tag ID Found",
+            "indala224": "Indala (len 224)", "em410x_electra": "EM 410x ID",
+            "paradox": "Paradox - ", "pyramid": "Pyramid - len: 26",
+            "fdxa": "FDX-A FECAVA Destron: ", "instafob": ""}[p.key]
+    return "[+] %s %s\n" % (stem, p.expect or "")
 
 
 def pm3_wrong(p: reg.Protocol) -> str:

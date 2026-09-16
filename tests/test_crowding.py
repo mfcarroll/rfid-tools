@@ -136,10 +136,11 @@ class TheIsolationPhase(unittest.TestCase):
         self.assertTrue(all(not c.crowding for c in keri), "the screening placeholder is replaced")
 
     def test_more_tags_make_isolation_cheaper(self):
-        protos = reg.resolve(reg.TIER0_ORDER)
-        deaf = {(p, e): "" for p in reg.TIER0_ORDER for e in EMITTERS}
-        _, res, _, _ = crowded_run(answers_all_exact(protos), keys=reg.TIER0_ORDER,
-                                   cu1_answers=deaf)
+        keys = tuple(p.key for p in reg.TIER0.values()
+                     if p.can("cu_read") and p.can("pm3_write") and p.expect and p.cu_expect)
+        protos = reg.resolve(keys)
+        deaf = {(k, e): "" for k in keys for e in EMITTERS}
+        _, res, _, _ = crowded_run(answers_all_exact(protos), keys=keys, cu1_answers=deaf)
         one = planning.isolate(res.to_isolate, Bench(tag_count=1))
         many = planning.isolate(res.to_isolate, Bench(tag_count=16))
         self.assertLess(many.interventions, one.interventions)
