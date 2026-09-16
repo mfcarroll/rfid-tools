@@ -700,6 +700,9 @@ def _wipe(op: Op, devices: Devices, out, tag_state: TagState) -> None:
     the block 0 it reports is interpreted from that — which is exactly the right thing here, because
     what matters is the configuration the tag is actually transmitting.
     """
+    # ⚠ ANNOUNCED BEFORE IT BLOCKS. The wipe writes eight blocks and then proves itself with
+    # `detect`; on this bench that is tens of seconds of silence, which reads as a hang.
+    done = ui.working(out, "wiping the tag and proving it with `lf t55xx detect`")
     try:
         ok, detail = devices.by_dev(op.device).wipe_t55()
     except DeviceError as e:
@@ -707,7 +710,7 @@ def _wipe(op: Op, devices: Devices, out, tag_state: TagState) -> None:
     tag_state.protocol, tag_state.writer = None, None
     tag_state.verified, tag_state.witnesses = False, set()
     tag_state.cleared = bool(ok)
-    out("      %s tag wiped — %s" % (ui.mark("wipe" if ok else "bad"), detail))
+    done("      %s tag wiped — %s" % (ui.mark("wipe" if ok else "bad"), detail))
 
 
 def _write(op: Op, devices: Devices, out) -> bool:
