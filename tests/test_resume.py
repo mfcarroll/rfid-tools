@@ -166,3 +166,54 @@ class ARunFromBeforeTheFeatureCannotBeCarried(unittest.TestCase):
         self.assertTrue(e.knows_stations)
         self.assertTrue(any("completed no station" in b
                             for b in resume.check(e, FIRMWARE, "pad0", "abc1234")))
+
+
+class ACarriedLicenceMustActuallyLicenseSomething(unittest.TestCase):
+    """⛔⛔ THE FIRST RESUME PRODUCED A GRID OF NOTHING BUT `UNGRADED`. It carried 50 readings and 33
+    licences forward correctly, then measured a station whose every cell came back unlicensed.
+
+    `Calibration.licenses` covers an observation only when the protocol, the reader, the PAD **and
+    the SESSION** all match — so a licence issued in one session licenses nothing taken in another.
+    That is the calibration rule working exactly as written, and it means a resume cannot be a new
+    session: it is a CONTINUATION of the one it carries from. One sitting, one bench, one set of
+    firmware, one pad — which is precisely what `check` has already proved before anything is
+    carried. The clock is not what makes a reading trustworthy.
+    """
+
+    def setUp(self):
+        self.tmp = tempfile.mkdtemp()
+        self.e = resume.load(_run_file(self.tmp))
+        self.protos, _ = learned.apply(registry.resolve(None), learned.load(), "T")
+
+    def test_a_carried_licence_covers_a_reading_taken_in_the_continued_session(self):
+        from benchmatrix.outcomes import observe
+        _, licences, _ = resume.rebuild(self.e, self.protos, self.e.session)
+        lic = licences[("em410x", "rd.pm3")]
+        p = registry.ALL["em410x"]
+        # ⭐ A READING TAKEN NOW, under the session the resume continues.
+        fresh = observe("em410x", "emu.cu1", "rd.pm3", "[+] EM 410x ID 2244668800\n",
+                        p.expect_for("rd.pm3"), p.marker_for("rd.pm3"),
+                        session=self.e.session, pad=self.e.pad)
+        self.assertTrue(lic.licenses(fresh), "a continued session is what makes the carry useful")
+
+    def test_and_does_not_cover_one_from_a_different_session(self):
+        """⚠ The rule still bites where it should: a licence is not transferable to another sitting
+        just because the same file was pointed at."""
+        from benchmatrix.outcomes import observe
+        _, licences, _ = resume.rebuild(self.e, self.protos, self.e.session)
+        lic = licences[("em410x", "rd.pm3")]
+        p = registry.ALL["em410x"]
+        other = observe("em410x", "emu.cu1", "rd.pm3", "[+] EM 410x ID 2244668800\n",
+                        p.expect_for("rd.pm3"), p.marker_for("rd.pm3"),
+                        session="SOME-OTHER-SITTING", pad=self.e.pad)
+        self.assertFalse(lic.licenses(other))
+
+    def test_nor_one_from_a_different_pad(self):
+        from benchmatrix.outcomes import observe
+        _, licences, _ = resume.rebuild(self.e, self.protos, self.e.session)
+        lic = licences[("em410x", "rd.pm3")]
+        p = registry.ALL["em410x"]
+        moved = observe("em410x", "emu.cu1", "rd.pm3", "[+] EM 410x ID 2244668800\n",
+                        p.expect_for("rd.pm3"), p.marker_for("rd.pm3"),
+                        session=self.e.session, pad="pad1")
+        self.assertFalse(lic.licenses(moved))

@@ -281,9 +281,25 @@ def cmd_run(a) -> int:
     p = planning.build(protos, a.source, a.reader, _bench(a), cross=getattr(a, "cross", False),
                        at=getattr(a, "at", None) or ())
     devices = _devices(a)
-    carried_cells, carried_lic, earlier = [], {}, None
+    carried_cells, carried_lic, earlier, stem_suffix = [], {}, None, ""
     if getattr(a, "resume", None):
+        # ⛔⛔ A RESUME CONTINUES A SESSION; IT DOES NOT START A NEW ONE — and getting that wrong
+        # made the first one produce a grid of nothing but UNGRADED. A licence covers an observation
+        # only when the protocol, the reader, the PAD and the SESSION all match
+        # (`Calibration.licenses`), so 33 licences carried from an earlier session licensed exactly
+        # nothing taken today. That is the calibration rule working as written.
+        #
+        # ⇒ The session is the right unit to continue. It means one sitting, on one bench, with one
+        # set of firmware on one pad — which is precisely what `resume.check` has already proved
+        # before we get here. The clock is not what makes a reading trustworthy.
+        #
+        # ⚠ THE FILE IS STILL DISTINCT, because two runs sharing a session id would otherwise
+        # overwrite each other in `runs/` — and the first of them is the record that made the second
+        # possible.
         p, earlier, carried_cells, carried_lic = _carry_forward(a, p, devices, session, protos)
+        session, stem_suffix = earlier.session, "_resumed_%s" % runner.session_id()
+        print("     ⟲ continuing session %s — the licences it issued cover what follows."
+              % session)
     try:
         result = runner.run(p, devices, interactive=not a.no_prompt, session=session,
                             licences=dict(carried_lic))
@@ -325,7 +341,7 @@ def cmd_run(a) -> int:
                             licences=result.licences)
             result = grid.merge(result, r2)
     md = grid.render(result, protos)
-    stem = _write(result, protos)
+    stem = _write(result, protos, suffix=stem_suffix)
     print("\n" + md)
     print("\n  written: %s.md  %s.json" % (stem, stem))
     graded = sum(1 for c in result.cells if c.outcome.value != "UNGRADED")
