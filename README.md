@@ -108,7 +108,7 @@ the one place where swapping tags beats rearranging the bench.
 ./bench scope                      # the registry, and what it can and cannot grade
 ./bench plan                       # the cells, the station script, and what is refused
 ./bench run --dry-run --no-prompt  # rehearse the whole thing with no hardware
-./runtests                         # 191 tests, no hardware, no network
+./runtests                         # 204 tests, no hardware, no network
 ```
 
 ### Setup: which device is on which port
@@ -192,7 +192,11 @@ benchmatrix/
   dfu.py              Nordic DFU: trigger and program in one process
   learned.py          expectations learned from a real tag, and the self-licensing guard
   grid.py             the published grid, the exclusion list, the gap register
-tests/                191 tests, all on the scripted bench — `./runtests`
+tests/                204 tests — mostly on the scripted bench, plus `test_channels.py`,
+                      which exercises the REAL device classes with only the subprocess
+                      layer stubbed. A fake that substitutes for the thing under test
+                      proves nothing about it: `Chameleon.read` raised on every call and
+                      passed 191 tests before that file existed.
 ```
 
 ## The protocol registry

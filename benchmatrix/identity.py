@@ -49,6 +49,8 @@ class IdentityResult:
     strays: frozenset
     reader: str
     text: str
+    #: Every Chameleon that was armed for the check, including ones meant to be off the bench.
+    armed: frozenset = frozenset()
 
     @property
     def ok(self) -> bool:
@@ -137,13 +139,21 @@ def check(station: Station, devices, chameleons: dict,
 
     return IdentityResult(expected=expected, found=frozenset(seen & expected),
                           strays=frozenset(seen - expected), reader=reader_id,
-                          text="\n".join(text))
+                          text="\n".join(text), armed=frozenset(armed))
 
 
 def explain(res: IdentityResult) -> str:
     want = ", ".join(HUMAN[d] for d in sorted(res.expected))
     if res.ok:
-        return "identity confirmed by radio (%s heard %s)" % (res.reader, want)
+        # ⚠ SAY THAT THE OTHERS WERE ARMED TOO. The operator watches a device they were just told
+        # to set aside light up and reasonably wonders what the harness is doing with it. Arming
+        # every Chameleon is the point of the check — it is what makes a decode NAME a device
+        # rather than merely prove something is there, and what makes a stray detectable at all.
+        others = sorted(res.armed - res.expected)
+        extra = ("; %s %s armed too and stayed silent, which is how a stray would show"
+                 % (", ".join(HUMAN[d] for d in others),
+                    "was" if len(others) == 1 else "were")) if others else ""
+        return "identity confirmed by radio (%s heard %s%s)" % (res.reader, want, extra)
     missing = sorted(res.expected - res.found)
     if res.strays and missing:
         return ("⛔ WRONG DEVICE. The stack should hold %s; the radio says %s is there instead. The "
