@@ -207,10 +207,15 @@ def licensing_source(p: reg.Protocol, bench: Bench) -> str | None:
     too, but it carries a credential produced by the very writer under test — licensing a reader
     with it would let a device vouch for itself one step removed.
     """
-    # ⛔ A GOLD SOURCE NEEDS A GOLD WRITER AND A READABLE EXPECTATION. `fdxa` has no recorded
-    # Proxmark clone signature and `em410x_electra` has no byte-exact token the two writers share,
-    # so neither can be licensed by a Proxmark-written tag however capable the Chameleon is.
-    if p.t55_capable and bench.available(T5577) and p.can("pm3_write") and p.expect:
+    # ⛔ A GOLD SOURCE NEEDS A GOLD WRITER. `fdxa` has no recorded Proxmark clone signature, so
+    # nothing on this bench can make a gold tag for it however capable the Chameleon is.
+    #
+    # ⚠ A MISSING EXPECTATION IS NOT THE SAME THING AND MUST NOT BE REPORTED AS ONE. The Proxmark
+    # can both write and read `em410x_electra`; what is missing is a record of what it PRINTS, which
+    # is a thing to go and measure, not a structural impossibility. Folding it in here labelled the
+    # cell "unlicensable" — a verdict about the bench — when the honest answer is "nobody has looked
+    # yet, run `bench learn`". So the expectation is checked by `_refuse`, which says that.
+    if p.t55_capable and bench.available(T5577) and p.can("pm3_write"):
         return "t55.pm3"
     return "oem" if p.key in bench.has_oem else None
 
@@ -238,7 +243,9 @@ def _refuse(p: reg.Protocol, source: str, reader: str, bench: Bench) -> Exclusio
     if reader == "rd.pm3" and not p.expect:
         return Exclusion(p.key, source, reader, "no-expectation",
                          "what the Proxmark prints for a %s written on this bench has never been "
-                         "observed, so there is no byte-exact token to compare against." % p.key)
+                         "observed, so there is no byte-exact token to compare against. This is a "
+                         "thing to go and measure, not a limit of the bench — run "
+                         "`bench learn -p %s`." % (p.key, p.key))
     if source == "t55.pm3" and not p.can("pm3_write"):
         return Exclusion(p.key, source, reader, "no-gold-writer",
                          "the Proxmark has no recorded clone signature for %s, so it cannot produce "
