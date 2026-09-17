@@ -183,10 +183,24 @@ and the reader's live read-then-demod path will not lock onto it.
 graded on, so **a SILENT grade is not by itself evidence that the emitter is silent.** ⛔ It
 does NOT follow that other SILENT cells are artifacts — gold-tag readings decode live on that
 same path, so whatever the mechanism, it bites a marginal signal and not a real tag's.
-⇒ **The honest next unit** (bounded, no bench move, ⚠ ungraded — it is about the INSTRUMENT,
-not about re-grading cells): arm each emulate protocol on cu2 in turn and compare live demod
-against save/load demod on one capture each. That says how wide the artifact is. Recorded as a row
-in the `rfid-tools` gap register.
+✅ **AND THAT UNIT IS DONE — THE ARTIFACT IS ONE ARM WIDE (C488, `c580f74d`).** Every
+emulate arm armed on cu2 in turn, one capture each, demodulated live and then after save/load.
+⚠ Grades nothing; it is about the instrument.
+
+| outcome | arms |
+|---|---|
+| **rescued by save/load** | `gproxii` — **and nothing else** |
+| decoded both ways (11) | `em410x`, `viking`, `jablotron`, `pac`, `hidprox`, `ioprox`, `awid`, `gallagher`, `securakey`, `noralsy`, `fdxb` |
+| silent both ways | `indala`, `keri`, `nexwatch`, `idteck`, `indala224` (C486's five) + `em410x_electra` |
+
+⇒ **The live path and the calibrated grid agree arm for arm** — the eleven here are exactly
+the eleven graded EXACT. **So a SILENT grade is NOT generally an artifact**; the worry is bounded to
+the one cell that raised it. ⛔ **Nothing here licenses a re-grade.**
+
+⚠ **A probe bug worth remembering**: the first pass scored `hidprox` silent because the
+registry's markers are `^`-anchored and it searched a multi-line blob with `re.search`. **A marker
+is matched against a LINE** — matched that way, `hidprox` decodes both ways. It could not
+invent a rescue (both columns share the regex) but it can hide one.
 
 ## 4. ~~Rig A's tag contents are unknown~~ — READ (C480/L448, `e3e8de6e`)
 
