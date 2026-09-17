@@ -193,7 +193,15 @@ re-measure it** — a further sweep would be C473's method: re-measuring a quest
    ⚠⚠ **AND THE SCOPING LIMIT THIS EXPOSED, NOW AT THE HEAD OF THE GAP REGISTER**: every Proxmark
    read-length and precision figure from this round was measured against **our own emulation**,
    which free-runs and fades (C486). **None of it shows the Proxmark reads real tags badly.**
-   ⇒ **What is LEFT of §2e is the ChameleonUltra protocol-support PR split.** `LF_RESEARCH_CMDS_ENABLED`
+   ⭐⭐ **AND THE CHAMELEONULTRA PR SPLIT WAS ALREADY DONE** — `NEXT.md` §9c (three PRs, not one),
+   §9d (the split at FILE level), §9h (the instrumentation split) and §9j (seven fix-PRs first).
+   ⛔ **Do not re-derive it.** What it was MISSING has been added (`92c4357d`): **§9b's first
+   blocker is now that five PSK emulate arms are graded SILENT on `rd.pm3`**, so the emulate PR
+   would ship a feature a Proxmark will not read. It carries C486's cause, C489's reason it is
+   unfixable in firmware, and C499's nuance that they are intermittent rather than silent.
+   ⚠ Also flagged: an emulate **B** in §9a means ONE reader, and for these arms it was not the
+   Proxmark — every emulate cell needs its reader named before a maintainer sees that table.
+   ⇒ **§2e is now in good shape. What remains there is execution, which needs the operator.** `LF_RESEARCH_CMDS_ENABLED`
    defaults to 0 and is set only on our branch, so an upstream PR drops that one `-D`. Give thought
    to **how the protocol-support work should be split into PRs** and write it down.
    ⛔ **Open nothing** — the operator's instruction, and they are not reachable to ask.
