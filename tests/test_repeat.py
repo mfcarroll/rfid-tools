@@ -164,11 +164,18 @@ class TheRepeatsAreSpacedBecauseUnspacedTheyResampleOnePhase(NoRealPauses):
         self._run(6)
         self.assertTrue(all(0.0 <= d <= runner.REPEAT_JITTER_S for d in self.slept), self.slept)
 
-    def test_the_span_covers_more_than_one_beat_period(self):
-        """⭐ THE NUMBER HAS TO BE BIGGER THAN THE THING IT DECORRELATES. C486 measured a null
-        every ~61-80 ms; a span shorter than that would leave successive repeats correlated, which
-        is the whole defect. Pinned so a later 'tidy' cannot shrink it silently."""
+    def test_the_span_is_bounded_from_BOTH_sides_because_it_is_measured(self):
+        """⛔⛔ BOTH BOUNDS, AND THE UPPER ONE IS THE ONE THAT WAS MISSING. The span has to
+        exceed what it decorrelates — C486's ~61-80 ms nulls, a 121.6 ms full phase cycle.
+        It ALSO has to stay under the gap at which the Chameleon's burst restarts, because a
+        FRESH burst does not decode at all: C512 measured `gproxii` at 0% for gaps of 600 and
+        900 ms, and C513 put the knee near 160 ms (arrivals per read leaving 0.50).
+
+        ⚠ The first version of this test pinned only the lower bound, and the constant shipped
+        at 0.25 — inside the region where the rate is suppressed. A one-sided bound on a
+        two-sided constraint is how that got through."""
         self.assertGreater(runner.REPEAT_JITTER_S, 0.080)
+        self.assertLessEqual(runner.REPEAT_JITTER_S, 0.160)
 
     def test_the_pauses_are_not_all_identical(self):
         """⚠ A CONSTANT pause is not a fix — it is a different fixed cadence, which is what
