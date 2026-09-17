@@ -26,10 +26,23 @@ followed by `lf indala demod` returns `a0000000e6bd0e92` / Fmt 26 FC 52 Card 636
 same field, same arm, alternated. ⛔ Controls: cu2 disarmed silent 3/3 live, a PAC capture asked
 for Indala silent, the same samples at 40,000 silent, and Rig B is tagless.
 
-⭐⭐ **And four of the six arms decode through the READER COMMAND THE MATRIX GRADES ON**, at
-1-in-9 to 1-in-3 — `keri` 3/9, `idteck` 1/9, `nexwatch` 1/9, `gproxii` 3/9, against **0 of 36**
-with nothing armed. They are **intermittent, not silent**. A cell graded from one read lands on
-SILENT most of the time, which is exactly what the graded run and C488's one-capture probe saw.
+⭐⭐ **And FIVE of the six arms decode through the READER COMMAND THE MATRIX GRADES ON** — at
+n=24: `keri` **8/24**, `gproxii` **8/24**, `nexwatch` **6/24**, `idteck` **4/24**, against **0 of 36**
+with nothing armed. Only `indala` (0/26) and `indala224` (0/24) never do. They are **intermittent,
+not silent**, and a cell graded from ONE read lands on SILENT most of the time — which is exactly
+what the graded run and C488's one-capture probe saw.
+
+⭐⭐⭐ **AND THE PATTERN IS ONE NUMBER IN THE PROXMARK CLIENT (C494).** Every LF reader calls
+`lf_read()` with a different count: indala **30,000**, nexwatch **20,000**, keri **10,000**, pac
+**8,212**, idteck **5,000** — a 6x spread nothing documents. Against the emission's own ~61 ms
+fading period, Indala's reader is the only one spanning four intervals, and it is the only arm the
+short read transforms (0/26 → 23/26). The others were already short, which is why a short read
+does nothing for them. ⛔ **So do not generalise "use a short read"** — it is an `indala`
+(and partly `gproxii`) effect, and a length sweep on `nexwatch` shows no trend at all.
+
+⛔ **n MATTERS HERE AND IT CAUGHT ME**: the first pass recorded `nexwatch` 0/9 and reasoned from
+it; at n=24 it is 6/24. At a true rate near 1 in 3, nine trials return zero about 4% of the time.
+See ChameleonUltra `METHOD.md` **M58**.
 
 ⛔⛔ **WHAT THIS DOES NOT DO.** It is ungraded — no null sweep, no calibration row, no
 licence — and it **licenses no re-grade of anything**. What it licenses is `--repeat` on the

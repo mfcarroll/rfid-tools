@@ -460,20 +460,23 @@ def gap_register(result, protocols: list[reg.Protocol]) -> list[str]:
         # ⭐⭐⭐ THE ROW THAT MATTERS MOST TO THIS HARNESS, because it is about the command
         # every emulate cell is graded on. ⛔ It is built on UNGRADED manual observations and
         # licenses a `--repeat`, never a re-grade.
-        ("Proxmark", "**`lf <proto> reader` reads 30,000 samples (`cmdlfindala.c:633`) — 240 ms — "
-                     "and that span can MISS an emission the same device decodes from a short one.** "
-                     "Live A/B, one session, alternated: `lf indala reader` **0 of 11**, then "
-                     "`lf read -s 4096` + `lf indala demod` **9 of 11 byte-exact**, same field, same "
-                     "arm. ⭐ And it is not a fixed ceiling: on one banked capture, spans of 4096 "
-                     "to 20480 samples all decode while 22528-26624 do not, yet 26624 from a "
-                     "different start decodes — the demodulator fails on spans carrying too much "
-                     "of a beating subcarrier, and 240 ms usually does. ⇒ **a SILENT emulate grade "
-                     "can be an under-sampled intermittent rather than an absent emitter**: four of "
-                     "the six arms this harness grades SILENT return their own credential byte-exact "
-                     "through the reader command itself at 1-in-9 to 1-in-3, against 0 of 36 with "
-                     "nothing armed",
-         "ChameleonUltra C490/C491, 2026-09-16 — ⚠ ungraded manual observations; they "
-         "license `--repeat`, never a re-grade"),
+        ("Proxmark", "**every LF reader command asks for a DIFFERENT number of samples, and the "
+                     "long ones miss an emission the short ones decode.** From the client's own "
+                     "source: `cmdlfindala.c:633` **30,000** \u00b7 `cmdlfnexwatch.c:288` **20,000** "
+                     "\u00b7 `cmdlfkeri.c:222` **10,000** \u00b7 `cmdlfpac.c:215` **8,212** \u00b7 "
+                     "`cmdlfidteck.c:315` **5,000** \u2014 a 6x spread nothing documents. Live A/B, "
+                     "one session, alternated, n=26: `lf indala reader` **0 of 26**, then "
+                     "`lf read -s 4096` + `lf indala demod` **23 of 26 byte-exact**, same field, "
+                     "same arm. \u2b50 Indala's is the only reader spanning four intervals of the "
+                     "emission's own ~61 ms fading period, and it is the only arm that never "
+                     "decodes on its own path; the others were already short, and a read-length "
+                     "sweep on nexwatch shows no trend. \u21d2 **a SILENT emulate grade can be an "
+                     "under-sampled intermittent rather than an absent emitter**: five of the six "
+                     "arms this harness grades SILENT return their own credential byte-exact "
+                     "through the reader command itself \u2014 keri 8/24, gproxii 8/24, nexwatch "
+                     "6/24, idteck 4/24 \u2014 against 0 of 36 with nothing armed",
+         "ChameleonUltra C490/C491/C494, 2026-09-16 \u2014 \u26a0 ungraded manual observations; "
+         "they license `--repeat`, never a re-grade"),
         # ⛔ RETRACTED ROW, KEPT AS A ROW. The register used to carry this as a Proxmark
         # capability and the correction below used to assert it. The hardware says otherwise.
         ("Proxmark", "**cannot distinguish Electra from plain em410x**: `lf em 410x clone "
