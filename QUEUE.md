@@ -207,7 +207,7 @@ self-consistent with every banked run and the item-6 corrections are confirmed a
 
 ## ⭐⭐⭐⭐⭐ 2026-09-17 03:5x-05:0x — THE INTERLEAVING IS WITHDRAWN AND THE REGIONS ARE REAL. READ THIS FIRST.
 
-util7 **81 → 82** across the round (util5 7 at 05:0x). **FIVE units closed: K21 (C524), K22 (C525), K23 (C526), the `keri` re-run (C528) and the drift gate's own price (C527). ⛔ C526 RETRACTS a number C525 published an hour earlier — read that retraction before quoting any level — and C527 makes every *NO VERDICT, DRIFTED* on this line one-in-four likely to be noise.** ⛔ **No bench move, nothing flashed on
+util7 **81 → 82** across the round (util5 7 at 05:0x). **SIX units closed: K21 (C524), K22 (C525), K23 (C526), the `keri` re-run (C528) the drift gate's own price (C527) and the frame-locked notch (C529, closed offline with no capture). ⛔ C526 RETRACTS a number C525 published an hour earlier — read that retraction before quoting any level — and C527 makes every *NO VERDICT, DRIFTED* on this line one-in-four likely to be noise.** ⛔ **No bench move, nothing flashed on
 either unit**, cu2 armed and disarmed through the `finally` on **both** capture runs — `disarm: ok`
 twice, and its mode verified as `Tag Reader` **by asking the device** before the first arm — and
 **cu1 untouched**. **Detail: `ChameleonUltra` C524, M69, M70, `burstsync.py` K21/K22,
@@ -414,15 +414,20 @@ verdict. ⛔ The rule must name a tie-break before its next use.
    its own criterion. ⭐ And the two things this round hands forward are METHOD, not measurement:
    **M71** (name the arm each clause of a gate was measured on) and **M72** (a control needs its
    null distribution computed too — and add a TIE-BREAK to K24's selection rule before reusing it).
-1. ⭐⭐⭐ **THE FRAME-LOCKED NOTCH, ON FRESH SEEDS, PROPERLY PRE-REGISTERED.** K22 declared it
-   untestable at 20 ms on an expected level the data contradicts: there IS a body there, so the
-   detector has power. ⚠⚠ **BUT PRICE IT AGAINST C526's RETRACTION FIRST**: the 20 ms cell read
-   100/100% in K22 and 75/50% in K23, so *the* level there is not a number this bench can pin —
-   compute the detector's power across **both** measured levels and say what it can see at each. ⛔ **It may not be read off `caps/k22_*`** — that is the data that revealed
-   the level. A fresh seed pair, a notch band pinned before the capture, and the prediction stated
-   in frames: `gproxii`'s notch is **1.22 frames**, which is 20 ms on these two arms. ⚠ And say in
-   advance what a null means, because `indala` sitting at 100% there makes a notch unlikely and a
-   band that cannot survive its own expected answer is not worth running.
+1. ✅ ~~**THE FRAME-LOCKED NOTCH**~~ **CLOSED THIS ROUND, WITH NO CAPTURE — C529.**
+   `gproxii`'s notch is 1.22 frames, which on these two arms is **20.0 ms**. Eleven
+   independently seeded measurements now carry the 15/20/25 ms cells: mean **82% / 76% / 36%**,
+   and **the 20 ms cell never falls below 50%**. ⭐⭐ Read against a SIMULATED scale rather
+   than eyeballed: **a `gproxii`-depth notch fires the detector on 11 of 11 caps; no-notch
+   profiles give at most 1.3 of 11. Observed 1 of 11.** ⇒ **REFUTED at that depth.**
+   ⭐ What licenses a verdict off banked caps is the DIRECTION — foreknowledge cannot
+   manufacture the ABSENCE of a collapse — so a fresh band would re-measure an answered
+   question (C473's method). ⛔ **Do not run one.** ⚠ A SHALLOWER notch is not excluded and
+   the detector was never built to see one. ⚠⚠ **Post-hoc lead, not a finding**: the low cell
+   here is **25 ms on `keri`** (0-38% in eight of nine) — and 25 ms is **1.53** frames against
+   1.22, so not even a *notch at a different frame count* fits. It would need its own band.
+   ⛔ And it corrected C528's own descriptive *`keri` elevated 10-25* to **10-20**, a level
+   quoted from one pair one round after C526 said levels do not survive that.
 2. ✅ ~~**K22 — the 20-40 ms region**~~ **RUN AND SCORED THIS ROUND (C525).** Its design, its
    power table and its two caps are in the ChameleonUltra tree; `./framescale.py --k22 caps/k22_*`
    re-derives the whole verdict offline. ⛔ **Do not re-run it and do not re-derive its design** — what is
