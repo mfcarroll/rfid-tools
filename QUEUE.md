@@ -128,14 +128,20 @@ window with n=12 behind it.
 
 ## ⭐⭐ WHERE THE NEXT TICK STARTS
 
-1. ⭐⭐⭐ **AUDIT EVERY OTHER SWEEP TOOL FOR M60's CONFOUND. This is the most valuable unattended
-   unit left and it needs no bench at all.** `holdsweep.py`, `gapsweep.py`, `offsetsweep.py`,
-   `phasesweep.py`, `sweep.py`, `airduty.py`, `drivesoak.py`, `readsoak.sh` — any of them that
-   walks a setting in a fixed order has position confounded with the setting, exactly as
-   `shortread.py` did. **Read each one, say which are affected, and fix the ones that are** (the
-   fix is one line: shuffle within each round and print the seed). ⛔ Then say plainly which past
-   claims rest on an unshuffled sweep — that is the part that matters, and it is what M60 says to
-   do.
+1. ~~⭐⭐⭐ **AUDIT EVERY OTHER SWEEP TOOL FOR M60's CONFOUND**~~ — ✅ **DONE, AND C469 SURVIVED IT
+   BY MEASUREMENT** (ChameleonUltra **C500**, `c02e34dd`). ⭐ **The discriminator is whether the
+   statistic was PREDICTED in advance or read off the sweep's own SHAPE.** `holdsweep.py` has the
+   same fixed ascending order `shortread.py` did, but C469's criterion (modal run = N x 256us,
+   slope 1) was fixed before the firmware existed — so it was re-run **shuffled, order 2 7 8 5 1 9
+   4 3 6**, and every N landed on its prediction, 91.8-97.2% modal share, no knee. ⛔ `gaintest`,
+   `oversample_test` and `inputtest` are **BLOCKED** (all repeats of one setting contiguous, which
+   is worse than merely ordered) and `phasesweep` fixes phase order within each rep — **but all
+   five affected tools sweep a REAL T5577**, which divides the reader's carrier and is coherent, so
+   they carry neither the beat nor the wandering rate, and they score a tag/empty ratio that a
+   common-mode drift divides out. Real defects, **no claim known to be wrong**, and all five need
+   the operator anyway. `offsetsweep`/`sweep`/`airduty`/`nullframe` re-analyse a file on disk and
+   cannot be affected; `drivesoak` sweeps order on purpose.
+
 2. ⭐⭐ **`indala224` is now the ONLY arm that never decodes** — 0/24 at all five lengths, both
    seeds, with wrong-payload markers at four of them. C493 explains it geometrically (57.3 ms frame
    against 60.8 ms null spacing, so it cannot finish inside one interval) and the ladder is
