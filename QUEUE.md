@@ -561,7 +561,36 @@ operator has seen it. **Leave it for them.**
   remedy is to **vary the spacing between repeats** (a randomised pause), so the repeats span the
   beat rather than sit on one phase. ⛔ **Operator decision, not a tick's**: it changes the graded
   read path, which re-bases every past cell.
-- ⭐ **A meter on the board, ahead of VD1.** C489 rests entirely on the schematic putting the rectifier at the coil; that is the one cheap check that could overturn it, and it takes minutes.
+- ~~⭐ **A meter on the board, ahead of VD1.**~~ ⛔⛔ **THIS ITEM WAS NEVER BLOCKED — THE SCHEMATIC
+  IS COMMITTED IN THE ChameleonUltra REPO AND NOBODY HAD OPENED IT** (C508, `b8752613`).
+  `hardware/ultra/Chameleon_nrf52_ultra_V1.0.pdf`. Read exhaustively, the LF sheet exports five
+  ports: `LF_ANT_DRV` and `LF_MOD` are MCU **outputs**, `LF_AMP_PWR` is a power enable, and the
+  **only two inputs — `LF_OA_OUT` and `LF_RSSI` — are both downstream of VD1**, one through an
+  envelope detector and two opamp stages, the other through a second diode VD2. ⇒ **C489 stands,
+  by enumerating the ports rather than inferring from where one diode sits.**
+  ⭐ **The probe point has a name now**: `P_LF_ANT_RAW` is on the J1-J4 pad group, the
+  main-board↔antenna interconnect (the LF antenna is a separate assembly,
+  `Chameleon_nrf52_ultra_ant_V1.0.zip`) — where a scope goes, and where the only hardware-mod
+  route to coherence would start.
+  ⚠ **What is left of it**: this confirms the SCHEMATIC; checking the BOARD matches it is the
+  residual, and the file is **V1.0** so the units' actual revision still matters. ⭐ If the
+  instrument is still wanted it is an **oscilloscope, not a multimeter** — a DMM's AC ranges are
+  specified for 50/60 Hz and read nonsense at 125 kHz — any >= 20 MHz scope, with a **x10** probe
+  (a x1 probe's ~100 pF would detune the resonant tank and change what is being measured).
+- ⭐⭐ **THE ARCHITECTURE QUESTION IS RE-POSED: NOT *CAN WE LOCK*, BUT *CAN WE TRIM*.** C489
+  answers the lock question no, and C508 now confirms it from the board files. ⛔ **But PSK does
+  not need phase lock — it needs the phase to STAY PUT across one frame.** C486's 70-80° across a
+  16.4 ms Indala frame is ~12 Hz, ~190 ppm of the 62.5 kHz subcarrier; under ~10° needs **~27
+  ppm**. ⭐ The clock source is already the good one — `lf_tag_em.c:250` holds HFXO for **±40
+  ppm** rather than HFINT's ±1.5% — and ±40 ppm on our side ALONE already exceeds what the frame
+  needs, which is the argument for a per-pair **trim** rather than a better part.
+  ⛔ **J1, from source and free: no INTEGER trim exists at any prescaler.** One `counter_top` tick
+  is **125,000 ppm** at the 1 MHz base clock in use and **7,800 ppm** at the fastest available —
+  it overshoots a tens-of-ppm correction by ~300x. Only a **dither** (fractional-N across entries)
+  could work, and for the PSK arms that means expanding the buffer **16x**, which is exactly
+  C485's shape — built, flashed and reverted. ⚠ That cost is stated **before** anyone builds.
+  ⇒ Whether it is worth building turns on whether the offset is STABLE, which `clockdrift.py`
+  measures with no hands (criteria J1/J2/J3 pinned in `43161201`).
 
 ## 6. ~~Registry work, no bench~~ — BOTH DONE (`rfid-tools`, 467 tests green)
 
