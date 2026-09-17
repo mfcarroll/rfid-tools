@@ -287,19 +287,53 @@ is built right.
 145-160 — three arms with elevated regions inside **135-160 ms**, and all three collapse by
 160-170. A lead for a wider ladder.
 
+## ⭐⭐⭐⭐ AND THAT RE-RUN WAS DONE — K19, C522, M68
+
+**K19 dropped designated wings entirely** (M67: a wing must be justified, and 85-90 ms is NOT —
+it is one cell 5 ms from a measured low, on profiles whose features are 5-15 ms wide). The
+reference is **each arm's own median across the ladder**. **85-200 ms in 5 ms steps**, 24 cells
+plus a 65 ms cell excluded from the median, two seeds per arm at `--reps 8`, **all four gates
+passing** and **P1 at 0.50 arrivals in every cell to a 200 ms primer** — the whole ladder inside
+one 500 ms burst, which the arithmetic could only estimate (C516).
+
+⭐⭐ **`keri`: W1 FIRES — TWO SEPARATED FEATURES, `95,100,105` and `140,145,150` ms**, each in both
+seeds, separated by six cells of which two (125, 130) are quiet in both. ⛔ **Location was reported
+and never tested** — W1 is a claim about COUNT and SEPARATION and nothing else.
+
+⭐⭐ **`keri`: W2 FAILED, AND THAT IS THE RESULT WITH TEETH.** None of 185, 190, 195, 200 is at a
+floor — **190 ms is 62% and 100%**. ⇒ **No wing at this ladder's top edge is licensed for any
+future band**, and there is more profile above 200 ms. ⛔ Reaching it needs
+`LF_TAG_BURST_TARGET_MS` raised — a firmware change and a cu2 flash — so it is an operator-return
+item, not a tick's.
+
+⛔⛔ **`indala`: W1 REFUTED, AND THE REFUTATION IS WORTHLESS — M68.** Its median is **75%**, so
+*median + 25* is **100%, the ceiling**, and a feature needed two adjacent cells at exactly 100% in
+both seeds. **The band could not have fired whatever the data did.** The arm visibly has structure
+— 0-25% at 120-125, 12-25% at 165-175, 12-38% at 200, against a body at 75-100%.
+
+⚠⚠ **AND THE PATTERN BEHIND M68 IS THE THING TO CARRY**: M63 said a control must not presume
+flatness ⇒ K18 fixed wings by position ⇒ M67, an edge is not outside anything ⇒ K19 referenced the
+arm's own median ⇒ M68, a relative threshold inherits the arm's headroom. **Three consecutive
+criteria, each written to repair the last, each broken in a new place.** ⇒ **The repair is not a
+better rule. It is a check run against the design before the capture** — compute the threshold
+against each arm's known level and say, in advance, what the band can detect there.
+
+⚠ **POST-HOC, LABELLED**: at these lead times `indala` looks like `gproxii` (high with holes) and
+`keri` looks like `nexwatch` (low with humps). A description of four profiles, not a mechanism, and
+no band tested it.
+
 ⭐⭐ **THE NEXT HANDS-OFF UNITS, in order:**
-1. ⭐⭐⭐ **Re-run 85-200 ms on `indala` and `keri` with JUSTIFIED wings** (M67). The low wing is
-   defensible at **85-90 ms** — both arms are 17-25% and 8-17% at 80 ms in K15/K16, which is
-   **independent prior data, not the run being scored**. ⛔ **The high edge cannot be assumed and
-   must be MEASURED past 170** before it is allowed to be a wing. ⚠ P1 at a 200 ms primer is the
-   budget risk on `keri` (200 + ~192 + 80 = 472 ms against the 500 ms burst) — **P1 decides it, not
-   the arithmetic** (C516). ⭐ Banked: `caps/k18_{indala,keri}_s{31,47}.json`.
-2. ⭐⭐ **The mechanism.** Nothing proposed survives — not the beat, not settling, not the frame,
+1. ⭐⭐⭐ **The INVERSE detector on `indala`** — runs of cells at *median − Δ*, which has ample power
+   on an arm sitting at 75% and none on `keri`. ⛔ **Criterion first, and it must NOT be run on
+   `caps/k19_indala_s{53,67}.json`** — those have now been looked at, and scoring a new band on
+   them is fitting. A fresh seed pair, same ladder.
+3. ⭐⭐ **The mechanism.** Nothing proposed survives — not the beat, not settling, not the frame,
    not the modulation. ⛔ Criterion first.
-3. **A 5 ms grid across the full 20-200 ms range**, a tick of its own, the only way to say *there
-   are no other features*. ⚠ C520/C521 make it more attractive: every arm looked at closely has
-   turned out to have more structure than the ladder that found it was built for.
-4. `idteck` and `indala224` remain unmeasured on this knob. ⚠ `indala224`'s precision is 0% (C502),
+4. **The 20-85 ms range at 5 ms on `indala` and `keri`** — K19 started at 85 and K14/K15/K16
+   stopped at 80, so **20-40 ms has never been measured on either arm** and the two ladders only
+   just meet. ⚠ `gproxii`'s notch is at 60 ms and `keri`'s new feature starts at 95, so the
+   region between the two ladders is the last unmeasured gap under the burst ceiling.
+5. `idteck` and `indala224` remain unmeasured on this knob. ⚠ `indala224`'s precision is 0% (C502),
    so it can only be scored on *decoded*, never on *exact*, and the band must say so.
 
 ⛔⛔⛔ **READ THIS BEFORE WRITING ANY BAND. SIX PRE-REGISTERED CRITERIA HAVE NOW MIS-FIRED IN TWO
