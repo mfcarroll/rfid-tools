@@ -502,6 +502,27 @@ def gap_register(result, protocols: list[reg.Protocol]) -> list[str]:
          "ChameleonUltra C490/C491/C494/C499, 2026-09-16 \u2014 \u26a0 ungraded manual "
          "observations; they license a per-arm `--repeat`, never a re-grade, and never a "
          "change to the registry's own `pm3_read` \u2014 that would re-base every past cell"),
+        # ⭐⭐ THE ROW THAT JUSTIFIES `Outcome.WRONG` EXISTING. It is measured evidence for
+        # the rule in outcomes.py that WRONG is never merged into SILENT.
+        ("Proxmark", "**four of its six LF demodulators FAIL OPEN \u2014 they report a credential "
+                     "that is not the one emitted \u2014 and two never do.** Scored over a shuffled "
+                     "per-arm read-length ladder, n=12 per rung, counting reads that DECODED a "
+                     "frame of the right protocol against reads whose payload was ours: "
+                     "`lf indala` **51 decoded / 16 wrong** \u00b7 `lf nexwatch` 26/**10** \u00b7 "
+                     "`lf keri` 20/3 \u00b7 `lf indala --224` **28/28** \u00b7 `lf idteck` 11/**0** "
+                     "\u00b7 `lf gproxii` 35/**0**. \u2b50 **At a one-frame read `lf indala demod` "
+                     "locks and is wrong 6 times out of 6.** \u21d2 A decode marker is NOT evidence "
+                     "the payload is right, on these four readers, and that is why this harness "
+                     "refuses to grade a reader with no decode marker (devices.py) and keeps WRONG "
+                     "a separate outcome from SILENT (outcomes.py). "
+                     "\u26d4\u26d4 **AND IT IS THE SECOND REASON NOT TO RE-POINT `pm3_read` AT THE "
+                     "PER-ARM BEST LENGTH**: at 3-4 frames `indala` decodes 12/12, but 2 of those 12 "
+                     "carry the wrong credential \u2014 so cells would move to **WRONG** as well as "
+                     "to EXACT, and the matrix would gain real \u274c cells. \u2705 At each arm's "
+                     "OWN graded sample count the open-failing arms barely decode at all, so the "
+                     "SILENT grades the matrix holds today are correct",
+         "ChameleonUltra C502, 2026-09-16 \u2014 \u26a0 POST-HOC over C499's run, n=12 per rung, "
+         "seed 2; ungraded and moves no cell"),
         # ⛔ RETRACTED ROW, KEPT AS A ROW. The register used to carry this as a Proxmark
         # capability and the correction below used to assert it. The hardware says otherwise.
         ("Proxmark", "**cannot distinguish Electra from plain em410x**: `lf em 410x clone "
