@@ -313,6 +313,27 @@ the repo are the only handover.** Anything a tick needs to know must be written 
 tick ends — a conclusion held only in context is lost at the next launch. Finish every tick with
 the work list updated and committed, not with a plan you intend to remember.
 
+⭐⭐⭐ **A TICK IS A WORK SESSION, NOT ONE ACTION — THE ROUTINE IS A RESTARTER, NOT A CADENCE.**
+The routine's floor is **one fire per hour**. A tick that does one unit and exits makes the round
+do **one unit an hour**, which is almost no work across an absence. So:
+
+> **Keep working through §2 until one of these, and only these, stops you:** a terminal stop (§3),
+> the `STOP` file, context exhaustion, or a work list that is genuinely empty. Touch
+> `.loop-heartbeat` after each completed unit so siblings keep standing down.
+
+⇒ The hourly fire exists to **restart a round that has ended**, not to pace one that is running. A
+sibling tick finding a fresh heartbeat and standing down is the system working, not a failure.
+
+⭐ **ON CONTEXT EXHAUSTION, EXIT CLEANLY AND LET THE NEXT FIRE TAKE OVER.** Commit what is finished,
+write the work list forward in the repo (§6 — you are a cold session and nothing else carries),
+delete `.loop-heartbeat`, and stop. The next fire starts a fresh session with full context, reads
+this file, and continues. ⛔ Do NOT try to stretch one session past useful context to avoid the
+handover: a cramped session that re-derives badly is worse than losing under an hour.
+
+⚠ **An interactive operator-present session holds the same lock.** If the operator is working with
+you directly, the heartbeat you touch will stand down every routine fire until it ages out — so
+**delete it when you hand back to them**, or the round sits idle for up to 55 minutes.
+
 ⛔ **CONSEQUENCE 2 — TWO ROUNDS CAN RUN AT ONCE.** Ticks inside one session serialise; sessions
 launched by a routine do not. **The routine fires HOURLY** (its floor), so the heartbeat is a lock:
 
