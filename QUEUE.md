@@ -18,9 +18,10 @@ flash failure. **Retry it; do not go looking for a broken device.**
 
 ## ⭐⭐⭐ 2026-09-16, LATE: THE SIX "SILENT" ARMS ARE NOT SILENT — READ THIS BEFORE ITEM 3
 
-**Repo for the detail: `ChameleonUltra` C489/C490/C491 (`3a3e2793`, `9dfeca77`, `cedf4d3f`).**
+**Repo for the detail: `ChameleonUltra` C489-C495** — the architecture answer, the live A/B,
+the cross-arm run, the beat's period, `indala224`, the n=24 rates, and `fdxb emu.pm3`.
 
-⭐⭐ **The Proxmark reads our Indala emulation byte-exact, live, 9 of 11.** `lf indala reader`
+⭐⭐ **The Proxmark reads our Indala emulation byte-exact, live, 23 of 26.** `lf indala reader`
 is silent because it reads **30,000 samples** (`cmdlfindala.c:633`, 240 ms); `lf read -s 4096`
 followed by `lf indala demod` returns `a0000000e6bd0e92` / Fmt 26 FC 52 Card 63612. Same session,
 same field, same arm, alternated. ⛔ Controls: cu2 disarmed silent 3/3 live, a PAC capture asked
@@ -56,9 +57,12 @@ stands**: C486's beat measurement, and C489's hardware facts — no pin on this 
 carrier cycle (VD1 rectifies at the coil) and the nRF52 PWM has no external clock input, so
 COHERENT emulation is unreachable. It turns out coherence was not required.
 
-⚠ **`indala224` is a DIFFERENT defect and must not be pooled with the rest**: the short read
-recovers a well-formed Indala frame **7 times in 9** and the payload is **never ours**. That is a
-wrong-frame problem, not a margin problem — see item 8.
+⭐⭐ **`indala224` IS THE CLEANEST CONFIRMATION OF THE MECHANISM** (C493, correcting this
+section's own first version). Its payload IS ours — **212, 202, 199 and 189 of 224 leading bits
+byte-exact**, then the tail collapses to all-ones. A 224-bit frame is **57.3 ms** against a measured
+**60.8 ms** null spacing, so it cannot finish inside one interval, and the survival times (48-54 ms)
+sit just under that spacing. ⛔ The wrong-frame reading was made without looking at the payload —
+see item 8.
 
 ## 1. ~~`seqdump.py` arms 1 of 5 steps~~ — DONE, AND THE DIAGNOSIS WAS WRONG (C475/L443)
 
@@ -288,6 +292,11 @@ operator has seen it. **Leave it for them.**
   generally broken. Telling them apart needs a **third reader** on this pairing — that part is
   genuinely the operator's.
 - `em410x` `pm3·emu` and `fdxb` `cu1·emu` read `⁇` — need `--repeat 10`.
+  ⭐ **Evidence for the em410x half, gathered in passing and UNGRADED**: `lf em 410x sim` read by
+  cu2's `lf em 410x read` came back byte-exact **12 of 12** across three sessions on 2026-09-16, with
+  0 of 8 when nothing was simulating. It was the CONTROL for C495 rather than the subject, which is
+  why it can be trusted as far as it goes and no further — one reader, no sweep, no licence.
+  ⇒ whatever the `⁇` is, that pairing is not fragile the way `fdxb`'s is.
 - `t55.pm3 → rd.cu2` for everything: gone while Rig B is tagless.
 - ⭐⭐ **`--repeat 10` over ALL SIX formerly-silent arms**, not just the two `‽` cells — C491 measured hit rates of 1-in-9 to 1-in-3 through the graded reader command, so one read cannot characterise any of them.
 - ⭐ **A meter on the board, ahead of VD1.** C489 rests entirely on the schematic putting the rectifier at the coil; that is the one cheap check that could overturn it, and it takes minutes.
