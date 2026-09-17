@@ -207,7 +207,7 @@ self-consistent with every banked run and the item-6 corrections are confirmed a
 
 ## ⭐⭐⭐⭐⭐ 2026-09-17 03:5x-05:0x — THE INTERLEAVING IS WITHDRAWN AND THE REGIONS ARE REAL. READ THIS FIRST.
 
-util7 **81 → 82** across the round (util5 7 at 05:0x). **SIX units closed: K21 (C524), K22 (C525), K23 (C526), the `keri` re-run (C528) the drift gate's own price (C527) and the frame-locked notch (C529, closed offline with no capture). ⛔ C526 RETRACTS a number C525 published an hour earlier — read that retraction before quoting any level — and C527 makes every *NO VERDICT, DRIFTED* on this line one-in-four likely to be noise.** ⛔ **No bench move, nothing flashed on
+util7 **81 → 82** across the round (util5 7 at 05:0x). **SEVEN units closed: K21 (C524), K22 (C525), K23 (C526), the `keri` re-run (C528) the drift gate's own price (C527) the frame-locked notch (C529, closed offline with no capture) and a correction to C527's own scope (C530/M73). ⛔ C526 RETRACTS a number C525 published an hour earlier — read that retraction before quoting any level — and C527 makes every *NO VERDICT, DRIFTED* on this line one-in-four likely to be noise.** ⛔ **No bench move, nothing flashed on
 either unit**, cu2 armed and disarmed through the `finally` on **both** capture runs — `disarm: ok`
 twice, and its mode verified as `Tag Reader` **by asking the device** before the first arm — and
 **cu1 untouched**. **Detail: `ChameleonUltra` C524, M69, M70, `burstsync.py` K21/K22,
@@ -387,9 +387,26 @@ NOISE 14-16% PER RUN AND 26-30% PER TWO-SEED PAIR.** K16's 15-point threshold wa
 40,000 draws, an 11-cell ladder at `--reps 8`, **no drift whatsoever**: the sd of the split-half
 difference at n=88 is **10.6 points**, so 15 is **1.4σ** and the 95th percentile is **20.5**.
 
-⭐⭐ **THE CONSEQUENCE IS RETROACTIVE AND APPLIES TO THIS WHOLE LINE: every *NO VERDICT — DRIFTED*
-on the record is about one-in-four likely to be noise, and NONE of them is evidence that the bench
-moved.** ⚠⚠ **It also dissolves an arm difference that was there to be claimed** — `indala` 0 of 6
+⭐⭐ **THE CONSEQUENCE IS RETROACTIVE FOR THE SHORT-LADDER RUNS: a *NO VERDICT — DRIFTED* on an
+11-cell ladder is about one-in-four likely to be noise, and is NOT evidence that the bench moved.**
+
+⛔⛔ **AND THAT RATE IS THE LADDER'S, NOT THE GATE'S — C530/M73 SCOPES IT, BECAUSE THE FIRST VERSION
+OF THIS BLOCK OVER-REACHED.** The statistic is a split-half over **every cell**, so its sd scales
+with the run's total n:
+
+| ladder | n per half | sd(Δ) | 15 pts is | P(fail) |
+|---|---|---|---|---|
+| **11 cells, reps 8** (K22/K23/K24) | 44 | **10.6** | **1.4σ** | **14-16%** |
+| **25 cells, reps 8** (K17-K21) | 100 | 6.7-7.0 | **2.2σ** | 2.1-2.7% |
+| **25 cells, reps 12** | 150 | 5.5-5.7 | **2.7σ** | 0.6-0.9% |
+
+⇒ ⭐ **EVERY lead-time run above 80 ms went through a properly calibrated 2.2σ control and is NOT
+qualified by C527 at all.** ✅ Both drifted verdicts actually on record are short-ladder, so the
+caution holds exactly where it was applied. ⚠⚠ **AND THE DISEASE IS THIS ROUND'S OWN, THREE TIMES:
+M71 a gate justified on the wrong ARM, C526 a level from one session PAIR, C530 a rate from one
+LADDER.** ⇒ **M73 — C514's *one arm is a scope, not a law* was too narrow. Name the configuration
+beside every simulated rate, as ONE string**: C527's table did carry its n in a header and the
+prose still over-reached. ⚠⚠ **It also dissolves an arm difference that was there to be claimed** — `indala` 0 of 6
 over the gate against `keri` 2 of 6, but P(0 of 6) = 0.34 and P(≥2 of 6) = 0.26 at that rate, so
 ⛔ ***`keri` drifts more* is NOT a finding** (M58, fifth time).
 
