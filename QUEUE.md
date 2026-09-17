@@ -214,12 +214,20 @@ it (M60/C500), and corrected two of its own claims (C499's best-length argmax, C
 magnitudes). Everything the tagless bench can say about read length has been said. ⛔ **Do not
 re-measure it** — a further sweep would be C473's method: re-measuring a question already answered.
 
-## ⭐⭐⭐⭐⭐ 2026-09-17 02:4x — THE WORKING POINT IS IN MILLISECONDS, NOT FRAMES. READ THIS FIRST.
+## ⭐⭐⭐⭐⭐ 2026-09-17 02:0x-04:0x — THE LEAD-TIME PROFILE IS STRUCTURED ALL THE WAY OUT. READ THIS FIRST.
 
-util7 **80 → 81** (util5 24 at 02:32). ⛔ **No bench move, nothing flashed on either unit**, cu2
-armed and disarmed through the `finally` and verified back in `Tag Reader`; **cu1 untouched**.
-**Detail: `ChameleonUltra` C519, C520, M65, M66, `framescale.py`, `burstsync.py` K17, commits
-`41dfc800` `a7de9290` `fdd31f49` `feeec8b0` `977ddd49`.**
+util7 **80 → 81** across the whole round (util5 reset to 0 at 03:5x). ⛔ **No bench move, nothing
+flashed on either unit**, cu2 armed and disarmed through the `finally` on **every** run — `disarm:
+ok` fourteen times — and **cu1 untouched**.
+**Detail: `ChameleonUltra` C519-C523, M65-M68, `framescale.py`, `burstsync.py` K17/K18/K19/K20,
+commits `41dfc800` `a7de9290` `fdd31f49` `feeec8b0` `977ddd49` `04abbcce` `ff50a85e` `6ce77cbd`
+`b1dd4513` `b6a76e9b` `9d218619`.**
+
+⭐⭐ **FOUR UNITS, IN ORDER, EACH ONE SET UP BY THE LAST.** C519 refuted the frame reading offline;
+M65 showed that refutation was confounded; C520 broke the confound on `nexwatch`; M66/M67/M68 are
+three bands that mis-fired while trying to measure what C520 left open; C522 and C523 are what the
+corrected bands found. ⛔ **Every band was committed before its capture and four of them were still
+wrong** — the running list is at the end of this block and it is the most useful thing here.
 
 ⭐⭐⭐ **THE HEADLINE: the lead-time hump does NOT travel with the protocol's frame — it sits at
 the same 55-65 ms on an arm whose frame is twice as long.** That was the round's unit 2, and it is
