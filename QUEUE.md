@@ -276,35 +276,32 @@ on this bench, which is the thing to exploit:
    the pad or the coupling — ⛔ **which needs the operator**, so it is a return item and not a
    tick's. ⭐ Name it in the handover so the operator can decide whether to spend a bench move on
    it; it is now a well-posed question rather than a fishing trip.
-3. ⭐⭐⭐⭐ **THE CLIENT-SIDE TEST IS BUILT, RUN TWICE, AND NEEDS ONE SMALL FINAL CAPTURE
-   (C539-C543). THIS IS THE FIRST THING THE NEXT TICK SHOULD DO.**
-   ⛔⛔ **THE CONFOUND IT CLOSES: the primer is `lf read -s N`, and N sets its SAMPLE COUNT and
-   its DURATION together** — so *fixed milliseconds* has always meant *fixed N* and a purely
-   **client-side** reading of this whole line is not excluded. **`lf config --dec` separates them**
-   (C539) at a **measured 1.653x** stretch (C540/M79).
+3. ⭐⭐⭐⭐ **THE CLIENT-SIDE TEST: BUILT, RUN THREE TIMES, AND ITS APPROACH IS NOW CLOSED BY ITS
+   OWN PRE-REGISTERED BRANCH (C539-C544). THE SUCCESSOR IS ONE ARM AND IS SPECIFIED BY
+   ARITHMETIC.**
+   ⛔⛔ **THE CONFOUND: the primer is `lf read -s N`, and N sets its SAMPLE COUNT and its DURATION
+   together** — so *fixed milliseconds* has always meant *fixed N* and a **client-side** reading of
+   this whole line is not excluded. **`lf config --dec` separates them** (C539) at a **measured
+   1.653x** stretch (C540/M79).
    ✅ **DONE:** the knob and both feasibility checks · the transfer function · the collision,
-   reachability and narrowing arithmetic (C541) · the band · `--dec` in `burstsync.py` · **two full
-   captures**, K30 at reps 8 and K31 at reps 16.
-   ⛔ **BOTH RETURNED *NO VERDICT — regions at NEITHER*, with every gate passing both times.**
-   K30's threshold came from the dec-1 level and the dec-2 profile runs ~30% lower (C542/**M80** —
-   *an absolute threshold buys independence from the ARM, never from the CONDITION*); K31 fixed
-   that with reps 16 and a 50% bar derived from the measured level, **and still did not fire.**
-   ⭐⭐⭐ **AND THE WAY IT MISSES IS THE RESULT: the cells that survive BOTH seeds land exactly in
-   the two zones the arithmetic had already called NON-DISCRIMINATING** — `idteck` at **105 AND
-   110** (straddling the unmoved/moved boundary) and `keri` at **60** (inside the 55-65 collision)
-   and **110**. ⇒ **the discriminating cells are empty and the signal is in the ambiguous ones:
-   the design's power was placed in the wrong cells, not absent from the bench.**
-   ⛔⛔ **AND THE FIX WAS ALREADY WRITTEN AND I DROPPED IT (M81).** C541 said, in the same
-   paragraph that produced the predictions, that they **need a 2.5 ms grid and not a 5 ms one**.
-   The design then became a targeted 17-cell ladder — better on every other axis — **and the grid
-   requirement was silently left behind.** At 2.5 ms the unmoved (100-105) and moved (108.9-114.9)
-   predictions are separated by a cell at 107.5 and become distinguishable; at 5 ms they are
-   adjacent, so a real region in either place reads as the boundary and the band cannot fire.
-   ⇒ ⭐⭐⭐ **THE FINAL CAPTURE, AND IT IS SMALL: the same test at 2.5 ms across the TWO AMBIGUOUS
-   ZONES ONLY — roughly 52.5-65 and 97.5-117.5 — keeping `--reps 16` and the 50% threshold exactly
-   as K31 set them, since the level is now measured twice.** ⛔ **Do NOT re-score K30's or K31's
-   caps at a finer grid: they do not have one.** They are banked as two properly-powered runs that
-   located the signal without resolving it.
+   reachability and narrowing arithmetic · the band · `--dec` and fractional cells in the harness
+   (regression-checked across all eight scorers) · **three captures — K30 reps 8, K31 reps 16,
+   K32 at 2.5 ms.**
+   ⛔⛔⛔ **K32 FIRED ITS *CLOSES THIS APPROACH* BRANCH ON BOTH ARMS**: a **single contiguous
+   region spans `105,107.5,110,112.5`**, across the separator cell that was empty under BOTH
+   predictions. ⇒ **honoured — no finer grid was attempted, and none should be.**
+   ⭐⭐⭐ **AND THE REASON IS NOT RESOLUTION: the region runs CONTIGUOUSLY from the top of the
+   unmoved window into the moved one, and no grid splits a contiguous run.** At that region the
+   predictions are 40 ms apart and the feature is 7.5 ms wide — **what bridges them is the
+   feature's SKIRT, not the cell size.**
+   ⇒ ⭐⭐ **THE SUCCESSOR, BY ARITHMETIC: separation = `0.395 x label`** — 24 ms at 55-65, 40 at
+   100-105, **56 at 140-145**, 73 at 180-190. **56 ms is far beyond any skirt a 7.5 ms feature can
+   throw.** ⛔ **140-145 is reachable at dec 2 for `idteck` (top 157 nominal) and NOT for `keri`
+   (138); 180-190 for neither.** ⇒ **the test is `idteck`, unmoved 140-145 against moved
+   84.7-87.7** — one arm, so C514's scope caveat applies in full, but decisive if it fires.
+   ⚠⚠ **A second option has its arithmetic UNDONE: a higher decimation widens the separation for
+   the same label, at the cost of reachability.** C540 timed dec 4 but slope-fitted only dec 1 and
+   2 ⇒ ⛔ **slope-fit its stretch before using it** (M79).
 ⛔⛔ **AND THE RULES ANY OF THOSE MUST SATISFY, ALL EARNED THIS ROUND:** derive every reference
 from `--inventory` and never from a write-up (**M76**); compute the power **per arm** first
 (**M68**); simulate **both** a false-fire rate and a power figure before the capture (**M70/M75**);
@@ -318,7 +315,7 @@ work out **which way its defect pushes** (**M78**); and ask what a threshold ass
 
 ## ⭐⭐⭐⭐⭐ 2026-09-17 03:5x-05:0x — THE INTERLEAVING IS WITHDRAWN AND THE REGIONS ARE REAL. READ THIS FIRST.
 
-util7 **81 → 84** across the whole round, 03:5x-11:5x. **NINETEEN units closed: K21 (C524), K22 (C525), K23 (C526), the `keri` re-run (C528) the drift gate's own price (C527) the frame-locked notch (C529, closed offline with no capture) a correction to C527's own scope (C530/M73) and Y1's costed remedy spent to a decisive end (C531/M74 — *interleaving* is EXCLUDED) the replacement estimation band withdrawn before it ran (C532/M75), `idteck` measured over the full span and `indala224` closed as not-measurable (C533), M76's fix built as the `--inventory` tool (C534), the burst ceiling located on the air and traced to the PROBE (C535/M77) **the frame reading refuted at a second unambiguous region on `nexwatch`** (C536) the common ladder measured, which settles that the cross-arm band is a THREE-arm band (C537/M78), ⭐⭐⭐ **THE THREE-ARM BAND RUN AND FIRED — the regions are SHARED across three arms and two frame lengths** (C538), and the client-side confound attacked with a new verified knob (C539-C543/M79-M81: the knob works, its stretch is 1.65x not 2x, the design's arithmetic, and two properly-powered captures that located the signal in the ambiguous zones without resolving it).
+util7 **81 → 84** across the whole round, 03:5x-11:5x. **TWENTY-TWO units closed: K21 (C524), K22 (C525), K23 (C526), the `keri` re-run (C528) the drift gate's own price (C527) the frame-locked notch (C529, closed offline with no capture) a correction to C527's own scope (C530/M73) and Y1's costed remedy spent to a decisive end (C531/M74 — *interleaving* is EXCLUDED) the replacement estimation band withdrawn before it ran (C532/M75), `idteck` measured over the full span and `indala224` closed as not-measurable (C533), M76's fix built as the `--inventory` tool (C534), the burst ceiling located on the air and traced to the PROBE (C535/M77) **the frame reading refuted at a second unambiguous region on `nexwatch`** (C536) the common ladder measured, which settles that the cross-arm band is a THREE-arm band (C537/M78), ⭐⭐⭐ **THE THREE-ARM BAND RUN AND FIRED — the regions are SHARED across three arms and two frame lengths** (C538), and the client-side confound attacked with a new verified knob (C539-C543/M79-M81: the knob works, its stretch is 1.65x not 2x, the design's arithmetic, and three captures, the last of which fired its own *closes this approach* branch and named a one-arm successor by arithmetic).
 
 ⚠⚠ **AND THE ROUND'S OWN SCORE ON ONE DISEASE, WHICH IS THE MOST USEFUL LINE IN IT: FIVE OVER-REACHES, ALL CAUGHT AND ALL WALKED BACK INSIDE THE ROUND** — **M71** a gate justified on the wrong **ARM** · **C526** a level from one session **PAIR** · **C530** a rate from one **LADDER** · **C532** a point estimate quoted for an **INTERVAL** · **M76** a reference list from the **WRITE-UPS** instead of the data. ⇒ **Every one is a reference or a scope taken from the wrong place** — plus **M78**, where A2 was called *unsound* when its defect could only bias it toward REFUTED, so a FIRING verdict was thrown away that did not need to be. ⭐ **That one gives something back, and it is the same error in the other direction: a conclusion drawn without checking which way the evidence could bend.** ⭐ Each was found by a check this round itself added, not by the next round paying for it. ⇒ **the checks are working and the instinct is not: assume every number quoted from one configuration is wrong until its configuration is named beside it, in the SAME STRING and not a nearby header** (M73). ⛔ C526 RETRACTS a number C525 published an hour earlier — read that retraction before quoting any level — and C527 makes every *NO VERDICT, DRIFTED* on this line one-in-four likely to be noise.** ⛔ **No bench move, nothing flashed on
 either unit**, cu2 armed and disarmed through the `finally` on **both** capture runs — `disarm: ok`
