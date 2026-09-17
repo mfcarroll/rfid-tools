@@ -187,22 +187,23 @@ gain real ❌ cells. An argument for it being the operator's call, not against t
 3. ~~**§2d: `benchmatrix/grid.py:313`'s invalid escape**~~ — ✅ fixed (`3d509c7`); the rendered
    table is byte-identical, only the deprecation goes away.
 
-4. ⭐⭐⭐ **THE RESIDUAL, AND IT IS NOW THE SHARPEST OPEN QUESTION: EQUAL GEOMETRY, UNEQUAL LEVEL.**
-   `indala`, `keri` and `idteck` have the **same 2048-sample frame**, were measured **interleaved
-   and shuffled** in the same sessions, and at 3 frames score **21/24, 9/24 and 9/24**. Every
-   suspect named so far is excluded: the demodulator (C496), the reader's sample count (C499), the
-   burst gap (C492), frame length (they are equal), the credential's bit pattern, and per-read
-   re-arming (C497). ⭐ **C502 hands it a NEW angle that costs nothing**: those three differ in
-   *failure mode* too — `indala` fails **OPEN** (51 decoded, 16 wrong) while `idteck` fails
-   **CLOSED** (11 decoded, 0 wrong). ⇒ **Hypothesis worth writing a criterion for: `indala`'s higher
-   rate is partly its demodulator being more permissive, not its signal being better.** If so,
-   scoring only EXACT understates `idteck` relative to `indala`, and the right comparison is
-   *decoded-and-correct per read* against *decoded at all*. Testable from a purpose-built run.
+4. ~~⭐⭐⭐ **THE RESIDUAL: EQUAL GEOMETRY, UNEQUAL LEVEL**~~ — ✅ **ANSWERED, CRITERION WRITTEN
+   FIRST** (ChameleonUltra **C503**, `1608b577`). `indala`, `keri` and `idteck` share a 2048-sample
+   frame, so one ladder compares them legitimately. Rungs 3f/4f, interleaved + shuffled, n=24, null
+   0. **exact = decode x precision:** `indala` **92% / 66%** / 60% · `keri` 38% / 94% / 35% ·
+   `idteck` 31% / **100%** / 31%. ⇒ **The readers differ in STRICTNESS and that alone accounts for
+   the spread — no difference in our emission need be invoked.** `indala` produces something on 92
+   reads in 100 and is wrong on a third; `idteck` produces something on 31 and is never wrong.
+   ⚠ It removes the need for a signal difference; it cannot prove there is none, because `idteck`'s
+   demodulator cannot be made permissive to test the converse. ✅ H6 too: `idteck` is **0 wrong in
+   24 decodes**, all 64/64 — p<2% at indala's rate, so the zero is evidence now where C502's n=11
+   was not. ⭐ And a longer read makes `indala` LESS precise: 74% at 3f, 57% at 4f.
 
-5. ⚠ **C502 is POST-HOC and says so.** It is a count over C499's own scores (seed 2, n=12/rung),
-   with no criterion written first. ⭐ **A purpose-built run would settle it cheaply** — the
-   instrument already records both scores; it needs n at ~24 per rung on both seeds and a criterion
-   written before the count.
+5. ~~C502 is post-hoc and wants a purpose-built run~~ — ✅ **done as part of item 4**, which carried
+   its own criterion. ⛔ C502 keeps its post-hoc label where it stands; C503 is the measured version
+   for the three equal-frame arms. ⚠ `nexwatch`, `gproxii` and `indala224` have NOT had the
+   decode/precision decomposition measured with a criterion written first — only C502's post-hoc
+   count covers them.
 
 6. ⭐ **Sharpen the per-arm peak.** The ladder has one rung at 2f, 3f and 4f; the peak sits
    somewhere in 2.5-4.5 frames and only three points bracket it. `./shortread.py <arm> --lengths
