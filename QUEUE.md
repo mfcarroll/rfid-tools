@@ -265,7 +265,7 @@ positive constraint is now strong: **the structure is at fixed MILLISECONDS, sha
 arms differing in protocol, demodulator, reader command AND frame length, bounded at 5-10 ms below
 and not bounded above by anything but the burst.**
 
-⇒ ⭐⭐ **THAT POINTS AT THE READER OR THE FIELD, NOT AT THE EMISSION** — and the two are separable
+⇒ ⭐⭐ **THAT POINTS AT THE READER OR THE FIELD, NOT AT THE EMISSION** — ⚠ **but item 3 below must go FIRST**, because it excludes the CLIENT, which nothing has ruled out and which a verified knob can now test. The reader and the field are separable
 on this bench, which is the thing to exploit:
 1. ⭐⭐⭐ **IF IT IS THE READER**, it should move when the READER's own timing moves and not when
    the emission's does. The primer is already a reader-side knob; a second reader-side knob that
@@ -276,11 +276,28 @@ on this bench, which is the thing to exploit:
    the pad or the coupling — ⛔ **which needs the operator**, so it is a return item and not a
    tick's. ⭐ Name it in the handover so the operator can decide whether to spend a bench move on
    it; it is now a well-posed question rather than a fishing trip.
-3. ⚠ **A third possibility nothing has tested: the CLIENT.** C507 measured that a host-side
-   `msleep` moves the pattern, and the primer is issued by the same client. ⛔ Before spending a
-   capture on the reader/field split, ask whether a pure client-side change with an identical
-   air-side sequence moves the regions — that is cheap and it would reframe everything.
-
+3. ⭐⭐⭐⭐ **AND THE CLIENT-SIDE POSSIBILITY NOW HAS A VERIFIED KNOB — DO THIS ONE FIRST (C539).**
+   ⛔⛔ **THE CONFOUND NOBODY HAD NAMED: every lead-time result varies the primer with
+   `lf read -s N`, and N sets the primer's SAMPLE COUNT and its DURATION together.** So *fixed
+   milliseconds* has always meant *fixed N*, and a **client-side** reading of this whole line has
+   never been excluded. ⭐⭐ **`lf config --dec N` separates them**: it stores 1 sample in N while
+   the ADC keeps sampling, so the same `-s N` takes **N times as long** with the carrier, the
+   field and the emission untouched.
+   ✅ **BOTH FEASIBILITY CHECKS ARE DONE AND PASSED** (`decprobe.py`, C539, ~20 s, no bench move):
+   **the probe still decodes** (dec set for the primer, reset to 1 before the probe — `keri`'s
+   marker 3 of 3 at dec 1 AND 3 of 3 at dec 2) and **the read really stretches** (0.19 / 0.28 /
+   0.39 s at dec 1 / 2 / 4 against a 0.48 s baseline).
+   ⇒ ⭐⭐⭐ **THE TEST: run the ladder at dec 1 and dec 2 with an IDENTICAL command sequence**
+   (`lf config --dec D; lf read -s N; lf config --dec 1; <probe>`) **so the CLIENT's own cost is
+   equal in both and only the primer's AIR duration differs. Fixed ms ⇒ the regions MOVE to N/2
+   at dec 2. Fixed samples ⇒ they STAY at N.** ⛔ There is no third outcome to fish for; say both
+   branches in the band.
+   ⚠ **Two things the design must carry**, both already worked out: **recompute the ladder's top**
+   (a dec-2 primer eats twice the burst — M77 on the REAL duration), and the predicted dec-2
+   positions of the five known regions are **7.5-10, 27.5-32.5, 50-52.5, 70-72.5, 90-95 ms
+   nominal**, which needs a **2.5 ms grid** and not a 5 ms one.
+   ⛔ Criterion first, power simulated both ways first (M70/M75), no-verdict branch given a
+   meaning in advance (M74), reference from `--inventory` (M76).
 ⛔⛔ **AND THE RULES ANY OF THOSE MUST SATISFY, ALL EARNED THIS ROUND:** derive every reference
 from `--inventory` and never from a write-up (**M76**); compute the power **per arm** first
 (**M68**); simulate **both** a false-fire rate and a power figure before the capture (**M70/M75**);
