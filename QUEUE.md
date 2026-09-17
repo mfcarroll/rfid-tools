@@ -81,29 +81,48 @@ Indala's frame.
 ⚠ **FIVE OF THE SIX, NOT SIX.** `gproxii` is ASK/biphase on the 125 kHz clock and carries its
 data in levels the hardware demonstrably emits — its silence is a **separate open question**.
 
-### ⇒ THE NEXT EXPERIMENT, AND IT IS WELL-DEFINED
+### ⇒ THE MECHANISM, AND THE FIX THIS PROJECT HAS ALREADY PAID FOR ONCE (C482, `db52da4d`)
 
-We know *what* is wrong, not *why*. `emit_entry` asks for `counter_top` 16 at a 1 MHz base clock
-with duty 8 — a 62.5 kHz square — and the air carries a constant level per entry. Two
-candidates, and **nothing on this bench has ever exercised the difference**: the fastest thing any
-passing arm emits is its bit rate (2–8 kHz), so **the modulator's bandwidth above that is
-simply untested**.
+⭐⭐ **`fsk2a_mod.h:9-26` ALREADY RECORDS THIS DEFECT.** FSK2a used to spend one entry per
+tone period and vary `counter_top` — *what the peripheral is documented to support in WaveForm
+mode* — and the air carried a **constant tone** (HID Prox: 2257 periods in the RF/8 band,
+**zero** in RF/10). ⇒ *"The peripheral plays the sequence at ONE period. A `counter_top` that
+VARIES within a sequence is not applied per entry."* The fix was to stop relying on per-entry
+shape: constant `counter_top`, several entries per tone, **each entry full-on or full-off**, data
+in the **pattern of entries**.
 
-| candidate | how to separate it |
-|---|---|
-| the PWM is not toggling within an entry (duty ignored, or the pin is driven from the polarity bit alone) | install a synthetic buffer that alternates at a KNOWN rate and capture it |
-| the analog modulator cannot follow 62.5 kHz | the same sweep: find the rate at which the air stops following |
+⭐ **The same line splits the emulate column today:**
 
-⛔ **`hw emuhold` CANNOT do it as it stands** — `lf_tag_em.c:1050` refuses 1MHz types
-outright, and it holds levels at `PAC_HOLD_RF_PER_BIT` (256us), so its fastest alternation is ~2
-kHz. ⇒ The experiment is a **small, well-scoped firmware change**: let `lf_tag_em_seq_hold` accept
-the 1MHz types and take the counter_top as a parameter, then sweep the alternation rate from the
-bit rate up through 62.5 kHz and find where `pm3cap` stops seeing it. **Flashing cu2 needs no bench
-move** (`enterdfu.py`), and ⛔ never cu1.
+| family | clock | top | entry shape | air |
+|---|---|---|---|---|
+| FSK2a (`hidprox`, `awid`) | 1 MHz | 16 | duty = `top` or 0 — **held level** | ✅ decodes |
+| `psk1` (the five) | 1 MHz | 16 | **duty 8 — a 62.5 kHz square INSIDE the entry** | ⛔ held level (C479) |
 
-⭐ The air check on the tagless Rig B is available for any fix: arm cu2, read with the
-Proxmark, disarm in a `finally`. A fix that turns one of the six EXACT is real evidence — and
-**ungraded**; say so every time.
+⇒ FSK2a runs the **same clock and the same 16-tick entries** and works, so neither the clock nor
+the entry length is the problem. What is not rendered is the **shape inside an entry**.
+
+⇒ **THE FIX IS FSK2a's**: build the subcarrier from alternating full-on/full-off entries —
+`counter_top` 8 at 1 MHz, **32 entries per bit**. ⛔ **Cost, and it is why this is not a
+one-liner**: a 64-bit frame becomes **2,048 entries** against today's `LF_PSK1_PWM_ENTRIES` of 448,
+a 96-bit `nexwatch` **3,072**, and **`indala224` 7,168** — past even FSK2a's shared 2,400.
+⇒ The 64/96-bit arms are affordable; **Indala224 needs a different idea**. Say that before
+rewriting the buffer, not after.
+
+⚠ **Hypothesis with a precedent, not a measurement** — that an intermediate duty is
+dropped at 16 ticks has not been shown directly, only that the air carries held levels and that the
+one family never needing an intermediate duty works.
+
+⭐ **It is verifiable unattended**: rebuild, flash **cu2 only** (`enterdfu.py`, no bench move),
+arm, read with the Proxmark, disarm in a `finally`. An arm that turns EXACT is real evidence —
+and **ungraded**.
+
+### ⛔⛔ `gproxii` IS NOW THE SHARPEST OPEN QUESTION, AND IT IS NOT THIS
+
+`gproxii.c` builds **duty 32 of `counter_top` 64** at the 125 kHz clock. `em410x.c` builds
+**`msb | 32` at `counter_top` 64** on the same clock. **Same shape, same rate, same peripheral
+— em410x decodes and gproxii does not.** So gproxii is not a duty problem, not a rate problem
+and not a clock problem. Whatever it is, it is in the frame or the encoding, and it needs its own
+unit.
 
 ## 4. ~~Rig A's tag contents are unknown~~ — READ (C480/L448, `e3e8de6e`)
 
