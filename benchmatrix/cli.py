@@ -398,6 +398,11 @@ def cmd_run(a) -> int:
     # ⚠ ON THE PLAN, NOT PASSED TO `run`, so `planning.isolate` inherits it — a cell worth
     # repeating in phase 1 is worth repeating in the phase that exists to settle it.
     p.repeat = max(1, getattr(a, "repeat", 1) or 1)
+    # ⛔ UNSPACED REPEATS DO NOT SAMPLE INDEPENDENTLY (C507) — see `runner._read`. 0 disables the
+    # pause and reproduces the pre-C507 behaviour, which is a thing to do deliberately and never
+    # by default.
+    p.repeat_jitter = (0.0 if getattr(a, "no_repeat_jitter", False)
+                       else runner.REPEAT_JITTER_S)
     devices = _devices(a)
     carried_cells, carried_lic, earlier, stem_suffix = [], {}, None, ""
     if getattr(a, "resume", None):
@@ -1181,7 +1186,16 @@ def build_parser() -> argparse.ArgumentParser:
                          "that does not give the same answer each time. ⭐ This is the only way to "
                          "earn the word INTERMITTENT: comparing across runs catches a cell that "
                          "disagrees with itself, but never under controlled conditions. The "
-                         "calibration is earned once, so N costs N reads and not N rebuilds")
+                         "calibration is earned once, so N costs N reads and not N rebuilds. "
+                         "⛔ The repeats are SPACED by a random pause spanning more than one of "
+                         "the emission's ~61-80 ms beat periods: back to back they revisit the "
+                         "same phases and agreement can be manufactured by the schedule "
+                         "(ChameleonUltra C507)")
+    sp.add_argument("--no-repeat-jitter", action="store_true",
+                    help="⛔ read the repeats BACK TO BACK, reproducing the pre-C507 behaviour. "
+                         "Six identical reads in one session returned the same decode pattern in "
+                         "16 of 16 sessions, so unspaced repeats resample one phase and report a "
+                         "tight, confident and wrong answer. Use only to reproduce an old run")
     sp.add_argument("--no-isolate", action="store_true",
                     help="stop after phase 1; screened cells stay UNGRADED rather than being "
                          "re-measured in isolation")

@@ -28,6 +28,18 @@ from __future__ import annotations
 
 import datetime as _dt
 import os as _os
+import random as _rand
+import time as _time
+
+#: ⭐ How long a repeat may wait before the next read, in seconds, drawn uniformly from [0, this).
+#: Sized to span more than one of the ~61-80 ms beat periods C486 measured, so successive repeats
+#: do not land on the same phase (C507). ⚠ A tenth of a second per repeat is nothing beside a
+#: station rebuild, which is what repeating exists to avoid.
+REPEAT_JITTER_S = 0.25
+
+#: Seam so the tests can watch the pauses without taking them. ⛔ Patched by name, so the
+#: production path is the one under test rather than a parallel implementation of it.
+_sleep = _time.sleep
 from dataclasses import dataclass, field
 
 from . import cues, identity, registry as reg, ui
@@ -811,13 +823,36 @@ def _read(op: Op, devices: Devices, session: str, pad: str, out, protocol=None, 
     ⚠ THE FIRST READING IS STILL THE CELL. A disagreement is not resolved by voting, so the repeats
     do not produce a verdict — they mark the cell disputed through the same machinery a cross-run
     disagreement uses, and the gap register withholds any claim built on it.
+
+    ⛔⛔ AND THE REPEATS ARE SPACED, WHICH IS NOT A DETAIL — UNSPACED, THEY DO NOT SAMPLE
+    INDEPENDENTLY (ChameleonUltra C507). This loop used to read back to back, and the docstring
+    above claimed that "agreement is worth something". For the emulate arms it was not: six
+    IDENTICAL reads in one pm3 session returned the pattern `.X.XX.` in 16 of 16 sessions — index
+    1, 3 and 4 decoding every time and 0, 2 and 5 never — because each read lands at its own phase
+    of the emission's ~61-80 ms beat and the cadence is deterministic. A host-side pause alone,
+    touching no device and raising no field, moved both the pattern and the rate (`gproxii` 29.2%
+    → 70.8%). ⇒ back-to-back repeats revisit the same phases, so AGREEMENT CAN BE MANUFACTURED BY
+    THE SCHEDULE and the flag would report a tight, confident and wrong answer — the same shape of
+    error as grading with no calibration row, which is what this project exists to prevent.
+
+    ⭐ So each repeat after the first waits a random interval spanning more than one beat period.
+    ⛔ IT RE-BASES NOTHING: `repeat` defaults to 1, which never enters the pause at all, and **0 of
+    the 20 banked runs used repeat > 1** — checked before the pause was added, because a change
+    that silently moved a past cell would be the defect it is guarding against.
+    ⚠ `--no-repeat-jitter` reproduces the pre-C507 behaviour and should be used only for that.
     """
     p = protocol or op.cell.protocol
     src = source or op.cell.source
     rid = reader or op.cell.reader
     dev = devices.by_dev(op.device)
     seen = []
-    for _ in range(max(1, repeat)):
+    jitter = getattr(getattr(res, "plan", None), "repeat_jitter", REPEAT_JITTER_S)
+    for i in range(max(1, repeat)):
+        if i:
+            # ⛔ BETWEEN the repeats, never before the first or after the last: the pause exists
+            # to decorrelate one read's phase from the previous one's, and a pause with no read
+            # on both sides of it decorrelates nothing while still costing the operator time.
+            _sleep(_rand.uniform(0.0, jitter))
         try:
             text = dev.read(p)
         except DeviceError as e:
