@@ -1,17 +1,15 @@
 # Work queue — newest decisions at the top of each item
 
-⛔⛔ **BENCH STATE CHANGED 2026-09-16 — cu2 RUNS A DIRTY BUILD.**
-`v2.2.0-918-g64ddadc-dirty`, flashed from this tree with the `hw emuhold --top` instrumentation
-(ChameleonUltra `17d65d50`). **cu1 was not touched.** The change is committed, so the build is
-reproducible — but `hw version` alone cannot tell two builds apart (C461), so verify
-FUNCTIONALLY: `hw emuhold -n 1 --top 8` succeeds only on this build.
-
-⛔ **EVERY ITEM NAMES ITS REPO. Read `AUTOPILOT.md` §0b before committing** — three repos, three
-gates, and tonight's findings were filed in the wrong one until the operator caught it.
-
-⭐ **A COLD SESSION STARTS HERE, AFTER `AUTOPILOT.md`.** Keep it current: you are the only thing
-that carries between ticks (`AUTOPILOT.md` §6). Tick off what you finish, add what you find, and
-**commit it before you exit** — an uncommitted queue is a lost one.
+⛔⛔ **BENCH STATE CHANGED 2026-09-16 — cu2 WAS REFLASHED.**
+`v2.2.0-920-gdf053dd` — **a committed, clean build** of this tree, carrying the `hw emuhold
+--top` instrumentation (ChameleonUltra `17d65d50`). **cu1 was never touched.**
+⚠ An experimental level-pattern PSK emitter was flashed on top of this during the round and
+then **reverted and reflashed away** (C485) — cu2 is back on the committed build. Verify
+FUNCTIONALLY, never by version string (C461): an armed Indala must show **64 entries, `seq
+repeats` 15** (`hw emuseq --count 0`), and `hw emuhold -n 1 --top 8` must succeed. Both checked.
+⚠ `enterdfu.py` failed to trigger twice in a row before succeeding on the third try, with
+nothing flashed either time — it says so explicitly and distinguishes a trigger failure from a
+flash failure. **Retry it; do not go looking for a broken device.**
 
 ## 1. ~~`seqdump.py` arms 1 of 5 steps~~ — DONE, AND THE DIAGNOSIS WAS WRONG (C475/L443)
 
@@ -87,63 +85,48 @@ Indala's frame.
 ⚠ **FIVE OF THE SIX, NOT SIX.** `gproxii` is ASK/biphase on the 125 kHz clock and carries its
 data in levels the hardware demonstrably emits — its silence is a **separate open question**.
 
-### ⇒ THE MECHANISM, AND THE FIX THIS PROJECT HAS ALREADY PAID FOR ONCE (C482, `db52da4d`)
+### ⛔⛔⛔ THE DUTY EXPLANATION IS REFUTED — THE FIX WAS BUILT AND CHANGES NOTHING (C485)
 
-⭐⭐ **`fsk2a_mod.h:9-26` ALREADY RECORDS THIS DEFECT.** FSK2a used to spend one entry per
-tone period and vary `counter_top` — *what the peripheral is documented to support in WaveForm
-mode* — and the air carried a **constant tone** (HID Prox: 2257 periods in the RF/8 band,
-**zero** in RF/10). ⇒ *"The peripheral plays the sequence at ONE period. A `counter_top` that
-VARIES within a sequence is not applied per entry."* The fix was to stop relying on per-entry
-shape: constant `counter_top`, several entries per tone, **each entry full-on or full-off**, data
-in the **pattern of entries**.
+⚠ **Read this before trusting anything below it about mechanism.** During this round the PSK
+emitter was rewritten to C484's proven idiom (`counter_top` 8, alternating **held-level** entries,
+32 per bit, 2,048 entries, `repeats` 0), built, flashed to cu2 and verified on the device with `hw
+emuseq --raw`. **`lf indala/keri/idteck reader` are all still silent.** The change was reverted and
+cu2 reflashed to the committed build.
 
-⭐ **The same line splits the emulate column today:**
+⭐⭐ **THE RUN THAT ACTUALLY DISCRIMINATES** — one variable, same field, same minutes:
 
-| family | clock | top | entry shape | air |
-|---|---|---|---|---|
-| FSK2a (`hidprox`, `awid`) | 1 MHz | 16 | duty = `top` or 0 — **held level** | ✅ decodes |
-| `psk1` (the five) | 1 MHz | 16 | **duty 8 — a 62.5 kHz square INSIDE the entry** | ⛔ held level (C479) |
+| emission | phase flips | measured |
+|---|---|---|
+| `emuhold -n 1 --top 8`, 256 entries | none | 33,097 runs of **8us**, p-p 36 |
+| new emitter, **all-zeros** frame, 2048 entries | none | 33,039 runs of **8us**, p-p 36 |
+| new emitter, **all-ones** frame, 2048 entries | none | 33,029 runs of **8us**, p-p 36 |
+| new emitter, **real credential**, 2048 entries | 22 | 424 runs of **256us**, p-p 230 |
 
-⇒ FSK2a runs the **same clock and the same 16-tick entries** and works, so neither the clock nor
-the entry length is the problem. What is not rendered is the **shape inside an entry**.
+⇒ The subcarrier genuinely reaches the air and the length is fine. **The phase flips change the
+capture's entire character** — and an emitter that provably emits a true subcarrier produces
+**the same signature** the old duty-based one did.
 
-⇒ **THE FIX IS FSK2a's**: build the subcarrier from alternating full-on/full-off entries —
-`counter_top` 8 at 1 MHz, **32 entries per bit**. ⛔ **Cost, and it is why this is not a
-one-liner**: a 64-bit frame becomes **2,048 entries** against today's `LF_PSK1_PWM_ENTRIES` of 448,
-a 96-bit `nexwatch` **3,072**, and **`indala224` 7,168** — past even FSK2a's shared 2,400.
-⇒ The 64/96-bit arms are affordable; **Indala224 needs a different idea**. Say that before
-rewriting the buffer, not after.
+⛔ **SO THE C479 CAPTURE NEVER DISCRIMINATED** between *we emit NRZ* and *we emit PSK the
+instrument cannot resolve*, and it was read as the first. The arithmetic: the Proxmark samples once
+per carrier cycle, so an fc/2 subcarrier sits at exactly **fs/2**, where samples are
+`A·cos(φ)` alternating and a 180° flip **inverts** them — so the phase walk
+appears as a big bit-rate component (the 256/512/768/1024us runs) while the subcarrier stays a
+small ripple. Both emitters alias to the same picture.
 
-⚠ **Hypothesis with a precedent, not a measurement** — that an intermediate duty is
-dropped at 16 ticks has not been shown directly, only that the air carries held levels and that the
-one family never needing an intermediate duty works.
+### ⇒ NEW LEADING HYPOTHESIS: COHERENCE — AND IT IS NOT MEASURED YET
 
-⭐⭐⭐ **AND THE ASSUMPTION UNDER THE FIX IS NOW MEASURED, NOT ASSUMED (C484,
-`17d65d50`).** The fix rests on the modulator being able to switch level every **8 us**, which
-nothing on this bench had tested — FSK2a proves only 16 us. `hw emuhold --top` now builds the
-synthetic buffer from **held levels only**, so rate is the only variable. Predictions fixed first,
-measured on cu2 with an Indala arm for its 1 MHz clock:
+A real PSK tag **divides the reader's carrier**, so its subcarrier is phase-locked to the reader's
+own sampling — which is why this same Proxmark reads real Indala. Ours free-runs from the
+Chameleon's 1 MHz clock, locked to nothing. ⭐ `lf_tag_em.c:258` already states the constraint:
+*"the tag-mode antenna taps on this board are envelope-only, which rules out coherent demodulation
+or phase-lock-based approaches"*.
 
-| request | rate | predicted | measured | p-p |
-|---|---|---|---|---|
-| `-n 1 --top 16` | 31.2 kHz (FSK2a's proven rate) | 2-sample runs | **19,455** | 186 |
-| `-n 2 --top 8` | 31.2 kHz, 8 us entries | 2-sample runs | **19,482** | 185 |
-| `-n 1 --top 8` | **62.5 kHz — what PSK needs** | 1-sample runs | **32,979 / 34,498** | **35** |
-
-⭐⭐ **The controlled comparison finally exists**: `psk1.c` asks for 62.5 kHz via **duty**
-and the air holds a level (C479); `emuhold` asks for it via **alternating entries** and the air
-carries it. Same rate, clock, peripheral and pad — **duty is dropped, entry pattern is not.**
-⇒ The fix is **viable**, not just plausible.
-
-⚠ **The one open risk is AMPLITUDE**: p-p falls 5.3× at the doubled rate (35 vs 186). That
-is **not yet shown to be ours** — 62.5 kHz is exactly the Proxmark's Nyquist for its own
-125 kHz sampling, where its front end attenuates hardest. A real Indala tag emits the same
-subcarrier and this Proxmark decodes it, so 35 is not self-evidently too small. **Only rebuilding
-the emitter and reading it answers this.**
-
-⭐ **It is verifiable unattended**: rebuild, flash **cu2 only** (`enterdfu.py`, no bench move),
-arm, read with the Proxmark, disarm in a `finally`. An arm that turns EXACT is real evidence —
-and **ungraded**.
+⚠⚠ **That is a hypothesis with exactly the status C482 had before it was tested — give
+it no more credit than that.** ⇒ Before building anything on it, find the measurement that could
+refute it. Candidates, none costed yet: compare our subcarrier's frequency against the reader's
+carrier over a long capture (a free-running 62.5 kHz will drift against fc/2 and a divided one
+cannot); or ask whether any reader that does NOT sample synchronously (the Flipper) decodes what
+the Proxmark will not — ⛔ which needs the operator, because the Flipper is on Rig A.
 
 ### ⛔⛔ `gproxii` IS NOW THE SHARPEST OPEN QUESTION, AND IT IS NOT THIS
 
