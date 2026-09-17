@@ -210,6 +210,60 @@ it (M60/C500), and corrected two of its own claims (C499's best-length argmax, C
 magnitudes). Everything the tagless bench can say about read length has been said. ⛔ **Do not
 re-measure it** — a further sweep would be C473's method: re-measuring a question already answered.
 
+## ⭐⭐⭐ 2026-09-17 01:0x — THE TIMING ROUND. READ THIS FIRST.
+
+util7 **79 → 80** across the round. ⛔ **No bench move, nothing flashed on either unit**, cu2
+verified back in `Tag Reader` **by asking the device**, cu1 untouched. Operator checked in over VNC
+mid-round. **Repo for the detail: `ChameleonUltra` C515, C516, M62 and `burstsync.py`'s docstring
+(K12/K13/K14), commits `d4cf4b53` `1c7e2aa1` `620ce860` `76623450` `9eeca665`.**
+
+⭐⭐⭐ **THE ONE-LINE RESULT: the decode has a 5 ms-wide HOLE in it, at one field-up lead time, and
+it reproduced three times.**
+
+| what | where |
+|---|---|
+| A knob no earlier run used: vary the field-**UP** duration, not the gap between reads | C515 (K12) |
+| **Primer 60 ms → 2 of 72. Primers 55 and 65 ms → 24/24 and 24/24.** 40 and 80 → 140/144 | C515 (K14) |
+| The no-primer control — a fresh burst, what a single graded read is in — **0 of 72** | C515 |
+| ⛔ **Not the beat**: cells 60 and 180 are at the same phase (8.8 vs 7.2 ms), scoring 2/72 vs 42/48 | C515 |
+| ⛔ **Not settling** — so C512's post-hoc mechanism story is REFUTED as a description of the profile | C515 (Q3) |
+| ⛔⛔ A pre-registered band fired on ONE cell and had to be withdrawn | C515, **M62** |
+| A host number was not the air's, by 2.4x — and `LF_TAG_BURST_TARGET_MS`=500 confirmed from the AIR | C516 |
+
+⭐⭐ **WHAT IT IS GOOD FOR.** It turns *this arm is intermittent* into *this arm's decode is a sharp
+function of a timing variable nobody was controlling*. C497's wander (88/60/38/75% in one evening)
+is the schedule, not the emitter: hold the lead time at 55 or 65 ms and it is 24/24. ⭐ And the knob
+is **free** — reader-side, host-side, no firmware, no flash, no solder — against the PSK line's
+dither plus C485's 16x buffer, or a hardware mod at `P_LF_ANT_RAW`.
+
+⛔⛔ **WHAT IT DOES NOT DO, AND THIS IS THE PART TO READ TWICE.** Ungraded — no null sweep, no
+calibration row — so it **moves no cell**. ⛔ It does **not** license a timed read in the graded
+path, any more than C499 licensed re-pointing `pm3_read`: either re-bases every past cell and is
+the operator's decision. ⚠ **ONE ARM** — C514 is the standing reason not to generalise, and it was
+scoped to `gproxii` in the criterion before the run rather than after it. ⚠ And the mechanism is
+**unexplained**: a 5 ms notch inside a 40 ms plateau is a narrow resonance of unknown origin, and
+neither hypothesis the experiment was built to test survives.
+
+⚠⚠ **THE METHOD LESSON, AND IT IS THE EXPENSIVE ONE (M62).** K12's P2 was committed before its
+capture (`d4cf4b53`) and was **still wrong**: it operationalised *the rate rises* as a three-cell
+pooled contrast, which fired at +21 points because the notch fell in its bottom bin — while the
+bottom TWO cells were 96%, **above** the top three. ⇒ **Pre-registering a bad statistic
+pre-registers a bad answer.** The amendment (a monotonicity clause) was declared before K13, and
+K13's own data failed it too, so it was not fitted to the run that prompted it. ⭐ The general form:
+**a contrast says how far apart two bins are; only a monotonicity check says there is a trend.**
+
+⭐ **THE NEXT HANDS-OFF UNIT, AND IT IS THE OBVIOUS ONE**: run K12's ladder on **`indala` and
+`keri`**. That is the direct answer to the scope limit above — C514 cost exactly this lesson on
+C512 — and it is the same rig, the same tagless Rig B, no bench move. ⛔ Write the criterion first;
+a notch at a DIFFERENT lead time per arm and a notch at the same one mean very different things,
+and that has to be said before the capture, not chosen after it.
+
+⚠ **`caps/k12_gproxii_s17.json`, `k13_gproxii_s41.json`, `k14_gproxii_s73.json`** hold every
+per-round score — the analysis can be re-derived offline, and the K13/K14 bands were exercised
+against the banked data before either capture ran.
+
+---
+
 ## ⭐⭐⭐ 2026-09-17 00:15 — THE OVERNIGHT ROUND, CONSOLIDATED. READ THIS FIRST.
 
 util7 **78 → 79** across the round. Operator checked in over VNC mid-round and is away from home
