@@ -207,7 +207,7 @@ self-consistent with every banked run and the item-6 corrections are confirmed a
 
 ## ⭐⭐⭐⭐⭐ 2026-09-17 03:5x-05:0x — THE INTERLEAVING IS WITHDRAWN AND THE REGIONS ARE REAL. READ THIS FIRST.
 
-util7 **81 → 82** across the round (util5 7 at 05:0x). **THREE units closed: K21 (C524), K22 (C525) and K23 (C526) — and C526 RETRACTS a number C525 published an hour earlier; read that retraction before quoting any level.** ⛔ **No bench move, nothing flashed on
+util7 **81 → 82** across the round (util5 7 at 05:0x). **FIVE units closed: K21 (C524), K22 (C525), K23 (C526), the `keri` re-run (C528) and the drift gate's own price (C527). ⛔ C526 RETRACTS a number C525 published an hour earlier — read that retraction before quoting any level — and C527 makes every *NO VERDICT, DRIFTED* on this line one-in-four likely to be noise.** ⛔ **No bench move, nothing flashed on
 either unit**, cu2 armed and disarmed through the `finally` on **both** capture runs — `disarm: ok`
 twice, and its mode verified as `Tag Reader` **by asking the device** before the first arm — and
 **cu1 untouched**. **Detail: `ChameleonUltra` C524, M69, M70, `burstsync.py` K21/K22,
@@ -355,17 +355,65 @@ A 1 ms primer is 193 ms of elapsed time, so *below 20 ms* means *below 212 ms of
 no-primer control is **not** the bottom of that axis — it is a fresh burst (arrivals 1.0 against
 0.50), a different condition, and it wandered from 62% to 25% between the two runs.
 
+## ⭐⭐⭐⭐ AND FOUR MORE UNITS RAN — `keri`'s EDGE, AND THE DRIFT GATE'S PRICE (C527, C528, M71, M72)
+
+⭐⭐⭐ **BOTH ARMS' BOTTOM EDGE IS BETWEEN 5 AND 10 ms, MEASURED SEPARATELY.** `keri`: 1 and 5 ms at
+**0/12% and 0/0%**, lowest elevated cell **10 ms in both scored seeds** — the same as `indala`'s.
+⭐⭐ **PUT BESIDE C526's RETRACTION, THAT IS THE ROUND'S CLEANEST LESSON: V3 reports 10 ms in ALL
+FOUR scored seeds across BOTH arms, while C526 had the same cells' LEVELS inverting an hour apart.**
+⇒ ⭐ **ASK THIS BENCH WHERE A FEATURE IS, NEVER HOW TALL IT IS.**
+
+⛔⛔ **IT TOOK FOUR SESSION PAIRS AND THREE OF THEM WERE LOST TO OUR OWN CONTROLS, NOT TO THE AIR.**
+
+| pair | why nothing was read |
+|---|---|
+| s151 / s167 | drift gate (15.9) |
+| s181 / s193 | ⛔ **M71 — my gate was wrong** |
+| s199 / s211 | drift gate (20.5) |
+| **K24: s223 / s227 / s229** | ✅ **V1 FIRES** — three seeds, selection rule pinned first |
+
+⛔⛔ **M71 — A CONTINUITY GATE MUST BE BUILT FROM A FINDING THAT HOLDS ON THE ARM IT GATES.** K23's
+V2b asked C525's 20-30 ms region to reappear — **but C525 established that on `indala` and REFUTED
+it on `keri`**, whose 20 ms cell was elevated and *stood alone*. `keri` passed all four instrument
+gates and V2, then had V1 blocked by a gate asking for something already known not to be there.
+**It blocked the one arm the re-run existed to measure.** ⚠⚠ **Seventh member of the same family,
+and it arrived through the fix for an earlier one**: M63 → wings by position → M67 → the arm's own
+median → M68 → absolute thresholds from prior measurement → **M71, prior measurement ON THE WRONG
+ARM.** ⇒ **Name the arm each clause of a gate was measured on.** That is C514 applied to the
+CONTROLS, which is where nobody was looking.
+
+⭐⭐⭐ **M72/C527 — AND THE DRIFT GATE ITSELF HAD NEVER BEEN PRICED. IT FAILS ON PURE COUNTING
+NOISE 14-16% PER RUN AND 26-30% PER TWO-SEED PAIR.** K16's 15-point threshold was chosen by eye.
+40,000 draws, an 11-cell ladder at `--reps 8`, **no drift whatsoever**: the sd of the split-half
+difference at n=88 is **10.6 points**, so 15 is **1.4σ** and the 95th percentile is **20.5**.
+
+⭐⭐ **THE CONSEQUENCE IS RETROACTIVE AND APPLIES TO THIS WHOLE LINE: every *NO VERDICT — DRIFTED*
+on the record is about one-in-four likely to be noise, and NONE of them is evidence that the bench
+moved.** ⚠⚠ **It also dissolves an arm difference that was there to be claimed** — `indala` 0 of 6
+over the gate against `keri` 2 of 6, but P(0 of 6) = 0.34 and P(≥2 of 6) = 0.26 at that rate, so
+⛔ ***`keri` drifts more* is NOT a finding** (M58, fifth time).
+
+⛔⛔ **THE GATE IS DELIBERATELY NOT CHANGED, AND THAT IS AN OPERATOR DECISION.** It is conservative
+rather than wrong: it costs runs and manufactures nothing. **Re-pointing it would re-base how every
+K17+ run that passed it is read — the same class of change as re-pointing `pm3_read`.**
+⭐ The remedy that does not touch it is seeds, and it is priced: **two give a 71% chance of a usable
+pair, three give 93%.** K24 is that, with the selection rule pinned before the capture.
+
+⚠ **TWO DISCLOSURES ON K24.** All three of its seeds passed the gate (Δ 2.3, 6.8, 6.8), so the
+selection rule **did no work here** and is reported because it was pinned. And it hit a **tie the
+rule did not specify** — ✅ checked rather than hoped: the other tie-break gives the **identical**
+verdict. ⛔ The rule must name a tie-break before its next use.
+
 ## ⭐⭐ THE NEXT HANDS-OFF UNITS, IN ORDER — ITEMS 0 AND 1 ARE K22'S OWN CONSEQUENCES
 
-0. ✅ ~~**K22, and the sub-20 ms ladder it forced**~~ **BOTH RUN THIS ROUND — C525 and C526.**
-   ⛔ **Do not re-run either.** `indala` is bounded at both ends; what is left of this line is
-   `keri`, whose seed-167 run drifted, so **`keri`'s own bottom edge is unmeasured and is a
-   straight re-run of K23 on fresh seeds** — same ladder, same band, `--arms keri`, two fresh
-   seeds (**181** and **193**). ⛔ The band is unchanged and must not be re-tuned; a re-run at
-   fresh seeds is replication, a re-run with new thresholds is fitting. ⚠ ~6 min per seed for
-   one arm. ⛔⛔ And going below 1 ms is impossible: the axis floor is the ~192 ms field-up
-   overhead, not the primer, so **the next move down is the overhead itself** — which is a
-   different experiment and needs its own criterion.
+0. ✅ ~~**K22, the sub-20 ms ladder, and `keri`'s re-run**~~ **ALL RUN THIS ROUND —
+   C525, C526, C528.** ⛔ **Do not re-run any of them.** Both arms are bounded at both ends and
+   the lead-time line has no unmeasured region left under the burst ceiling. ⛔⛔ Going lower is
+   **impossible with this knob**: the axis floor is the ~192 ms field-up overhead, not the
+   primer, so **the next move down is the overhead itself** — a different experiment needing
+   its own criterion. ⭐ And the two things this round hands forward are METHOD, not measurement:
+   **M71** (name the arm each clause of a gate was measured on) and **M72** (a control needs its
+   null distribution computed too — and add a TIE-BREAK to K24's selection rule before reusing it).
 1. ⭐⭐⭐ **THE FRAME-LOCKED NOTCH, ON FRESH SEEDS, PROPERLY PRE-REGISTERED.** K22 declared it
    untestable at 20 ms on an expected level the data contradicts: there IS a body there, so the
    detector has power. ⚠⚠ **BUT PRICE IT AGAINST C526's RETRACTION FIRST**: the 20 ms cell read
