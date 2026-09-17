@@ -597,8 +597,26 @@ operator has seen it. **Leave it for them.**
   it overshoots a tens-of-ppm correction by ~300x. Only a **dither** (fractional-N across entries)
   could work, and for the PSK arms that means expanding the buffer **16x**, which is exactly
   C485's shape — built, flashed and reverted. ⚠ That cost is stated **before** anyone builds.
-  ⇒ Whether it is worth building turns on whether the offset is STABLE, which `clockdrift.py`
-  measures with no hands (criteria J1/J2/J3 pinned in `43161201`).
+  ✅✅ **MEASURED — IT IS STABLE, SO THE ANSWER IS A COST AND NOT A PHYSICS BLOCKER** (C509,
+  `4199fec0`). cu2 armed once, **19 accepted readings, 0 refused, 25 minutes: min 130.9, max
+  131.9, mean 131.5 ppm — spread 0.9 ppm, 1% of the mean**, against J2's STABLE band of 30%.
+  About **40x inside its own threshold**. ⇒ the thing a trim would correct sits still.
+  ⛔⛔ **J3 refused that result on a guard I wrote, and it was NOT talked away.** The spread is
+  under the 28.1 ppm FFT bin, so J3 called it the resolution floor — but `offset_ppm` interpolates
+  sub-bin, so the bin is its GRID. **J4 was committed BEFORE being run** (`962332a4`) and settled
+  it host-only: synthetic PSK1 at the run's own capture length, **max |error| 0.9 ppm, monotone,
+  and inputs 1 ppm apart correctly ordered — ~28x below the grid.** ⇒ J3's refusal was an
+  artifact. ⚠ **Claim bounded**: the estimator's own error is also ~0.9 ppm, so it is *stable to
+  ~1 ppm*, not better; and the apparent warm-up over the first 10 min is inside that and is **not
+  claimed**.
+  ⚠⚠ **THE LIMITATION THAT MATTERS IS NOT THE BUFFER**: `clockoffset.py` measures **the PAIR**,
+  so 131.5 ppm is ours plus THIS Proxmark's, and a trim fitted here is fitted to this reader.
+  Splitting it needs a **second reader** — operator territory, and it is the thing to do next on
+  this line.
+  ⭐ **What is left is the operator's cost/benefit**, with everything priced: a dither, C485's 16x
+  buffer, and a correction that may be reader-specific. ⚠ C485 does **not** refute it — it built
+  that buffer shape and changed the SEQUENCE; a dither changes the average CLOCK RATE, which is
+  what C486 identified.
 
 ## 6. ~~Registry work, no bench~~ — BOTH DONE (`rfid-tools`, 467 tests green)
 

@@ -118,11 +118,13 @@ this section is kept for its reasoning, not its status.**
 2. **The "meter ahead of VD1" was never operator-blocked** — the schematic is committed in the
    ChameleonUltra repo and had not been opened. C489 is confirmed by enumerating the LF sheet's
    ports: the only two MCU inputs are both downstream of VD1 (C508).
-3. **The architecture question is re-posed: not *can we lock* but *can we TRIM*.** PSK needs the
-   phase to stay put across one frame (~27 ppm), not phase lock. ⛔ No INTEGER trim exists at any
-   prescaler — one `counter_top` tick is 125,000 ppm at the clock in use — so only a dither
-   could work, at the cost of C485's 16x buffer. Whether that is worth building turns on whether
-   the offset is stable, which `clockdrift.py` measures with no hands.
+3. **The architecture question is ANSWERED (C509) — PSK is blocked by a BUFFER, not by physics.**
+   PSK needs the phase to stay put across one frame (~27 ppm), not phase lock. **The offset is
+   131.5 ppm and stable to ~1 ppm over 25 min** (19 readings, 0 refused), so the thing a trim
+   would correct sits still. ⛔ No INTEGER trim exists at any prescaler — one `counter_top` tick
+   is 125,000 ppm at the clock in use — so it needs a dither, at the cost of C485's 16x buffer.
+   ⚠ And the offset is the **PAIR's**, so a trim fitted here is fitted to THIS Proxmark; splitting
+   it needs a second reader. ⇒ what is left is the operator's cost/benefit, fully priced.
 
 ⛔⛔⛔ **SUPERSEDED LATE ON 2026-09-16 — THE ARMS ARE NOT SILENT, THEY ARE INTERMITTENT.
 READ `QUEUE.md`'s TOP SECTION FIRST; EVERYTHING BELOW IS THE STATE BEFORE THAT.** The Proxmark
