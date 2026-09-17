@@ -88,7 +88,7 @@ published as a positive result. Reproducing that to keep a loop busy is worse th
 | available | why |
 |---|---|
 | firmware development + `ctest` host round-trips | no coil involved |
-| `./runtests` (463 tests, 0.2s, no hardware) | the safety net for every refactor |
+| `./runtests` (467 tests, 0.2s, no hardware) | the safety net for every refactor |
 | `./bench report <session> --regrade` | re-grades **banked transcripts** under today's registry — real measurement, no hardware |
 | `./bench plan`, `./bench run --dry-run --no-prompt` | planner and refusal-path work |
 | registry rows, docs, refactoring, upstream prep | none of it touches the bench |
@@ -107,6 +107,28 @@ is the only thing that carries between cold sessions. **Update and commit it bef
 Do these in order. Move on when a thing is done **or blocked**, and say which.
 
 ### 2a. The measured emitter gaps — the real finding, and the biggest prize
+
+✅✅ **ANSWERED 2026-09-16 — READ THIS BEFORE THE SECTION BELOW IT, WHICH IS NOW HISTORY.**
+All six gaps have measured causes, and they are **two different causes**. `QUEUE.md` item 3 carries
+the detail; the short form:
+
+| arms | cause | evidence |
+|---|---|---|
+| `indala` `keri` `nexwatch` `idteck` `indala224` | ⭐ **our subcarrier is NOT COHERENT with the reader.** A real PSK tag divides the reader's carrier; ours free-runs off the Chameleon's 1 MHz clock and **beats against it through nulls** — 9.0× amplitude swing, a null every ~80 ms, so the phase rotates 70-80° across a 16.4 ms frame | C486 |
+| `gproxii` | ⭐ **not an emitter defect at all.** Our frame is on the air byte-exact; the Proxmark's LIVE `lf read` → demod misses it while the SAME samples decode after `data save`/`data load` | C487, bounded to this one arm by C488 |
+
+⛔⛔ **DO NOT QUEUE ANOTHER EMITTER REWRITE.** The PWM buffer is byte-perfect for all six
+(C476/C477), and **two** rewrites have now been refuted by experiment — the duty-rendering
+hypothesis (C482) and the level-pattern emitter built on it, which was built, flashed, air-tested
+and reverted (C485). **Nothing in the sequence we build can fix a clock that is not locked to the
+reader's.** What is left is an architecture question for the operator: can the PWM clock be slaved
+to the received field, given `lf_tag_em.c:258` says the tag-mode taps are envelope-only?
+
+⚠ **The ladder below still describes the right INSTRUMENTS** — `seqdump.py` first, then
+`pm3cap.py` — and both were used to get the above. `seqdump` needed fixing before it worked at
+all (C475) and `pm3cap` is no longer operator-blocked now that Rig B is tagless. **What is stale is
+the framing that the cause is unknown.**
+
 
 `./bench state` (as of 2026-09-16, cu1 on `v2.2.0-895-gd23839b`) says our emulation is **not
 decoded by the Proxmark** for:
@@ -235,7 +257,7 @@ Ambiguous; queued.
 
 ### 2d. Codebase tidying — only with the tests green
 
-`./runtests` before and after **every** change. 463 tests at 0.2s means there is no excuse for a
+`./runtests` before and after **every** change. 467 tests at 0.2s means there is no excuse for a
 refactor that was not verified. Reduce comments to what is needed; this codebase errs long.
 
 ### 2e. Upstream preparation
