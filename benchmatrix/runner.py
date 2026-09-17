@@ -32,10 +32,33 @@ import random as _rand
 import time as _time
 
 #: ⭐ How long a repeat may wait before the next read, in seconds, drawn uniformly from [0, this).
-#: Sized to span more than one of the ~61-80 ms beat periods C486 measured, so successive repeats
-#: do not land on the same phase (C507). ⚠ A tenth of a second per repeat is nothing beside a
-#: station rebuild, which is what repeating exists to avoid.
-REPEAT_JITTER_S = 0.25
+#:
+#: ⛔⛔ THIS NUMBER IS MEASURED NOW, AND THE FIRST VERSION OF IT WAS WRONG. It was set to 0.25
+#: from C507 alone, on the reasoning that the span only had to exceed the ~61-80 ms beat period.
+#: **A pause is not a neutral randomiser**: ChameleonUltra C513 swept it and the gap systematically
+#: changes the RATE, because past a certain gap the Chameleon's field-arrival burst restarts and a
+#: FRESH burst does not decode at all (C512: `gproxii` 50% at no gap, 22% at 300 ms, **0% at 600
+#: and 900**, with arrivals per read climbing 0.50 -> 1.00 as it goes). At the 250 ms originally
+#: shipped, arrivals were already 0.83 and the rate 33% against 50% — **the "fix" was suppressing
+#: the thing it was meant to measure.**
+#:
+#: ⭐ C513's sweep, `gproxii`, arrivals per read and rate by gap:
+#:     0ms 0.50/50%   40 0.50/67%   80 0.50/33%   120 0.50/50%
+#:     160 0.67/56%   200 0.67/33%  250 0.83/33%  300 1.00/22%
+#: ⇒ **120 ms is the largest gap that keeps the burst spanning reads (<=0.6) AND holds the rate
+#: (>=40%)**, so that is the span.
+#:
+#: ⚠⚠ IT HAS NO MARGIN, AND SAYING SO IS THE POINT. One full phase cycle is 121.6 ms (C509's
+#: 131.5 ppm on 62.5 kHz), so the span wanted from below and the span allowed from above coincide
+#: to within **1.6 ms** — far inside the sweep's own 40 ms resolution. There is no comfortable
+#: value here, and a future tidy that rounds this number in either direction is changing a
+#: measurement, not a preference.
+#:
+#: ⭐ What rescues it: spacing does NOT remove the determinism (C513 saw 3-of-3 identical patterns
+#: at most gaps) — it changes WHICH deterministic pattern. So drawing over [0, 120) ms samples
+#: across several distinct patterns, which is decorrelation in aggregate even though each
+#: individual gap is not random at all.
+REPEAT_JITTER_S = 0.12
 
 #: Seam so the tests can watch the pauses without taking them. ⛔ Patched by name, so the
 #: production path is the one under test rather than a parallel implementation of it.
