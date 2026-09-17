@@ -108,6 +108,13 @@ Do these in order. Move on when a thing is done **or blocked**, and say which.
 
 ### 2a. The measured emitter gaps — the real finding, and the biggest prize
 
+⛔⛔⛔ **SUPERSEDED LATE ON 2026-09-16 — THE ARMS ARE NOT SILENT, THEY ARE INTERMITTENT.
+READ `QUEUE.md`'s TOP SECTION FIRST; EVERYTHING BELOW IS THE STATE BEFORE THAT.** The Proxmark
+reads our Indala emulation byte-exact 9 of 11 through `lf read -s 4096` + `lf indala demod`, and
+four of the six arms decode through the graded reader command itself at 1-in-9 to 1-in-3, against
+0 of 36 with nothing armed (ChameleonUltra C490/C491). `lf <proto> reader` takes 30,000 samples
+and that span is what misses them. ⚠ Ungraded; it licenses `--repeat`, never a re-grade.
+
 ✅✅ **ANSWERED 2026-09-16 — READ THIS BEFORE THE SECTION BELOW IT, WHICH IS NOW HISTORY.**
 All six gaps have measured causes, and they are **two different causes**. `QUEUE.md` item 3 carries
 the detail; the short form:

@@ -453,8 +453,27 @@ def gap_register(result, protocols: list[reg.Protocol]) -> list[str]:
                      "**same 40,000 samples** decode after `data save` + `data load` — one "
                      "session, one buffer, byte-exact `fac2a38c2b081af0210b12c2` either way. Live "
                      "`lf gproxii reader` 0 of 8; save/load 3 of 3. ⚠ `indala` fails BOTH "
-                     "ways, so it is specific and not a universal rescue",
-         "ChameleonUltra C487, 2026-09-16"),
+                     "ways, so it is specific and not a universal rescue. ⚠⚠ **The *0 of 8* "
+                     "was an UNDER-SAMPLE, not a zero**: C491 later measured that same command at "
+                     "**3 of 9** on this bench. The save/load rescue stands; the absolute does not",
+         "ChameleonUltra C487, 2026-09-16; qualified by C491"),
+        # ⭐⭐⭐ THE ROW THAT MATTERS MOST TO THIS HARNESS, because it is about the command
+        # every emulate cell is graded on. ⛔ It is built on UNGRADED manual observations and
+        # licenses a `--repeat`, never a re-grade.
+        ("Proxmark", "**`lf <proto> reader` reads 30,000 samples (`cmdlfindala.c:633`) — 240 ms — "
+                     "and that span can MISS an emission the same device decodes from a short one.** "
+                     "Live A/B, one session, alternated: `lf indala reader` **0 of 11**, then "
+                     "`lf read -s 4096` + `lf indala demod` **9 of 11 byte-exact**, same field, same "
+                     "arm. ⭐ And it is not a fixed ceiling: on one banked capture, spans of 4096 "
+                     "to 20480 samples all decode while 22528-26624 do not, yet 26624 from a "
+                     "different start decodes — the demodulator fails on spans carrying too much "
+                     "of a beating subcarrier, and 240 ms usually does. ⇒ **a SILENT emulate grade "
+                     "can be an under-sampled intermittent rather than an absent emitter**: four of "
+                     "the six arms this harness grades SILENT return their own credential byte-exact "
+                     "through the reader command itself at 1-in-9 to 1-in-3, against 0 of 36 with "
+                     "nothing armed",
+         "ChameleonUltra C490/C491, 2026-09-16 — ⚠ ungraded manual observations; they "
+         "license `--repeat`, never a re-grade"),
         # ⛔ RETRACTED ROW, KEPT AS A ROW. The register used to carry this as a Proxmark
         # capability and the correction below used to assert it. The hardware says otherwise.
         ("Proxmark", "**cannot distinguish Electra from plain em410x**: `lf em 410x clone "
