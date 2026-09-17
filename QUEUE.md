@@ -277,8 +277,16 @@ operator has seen it. **Leave it for them.**
 
 ## 5. Queued, needs the operator
 
-- `fdxb` `emu.pm3 → rd.cu2` SILENT while `t55.pm3 → rd.cu2` is EXACT — pm3's own `lf fdxb sim`
-  or our reader. Ambiguous (run 20260916_161528).
+- ~~`fdxb` `emu.pm3 → rd.cu2` — ambiguous~~ ✅ **ANSWERED, AND IT NEVER NEEDED AN OPERATOR**
+  (ChameleonUltra C495). Both devices are on Rig B and no tag is involved, so nothing had to move.
+  Bracketed controls on the same station, same sessions: `lf em 410x sim` → `lf em 410x read`
+  **4/4 before and 4/4 after**; `lf fdxb sim` → `lf fdxb read` **0/8 between them**, 1 of 24
+  pooled; null with nothing simulating 0/8. ⇒ the station, our reader and the pm3's simulator all
+  work — **this one pairing is marginal**, and the single hit rules out a hard incompatibility.
+  ⚠ **Attribution is unresolved and no gap row was added**: our decoder reads a REAL fdxb tag
+  byte-exact and the pm3's simulator drives em410x into that same decoder 12/12, so neither is
+  generally broken. Telling them apart needs a **third reader** on this pairing — that part is
+  genuinely the operator's.
 - `em410x` `pm3·emu` and `fdxb` `cu1·emu` read `⁇` — need `--repeat 10`.
 - `t55.pm3 → rd.cu2` for everything: gone while Rig B is tagless.
 - ⭐⭐ **`--repeat 10` over ALL SIX formerly-silent arms**, not just the two `‽` cells — C491 measured hit rates of 1-in-9 to 1-in-3 through the graded reader command, so one read cannot characterise any of them.
