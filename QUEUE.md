@@ -7,24 +7,31 @@ gates, and tonight's findings were filed in the wrong one until the operator cau
 that carries between ticks (`AUTOPILOT.md` §6). Tick off what you finish, add what you find, and
 **commit it before you exit** — an uncommitted queue is a lost one.
 
-## 1. `seqdump.py` arms 1 of 5 steps and has therefore never worked ⭐ START HERE
+## 1. ~~`seqdump.py` arms 1 of 5 steps~~ — DONE, AND THE DIAGNOSIS WAS WRONG (C475/L443)
 
-**Repo: `ChameleonUltra`** — the tool lives in `research/indala-psk-read/`, not here. `./autopilot.sh
-gate` + `./checkdocs.sh`, and `TOOLS.md` already carries the correction (L442).
+**Repo: `ChameleonUltra`** — fixed in `0ecba2df`, both gates clean.
 
-`research/indala-psk-read/seqdump.py` runs only the `econfig`. A slot emits only when **all five**
-are done, in order (`benchmatrix/devices.py:589`):
+⛔ **"It arms 1 of 5 steps" was false.** `arm()` had run all five in order since it was
+written; it is `benchmatrix/devices.py:589` line for line. On cu2 every step answers `success` and
+the slot plays back. The claim was read off the source and never run — **the tool was never
+executed against the device it was being judged on.**
 
-    hw slot type -s <slot> -t <TYPE>
-    hw slot enable -s <slot> --lf
-    <the econfig>
-    hw slot change -s <slot>
-    hw mode -e            (then settle ~1s)
+⛔ **The real fault: the only field source was the Flipper (Rig A, cu1).** Pointed at cu2 —
+Rig B, whose reader is the Proxmark — it raised a field on the *other rig*. Every `VOID` it
+printed was correct and said exactly that. Now `--field auto|pm3|flipper|none`, taken from the
+port's rig.
 
-Every `⛔ VOID — no reader field reached the device` it has ever printed is this, not the field.
-⇒ Fix it, then extend its `arms` table beyond `pac`/`gprox` to the six. It needs a reader field
-present while it reads: `pm3 -c "lf tune -n 90 --value"` backgrounded works (21 V sustained).
-⛔ Disarm in a `finally`.
+⭐ **It works**: `--field pm3` on cu2 gives **128/128** PAC entries matching `pac.c:365` and
+**96/96** gproxii matching `gproxii.c:91` — C462 reproduced on the other device under a
+Proxmark field, with a control that could have failed.
+
+⭐ Two facts worth carrying: `playbacks started` counts field **arrivals**, not repeats
+(46→47 in 4 s, then flat 25 s at 19 V) — so the guard must straddle the field coming up;
+and `pm3` is a **wrapper script** whose `client/proxmark3` orphans and holds the serial port unless
+killed by **process group** (it stranded the port mid-round). Disarm now runs in a `finally`.
+
+⇒ **What is left of this item:** the `arms` table still covers only `pac` and `gprox`.
+Extending it to the six is item 3's work, not a defect in the tool.
 
 ## 2. `indala224` write hangs — `CMD 3039`
 
