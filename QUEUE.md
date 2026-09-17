@@ -86,25 +86,72 @@ byte-exact**, then the tail collapses to all-ones. A 224-bit frame is **57.3 ms*
 sit just under that spacing. ⛔ The wrong-frame reading was made without looking at the payload —
 see item 8.
 
+## ⭐⭐⭐ 2026-09-16, 21:00 — THE READ WINDOW IS 3-4 FRAMES, AND MY OWN FIRST SWEEP WAS CONFOUNDED
+
+**Repo for the detail: `ChameleonUltra` C499 and METHOD.md M60** (`0a0c201b`).
+
+⭐⭐ **THE 6x SPREAD IN THE PM3'S SAMPLE COUNTS (C494) HAS A UNIT: FRAMES.** Converted to
+multiples of each protocol's own frame length, the client asks for indala **14.6**, keri 4.9,
+idteck 2.4, nexwatch 4.9, gproxii **1.6**. A per-arm ladder (1,2,3,4,6x the frame, plus the
+reader's own count), every rung inside ONE arming and ONE pm3 session, arms round-robined, **rungs
+shuffled**, two seeds pooled to **n=24**, tagless null **0 hits**:
+
+| arm | frame | 1f | 2f | 3f | 4f | 6f | its own reader | ⭐ best |
+|---|---|---|---|---|---|---|---|---|
+| `indala` | 2048 | **0** | 14 | **21** | 19 | 17 | 1/24 (14.6f) | `-s 6144` |
+| `keri` | 2048 | **0** | 6 | 9 | **14** | 9 | 8/24 (4.9f) | `-s 8192` |
+| `idteck` | 2048 | **0** | 5 | **9** | 6 | 6 | 7/24 (2.4f) | `-s 6144` |
+| `nexwatch` | 4096 | 1 | 7 | 7 | **10** | 3 | 5/24 (4.9f) | `-s 16384` |
+| `gproxii` | 6144 | **0** | 15 | **24 of 24** | 18 | 8 | 9/24 (1.6f) | `-s 18432` |
+| `indala224` | 7168 | **0** | **0** | **0** | **0** | — | 0/24 (4.2f) | ⛔ none |
+
+⭐⭐⭐ **`gproxii` AT `-s 18432` IS 24 OF 24 — perfect, in both seeds independently.** ⭐⭐ **ONE
+FRAME IS 0,0,0,1,0,0 OF 24 ACROSS THE SIX**, and it is the rung that most often returns a decode
+marker with the WRONG payload — C490's confident-wrong-answer, reproduced on purpose.
+
+⛔⛔⛔ **AND READ M60 BEFORE YOU SWEEP ANYTHING, BECAUSE IT NEARLY COST THIS FINDING.** The FIRST
+version of this run ran the ladder ASCENDING, so every length sat at a fixed position after the
+arming and position was perfectly correlated with length. It scored `lf keri reader` **2/12**
+against `lf read -s 10000` + `lf keri demod` **10/12** — and `cmdlfkeri.c:222` is `lf_read(false,
+10000); demodKeri()`, i.e. the *same count through the same demodulator*. **Nothing but position
+could differ.** Shuffled, the two agree, and `gproxii`'s zeros became 8-12/12. ⇒ **The confound was
+as large as the effect being measured**, and would have been written up as a knife-edge length
+window with n=12 behind it.
+
+⛔ **What that REFUTES**, including two things this repo's own gap register asserted:
+- the ~61 ms fading period does **not** cap the usable read — `gproxii` peaks at **147 ms**
+  (2.4 null intervals) and is still 18/24 at 197 ms;
+- *a read-length sweep on nexwatch shows no trend* — it does, swept in frames (1f 1/24, 4f 10/24);
+- the reader command's code path is **not** different from `lf read -s N` + `demod` at the same N,
+  so C487's save/load rescue is about save/load and nothing else;
+- ⭐ **`idteck` is not a zero** — 9/24 at 3 frames. It was item 2 of the old next-tick list.
+
 ## ⭐⭐ WHERE THE NEXT TICK STARTS
 
-1. ⭐⭐ **Measure the per-arm read length that works**, interleaved. C498 shows the window is
-   arm-specific (`keri` prefers 10,000 over 4,096; `gproxii` wants ~12,288; `indala` 4,096) and
-   only three lengths have been tried per arm. `shortread.py --interleave` is the right instrument
-   and its `ARMS` table already carries one length per arm — make it a list and sweep. **This is
-   the single most useful unattended measurement left**, because it turns "these arms are
-   intermittent" into "this arm reads at N samples", which is something the operator can act on.
-2. ⚠ **The `idteck` and `indala224` zeros are the only genuinely open arms.** Everything else has
-   decoded at least once. `idteck` reads 5,000 samples — well inside the fading period — and still
-   scores 0/8 interleaved, so its cause is NOT the geometry and is unexplained.
-3. Item 9's burst hypothesis is refuted (C492) and item 8's is corrected (C493); the remaining open
-   question from C496/C497 is **why arms differ at equal geometry**, with the demodulator, the
-   reader's sample count, the burst gap, frame length, the credential's bit pattern and per-read
-   re-arming all now excluded.
+1. ⭐⭐⭐ **AUDIT EVERY OTHER SWEEP TOOL FOR M60's CONFOUND. This is the most valuable unattended
+   unit left and it needs no bench at all.** `holdsweep.py`, `gapsweep.py`, `offsetsweep.py`,
+   `phasesweep.py`, `sweep.py`, `airduty.py`, `drivesoak.py`, `readsoak.sh` — any of them that
+   walks a setting in a fixed order has position confounded with the setting, exactly as
+   `shortread.py` did. **Read each one, say which are affected, and fix the ones that are** (the
+   fix is one line: shuffle within each round and print the seed). ⛔ Then say plainly which past
+   claims rest on an unshuffled sweep — that is the part that matters, and it is what M60 says to
+   do.
+2. ⭐⭐ **`indala224` is now the ONLY arm that never decodes** — 0/24 at all five lengths, both
+   seeds, with wrong-payload markers at four of them. C493 explains it geometrically (57.3 ms frame
+   against 60.8 ms null spacing, so it cannot finish inside one interval) and the ladder is
+   consistent with that: no length helps, because the problem is not the window. ⭐ **The cheap
+   open test: does it decode if the frame is SHORTER?** Nothing else in the six can vary its own
+   frame length, and `indala224` can — a 224-bit frame is the only one longer than the null spacing.
+3. ⭐ **Sharpen the per-arm peak.** The ladder has one rung at 2f, 3f and 4f; the peak is somewhere
+   in 2.5-4.5 frames and only three points bracket it. `./shortread.py <arm> --lengths a,b,c
+   --repeat 12` per arm, shuffled. ⚠ Worth doing only after item 1 — it is the same instrument.
 4. Then `AUTOPILOT.md` §2d (tidying behind the 467 tests) and §2e (upstream prep).
+   ⚠ One found in passing and NOT fixed: `benchmatrix/grid.py:313` has `"\|"`, an invalid escape
+   sequence that Python already warns about. One character, covered by the tests.
 
-⛔ **Read `METHOD.md` M58 and M59 before measuring anything**: both were earned this round, by me,
-on my own numbers — n too small, and comparing across sessions on a bench whose rate wanders.
+⛔ **Read `METHOD.md` M58, M59 and M60 before measuring anything**: all three were earned this
+round, by me, on my own numbers — n too small, comparing across a wandering bench, and sweeping in
+a fixed order.
 
 ## 1. ~~`seqdump.py` arms 1 of 5 steps~~ — DONE, AND THE DIAGNOSIS WAS WRONG (C475/L443)
 
