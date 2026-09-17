@@ -5,26 +5,32 @@ Wed 16 Sep and running several days.
 
 ## 0. THE BENCH, AS IT ACTUALLY STANDS ⭐ AUTHORITATIVE
 
-Set by the operator 2026-09-16 before leaving. **This section overrides any bench description in
-the tick prompt.** The routine's prompt was written earlier in the day and says the Proxmark rig is
-tagless; **that is out of date — both rigs hold a tag.**
+Set by the operator 2026-09-16, **after** the jamming finding below. **This section overrides any
+bench description in the tick prompt.**
 
     Rig A   Flipper ─ T5577 ─ Chameleon 1
-    Rig B   Proxmark ─ T5577 ─ Chameleon 2
+    Rig B   Proxmark ─ Chameleon 2        ⭐ NO TAG — deliberately
 
 ⛔ **NOBODY CAN MOVE ANY OF IT until ~22 Sep.** Never infer the topology from a silent null
 (C402/C404/C408) — if an arm disagrees with this section, the arm is wrong or the bench was
 disturbed, and either way it is a thing to report, not to work around.
 
-⚠ **Rig B's tag holds an EM410X *Electra* credential** — `lf em 410x clone --id 2244668800
---electra`, written 2026-09-16 23:34 and read back as `EM 410x ID 2244668800` on the Proxmark and
-`EM410X/64: 2244668800` on Chameleon 2. **Rig A's tag contents are unknown** — establish them by
-reading before assuming anything about them, and write down what you find.
+⭐⭐ **RIG B IS TAGLESS ON PURPOSE AND THAT IS WHAT MAKES THE WEEK WORK.** With a tag in it, an
+emulating Chameleon and the tag jammed the Proxmark completely — it decoded neither (measured, §2a).
+Tagless, `emu.cu2 → rd.pm3` is exactly the arrangement that read 11 of 17 protocols EXACT in run
+20260916_161528, so **an emitter fix CAN be checked on the air, unattended.** That is the headline
+work and it is unblocked.
 
-⭐ Rig A is new and is the successor project's rig: Chameleon 1 writes T5577s (16/17 protocols
-EXACT, plus raw `lf t55xx` block access) so a program can rewrite that tag with no hands. ⛔ It
-cannot extend the capability matrix — `GOLD_SOURCES = {t55.pm3, oem}`, so a CU1-written tag is a
-source under test, never a reference.
+⛔ **THE PRICE, AND IT IS REAL: `t55.pm3 → rd.cu2` IS GONE.** No tag in the Proxmark's stack means
+no gold tag can be written or read there, so our DECODERS cannot be tested against real silicon
+until the operator returns. That trade was made deliberately — emitters over decoders — because the
+decoder column already reads 17/17 EXACT and the emitter column has six holes.
+
+⚠ **Rig A's tag contents are unknown.** Establish them by reading before assuming anything, and
+write down what you find. Chameleon 1 writes T5577s (16/17 EXACT, plus raw `lf t55xx` block
+access), so a program can rewrite that tag with no hands — Rig A is the successor project's rig.
+⛔ It cannot extend the capability matrix: `GOLD_SOURCES = {t55.pm3, oem}`, so a CU1-written tag is
+a source under test, never a reference. ⛔ And do not flash cu1 (§2a).
 
 ---
 
@@ -148,8 +154,15 @@ and verifies re-enumeration, but a flash that goes wrong with nobody present end
 Chameleon 1 is the spare that keeps the bench alive and the successor project's writer.
 
 ⛔ **ALWAYS RETURN cu2 TO `hw mode -r` WHEN DONE.** A Chameleon left in emulator mode jams the
-Proxmark's whole pad, including its reads of the tag — as measured above. Leaving it armed silently
-disables Rig B for every later tick.
+Proxmark's pad — measured above. Rig B is tagless now so there is no tag to lose, but an armed cu2
+still blocks the Proxmark's own reads, and a tick that crashes mid-arm silently disables the rig
+for every later tick. Disarm in a `finally`, not at the end of the happy path.
+
+⭐ **RIG B IS NOW THE RIGHT SHAPE — the emitter loop runs unattended.** Arm cu2 (all five steps:
+type, LF enable, econfig, slot change, `hw mode -e` — `devices.py:589`), read with the Proxmark,
+disarm. A fix that turns one of the six SILENT arms EXACT is real evidence. ⚠ Still **ungraded**:
+no null sweep, no licence. Say "manually observed, ungraded" every time and re-run it through the
+harness when the operator is back.
 
 ### 2b. The two cells that disagree with themselves
 
