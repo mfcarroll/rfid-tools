@@ -210,6 +210,12 @@ it (M60/C500), and corrected two of its own claims (C499's best-length argmax, C
 magnitudes). Everything the tagless bench can say about read length has been said. ⛔ **Do not
 re-measure it** — a further sweep would be C473's method: re-measuring a question already answered.
 
+⭐⭐⭐ **2026-09-16 23:0x — ITEM 9 IS ANSWERED AND IT WAS THE LAST OPEN HANDS-OFF ITEM.**
+util7=77.0 at the start of the tick and 77.0 at 22:59. See item 9 below for C506/C507 in full.
+The headline for a cold session: **the burst is not the intermittency, and the decode is not a
+rate — it is a function of the read's POSITION**, which a host-side `msleep` moves. ⛔ The
+operative consequence is on the `--repeat` queued in §5: back-to-back repeats resample one phase.
+
 **So the next tick works `AUTOPILOT.md` §2 from the top, and that now means §2d and §2e:**
 
 1. ⭐⭐ **§2e — upstream preparation.** ⭐ **The PROXMARK-facing half is DONE and the answer is
@@ -546,6 +552,15 @@ operator has seen it. **Leave it for them.**
   ⇒ whatever the `⁇` is, that pairing is not fragile the way `fdxb`'s is.
 - `t55.pm3 → rd.cu2` for everything: gone while Rig B is tagless.
 - ⭐⭐ **`--repeat 10` over ALL SIX formerly-silent arms**, not just the two `‽` cells — C491 measured hit rates of 1-in-9 to 1-in-3 through the graded reader command, so one read cannot characterise any of them.
+  ⛔⛔ **BUT READ C507 FIRST — IT CHANGES WHAT `--repeat` HAS TO DO.** Reads issued back-to-back
+  inside one session do **not** sample independently: the decode is a function of the read's
+  POSITION, six identical reads gave `gproxii` the identical pattern in 16 of 16 sessions, and a
+  host-side `msleep` alone moves both the pattern and the rate (29.2% → 70.8%). ⇒ A naive
+  `--repeat 10` would resample the same phases ten times and report a tight, confident and
+  **wrong** rate — the same shape of error as grading with no calibration row. ⭐ The cheap
+  remedy is to **vary the spacing between repeats** (a randomised pause), so the repeats span the
+  beat rather than sit on one phase. ⛔ **Operator decision, not a tick's**: it changes the graded
+  read path, which re-bases every past cell.
 - ⭐ **A meter on the board, ahead of VD1.** C489 rests entirely on the schematic putting the rectifier at the coil; that is the one cheap check that could overturn it, and it takes minutes.
 
 ## 6. ~~Registry work, no bench~~ — BOTH DONE (`rfid-tools`, 467 tests green)
@@ -585,13 +600,36 @@ that spacing. ⭐ Frame length then orders the entire column: 16.4 ms arms 9/11,
 the bench says 0 of 9), and the spread among the three 16.4 ms arms is unexplained. Neither is
 an `indala224` question any more.
 
-## 9. ⭐ Why is it intermittent? A hypothesis that costs nothing to test
+## 9. ~~Why is it intermittent?~~ — ANSWERED, AND THE ANSWER IS BIGGER THAN THE QUESTION
 
-Each `lf read` raises the field, and the emulation plays a **finite burst per field arrival**
-(`m_frames_per_burst`; `playbacks started` counts arrivals, not repeats — C475). So the reader's
-capture window and the burst are unsynchronised, which would produce exactly the 1-in-9 to 1-in-3
-hit rates C491 measured. ⭐ Testable with no bench move: vary the settle before the capture, or
-count playbacks across a read, and see whether the hit rate tracks. ⚠ Write the criterion first.
+**Repo: `ChameleonUltra` C506 and C507** (`36c684c1`), tool `burstsync.py`. ⚠ Ungraded — no null
+sweep, no calibration row, **moves no cell and licenses no re-grade.**
+
+✅ **The burst is NOT the intermittency (C506).** Four criteria were committed to git BEFORE the
+first capture (`011d475b`, M55). **K4 is arithmetic and cost no bench time at all**:
+`recompute_frames_per_burst()` targets 500 ms and every arm's frame is under 250 ms, so every
+burst is >= 500 ms against a **240 ms** longest graded read ⇒ a burst cannot expire inside one
+read. **K1**: the field does not drop per read either — 12 reads give **5** arrivals (`gproxii`),
+**3** (`indala`), **4** (`keri`), identical across two runs and nine sessions. **K2 is the effect
+and the effect is absent**: starvation predicts early reads beat late ones and two of three arms
+go the other way. **K3** null: **0 of 12** decodes, Δ = 0.
+
+⭐⭐⭐ **AND WHAT WAS BEHIND IT (C507) — THE DECODE IS A FUNCTION OF THE READ'S POSITION, NOT A
+RATE.** Six IDENTICAL reads per session, sixteen sessions, one arming: `gproxii` returned the
+pattern **`.X.XX.` in 16 of 16** — index 1, 3 and 4 decoded every time, index 0, 2 and 5 never —
+and `indala` had **index 5 at 16/16 against index 4 at 0/16**, adjacent reads of the same command.
+A ~50% rate cannot produce one fixed six-bit pattern sixteen times.
+⛔ That could have been the CLIENT rather than the air, so **K6 was committed before its capture**
+(`96546d93`). Inserting `msleep -t D` — `AlwaysAvailable` in `cmdmain.c:365`, touching no device
+and raising no field — **moved the pattern on 3 of 4 delays for `gproxii` and 4 of 4 for
+`indala`**, and swung `gproxii`'s rate from **29.2% to 70.8%**. A host-side pause cannot change
+which read is the nth. ⇒ **the client does not explain it.**
+
+⚠⚠ **What did NOT hold, said here rather than buried**: the 16/16 determinism did **not**
+reproduce inside the K6 run, which is K6's own *no verdict* branch for that half. The
+session-spacing explanation for the difference is read off the data and needs its own criterion.
+And **K5** — a replication of K2's surprise — landed in its own middle band (−15.6 points against
+the >= 20 it needed) and is recorded **UNREPLICATED**, not reinterpreted.
 
 ## 7. When 1–6 are done or blocked
 
