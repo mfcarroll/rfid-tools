@@ -29,7 +29,9 @@ for Indala silent, the same samples at 40,000 silent, and Rig B is tagless.
 
 ⭐⭐ **And FIVE of the six arms decode through the READER COMMAND THE MATRIX GRADES ON** — at
 n=24: `keri` **8/24**, `gproxii` **8/24**, `nexwatch` **6/24**, `idteck` **4/24**, against **0 of 36**
-with nothing armed. Only `indala` (0/26) and `indala224` (0/24) never do. They are **intermittent,
+with nothing armed. ⚠ **Read those as non-zero, NOT as an ordering** (C497): the hit
+rate wanders — the same arm gave **88%, 60%, 38% and 75%** in one evening — and the arms were
+measured one after another, so only an INTERLEAVED run compares two of them. See `METHOD.md` M59. Only `indala` (0/26) and `indala224` (0/24) never do. They are **intermittent,
 not silent**, and a cell graded from ONE read lands on SILENT most of the time — which is exactly
 what the graded run and C488's one-capture probe saw.
 
