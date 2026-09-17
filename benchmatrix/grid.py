@@ -474,7 +474,11 @@ def gap_register(result, protocols: list[reg.Protocol]) -> list[str]:
                      "under-sampled intermittent rather than an absent emitter**: five of the six "
                      "arms this harness grades SILENT return their own credential byte-exact "
                      "through the reader command itself \u2014 keri 8/24, gproxii 8/24, nexwatch "
-                     "6/24, idteck 4/24 \u2014 against 0 of 36 with nothing armed",
+                     "6/24, idteck 4/24 \u2014 against 0 of 36 with nothing armed. "
+                     "\u26a0 **Read those as non-zero, not as an ordering**: the hit rate on this "
+                     "bench WANDERS (the same arm gave 88%, 60%, 38% and 75% in one evening) and "
+                     "the arms were measured one after another, so the counts are time-averages "
+                     "and only an interleaved run compares two arms",
          "ChameleonUltra C490/C491/C494, 2026-09-16 \u2014 \u26a0 ungraded manual observations; "
          "they license `--repeat`, never a re-grade"),
         # ⛔ RETRACTED ROW, KEPT AS A ROW. The register used to carry this as a Proxmark
