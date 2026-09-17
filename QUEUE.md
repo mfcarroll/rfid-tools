@@ -207,7 +207,7 @@ self-consistent with every banked run and the item-6 corrections are confirmed a
 
 ## ⭐⭐⭐⭐⭐ 2026-09-17 03:5x-05:0x — THE INTERLEAVING IS WITHDRAWN AND THE REGIONS ARE REAL. READ THIS FIRST.
 
-util7 **81 → 82** across the round (util5 5 at 04:3x). ⛔ **No bench move, nothing flashed on
+util7 **81 → 82** across the round (util5 6 at 04:4x). **TWO units closed: K21 (C524) and K22 (C525).** ⛔ **No bench move, nothing flashed on
 either unit**, cu2 armed and disarmed through the `finally` on **both** capture runs — `disarm: ok`
 twice, and its mode verified as `Tag Reader` **by asking the device** before the first arm — and
 **cu1 untouched**. **Detail: `ChameleonUltra` C524, M69, M70, `burstsync.py` K21/K22,
@@ -278,31 +278,74 @@ under the effect AS DESCRIBED (the power). If either number is unacceptable the 
 and finding that out on the bench is paying for it twice.** ⭐ It does not only kill bands: Y1 and
 K22's Z1 both passed the same treatment and are the stronger for carrying their numbers.
 
-## ⭐⭐ THE NEXT HANDS-OFF UNITS, IN ORDER — AND UNIT 2 NEEDS NO DESIGN WORK AT ALL
+## ⭐⭐⭐⭐ AND K22 WAS RUN IN THE SAME ROUND — A THIRD REGION AT 20-30 ms (C525)
 
-1. ⭐⭐ **K22 IS WRITTEN, PINNED, BREAK-TESTED AND UNRUN.** `burstsync.py`'s docstring carries it and
-   `./framescale.py --k22` scores it. **The 20-40 ms region is the last one under the burst ceiling
-   that nothing has ever measured** — K14/K15/K16 stopped at a 40 ms primer and K19/K20 started at
-   85. Run it exactly as written:
-   `--k12 --arms indala,keri --primers 20,25,30,35,40,45,50,55,60,65,70,75,80 --reps 8
-   --per-arm-shuffle --seed 131` and again at `--seed 149`, `--out caps/k22_indala_keri_s<N>.json`.
-   ⭐ **~10 min per seed** (14 cells against K21's 26). ⭐ Its reference is the first in this project
-   **justified by independent prior measurement**: `k15`/`k16` measured 40 and 45 ms at **0-17%,
-   eight readings**, so Z1's threshold is an ABSOLUTE 40% and not a median.
-   ⛔⛔ **Z1's power is a cliff and the verdict must carry it: 96% at two cells of 80%, 47% at 60%,
-   16% at 50%.** A REFUTED Z1 means *no feature as strong as the known hump*, **NOT** *the region
-   is flat*. ⛔ And the frame-locked notch — `gproxii`'s 1.22 frames is **20 ms** on these arms —
-   is declared **UNTESTABLE** there in advance: a notch needs a body and the measured body is that
-   floor, so a null at 20 ms must never be quoted as refuting it.
-2. ⭐⭐ **Y1 AT `--reps 12`, WHICH IS THE COSTED REMEDY C524 NAMED.** Same ladder, same arms,
+⭐⭐⭐ **`indala` IS AT 100% IN BOTH SEEDS AT A 20 ms LEAD.** The last unmeasured region under the
+burst ceiling — K14/K15/K16 stopped at 40 ms and K19/K20 started at 85 — is now measured, two fresh
+seeds (131, 149), both arms per run, per-arm shuffled, all gates passing, **and Z2, the continuity
+gate, passing on both arms**, so the known 50-65 ms hump reappeared before the new region was read.
+
+| arm | 20 | 25 | 30 | 35 | 40 | 45 | 50-65 (the known hump) |
+|---|---|---|---|---|---|---|---|
+| `indala` | **100 / 100** | **88 / 75** | **100 / 62** | 25 / 38 | 12 / 38 | 25 / 25 | 75-100% |
+| `keri` | **100 / 75** | 12 / 38 | 25 / 38 | 12 / 0 | 12 / 0 | 12 / 12 | 38-100% |
+
+⭐ **Z1 FIRES for `indala` at `20,25,30`** and **is REFUTED for `keri`**, whose 25-35 cells are
+12-38%. ⚠ **`keri`'s 20 ms cell is elevated in BOTH seeds and STANDS ALONE** — the two-cell rule
+refuses to call one cell a feature, and it is reported, not counted.
+⚠⚠ **A REFUTED Z1 means *no feature as strong as the known hump*, NOT *flat*.** Its power was
+simulated before the capture: **96% at two cells of 80%, 47% at 60%, 16% at 50%**, against a
+**0.00%** false-fire rate under the measured floor and 0.01% under a lone 90% cell.
+
+⭐⭐ **PRACTICAL: 65 ms IS NOT THE BEST LEAD TIME.** `indala` beats its 96/83% at 65 ms with
+**100/100% at 20 ms**. 65 ms remains only *the one measured to work on three arms at once*.
+
+⛔⛔ **AND THE PROFILE IS NOW BOUNDED BY THE INSTRUMENT AT BOTH ENDS.** Z3: the lowest cell at or
+above 40% is **the ladder's FIRST cell, 20 ms, in every seed on both arms** — the profile is
+already elevated where the measurement begins. ⇒ **No wing at the bottom edge of any ladder is
+licensed for `indala` or `keri`**, which is W2's teeth (C522) earned at the other end, and **the
+region's downward extent is unknown** exactly as the profile above 200 ms is.
+
+⚠⚠ **POST-HOC AND LABELLED — IT CORRECTS K22's OWN PRE-CAPTURE ARITHMETIC.** K22 declared the
+frame-locked notch (`gproxii`'s 1.22 frames is **20 ms** on these arms) UNTESTABLE there, because a
+notch needs a body and the expected level was the 0-17% floor. **20 ms is at the CEILING, so a
+notch detector there WOULD have power.** ⛔ **No verdict is taken from this run** — choosing a
+detector after seeing the level is the thing this project exists not to do. It is unit 2 below.
+
+⚠ `indala`'s seed-149 split-half is **11.5 points**, the closest any run here has come to the
+15-point drift gate. It passes and is recorded rather than glossed.
+
+## ⭐⭐ THE NEXT HANDS-OFF UNITS, IN ORDER — ITEMS 0 AND 1 ARE K22'S OWN CONSEQUENCES
+
+0. ✅ ~~**K22**~~ **RUN THIS ROUND — C525, see the block directly above. Do not re-run it.**
+   ⛔⛔ **ITS FOLLOW-UP IS NOW THE FIRST THING ON THIS LIST: A LADDER THAT REACHES BELOW 20 ms.**
+   Z3 says both arms are already elevated at the ladder's first cell, so the region's downward
+   extent is unmeasured and **no bottom-edge wing is licensed**. A primer is `lf read -s N` with
+   N = ms x 125, so 10 ms is 1,250 samples and mechanically reachable; **P1 is what says whether a
+   primer that short still holds one burst**, and a P1 failure down there is a result about the
+   instrument's floor, not a nuisance. ⛔ Criterion first, simulated twice first (M70), and the
+   detector must be chosen from `indala`'s measured **ceiling** at 20 ms — which means a NOTCH
+   detector, not a forward one (M68).
+1. ⭐⭐⭐ **THE FRAME-LOCKED NOTCH, ON FRESH SEEDS, PROPERLY PRE-REGISTERED.** K22 declared it
+   untestable at 20 ms on an expected level the data contradicts: there IS a body there, so the
+   detector has power. ⛔ **It may not be read off `caps/k22_*`** — that is the data that revealed
+   the level. A fresh seed pair, a notch band pinned before the capture, and the prediction stated
+   in frames: `gproxii`'s notch is **1.22 frames**, which is 20 ms on these two arms. ⚠ And say in
+   advance what a null means, because `indala` sitting at 100% there makes a notch unlikely and a
+   band that cannot survive its own expected answer is not worth running.
+2. ✅ ~~**K22 — the 20-40 ms region**~~ **RUN AND SCORED THIS ROUND (C525).** Its design, its
+   power table and its two caps are in the ChameleonUltra tree; `./framescale.py --k22 caps/k22_*`
+   re-derives the whole verdict offline. ⛔ **Do not re-run it and do not re-derive its design** — what is
+   open is items 0 and 1 above, which are its consequences.
+3. ⭐⭐ **Y1 AT `--reps 12`, WHICH IS THE COSTED REMEDY C524 NAMED.** Same ladder, same arms,
    `--per-arm-shuffle`, two fresh seeds (**163** and **179**; 113/127 are spent). It takes Y1 from
    77% to **90%** power and is the one thing that can turn this round's NO VERDICT into an answer.
    ⚠ ~30 min per seed. ⛔ The band is unchanged and must not be re-tuned — re-running a band at
    higher n is replication; re-running it with new thresholds is fitting.
-3. ⭐ **The mechanism.** Still open and still the biggest prize. Nothing proposed survives — not the
+4. ⭐ **The mechanism.** Still open and still the biggest prize. Nothing proposed survives — not the
    beat, not settling, not the frame, not the modulation. ⛔ Criterion first, **and now simulated
    twice first** (M70).
-4. `idteck` and `indala224` remain unmeasured on this knob. ⚠ `indala224`'s precision is 0% (C502),
+5. `idteck` and `indala224` remain unmeasured on this knob. ⚠ `indala224`'s precision is 0% (C502),
    so it can only be scored on *decoded*, never on *exact*, and the band must say so.
 
 ⛔⛔ **STILL LICENSES NOTHING HERE.** Ungraded — no null sweep, no calibration row — so it **moves
@@ -488,7 +531,7 @@ do not re-open unit 1 and do not re-derive unit 3's design.**
    stopped at 80, so **20-40 ms has never been measured on either arm** and the two ladders only
    just meet. ⚠ `gproxii`'s notch is at 60 ms and `keri`'s new feature starts at 95, so the
    region between the two ladders is the last unmeasured gap under the burst ceiling.
-4. `idteck` and `indala224` remain unmeasured on this knob. ⚠ `indala224`'s precision is 0% (C502),
+5. `idteck` and `indala224` remain unmeasured on this knob. ⚠ `indala224`'s precision is 0% (C502),
    so it can only be scored on *decoded*, never on *exact*, and the band must say so.
 
 ⛔⛔⛔ **READ THIS BEFORE WRITING ANY BAND. SIX PRE-REGISTERED CRITERIA HAVE NOW MIS-FIRED IN TWO
