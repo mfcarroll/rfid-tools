@@ -112,8 +112,11 @@ Do these in order. Move on when a thing is done **or blocked**, and say which.
 READ `QUEUE.md`'s TOP SECTION FIRST; EVERYTHING BELOW IS THE STATE BEFORE THAT.** The Proxmark
 reads our Indala emulation byte-exact 9 of 11 through `lf read -s 4096` + `lf indala demod`, and
 four of the six arms decode through the graded reader command itself at 1-in-9 to 1-in-3, against
-0 of 36 with nothing armed (ChameleonUltra C490/C491). `lf <proto> reader` takes 30,000 samples
-and that span is what misses them. ⚠ Ungraded; it licenses `--repeat`, never a re-grade.
+0 of 36 with nothing armed (ChameleonUltra C489-C495). At n=24 it is FIVE of the six — keri 8/24,
+gproxii 8/24, nexwatch 6/24, idteck 4/24 — and the pattern is one number in the pm3 client: every
+LF reader asks for a different sample count (indala 30,000, nexwatch 20,000, keri 10,000, idteck
+5,000) against the emission's own ~61 ms fading period. ⚠ Ungraded; it licenses `--repeat`, never
+a re-grade.
 
 ✅✅ **ANSWERED 2026-09-16 — READ THIS BEFORE THE SECTION BELOW IT, WHICH IS NOW HISTORY.**
 All six gaps have measured causes, and they are **two different causes**. `QUEUE.md` item 3 carries
