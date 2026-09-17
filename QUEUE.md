@@ -292,10 +292,26 @@ on this bench, which is the thing to exploit:
    equal in both and only the primer's AIR duration differs. Fixed ms ⇒ the regions MOVE to N/2
    at dec 2. Fixed samples ⇒ they STAY at N.** ⛔ There is no third outcome to fish for; say both
    branches in the band.
-   ⚠ **Two things the design must carry**, both already worked out: **recompute the ladder's top**
-   (a dec-2 primer eats twice the burst — M77 on the REAL duration), and the predicted dec-2
-   positions of the five known regions are **7.5-10, 27.5-32.5, 50-52.5, 70-72.5, 90-95 ms
-   nominal**, which needs a **2.5 ms grid** and not a 5 ms one.
+   ⛔⛔ **AND THE STRETCH IS 1.65x, NOT 2x — MEASURED (C540/M79), AND THIS IS THE NUMBER THAT WOULD
+   HAVE WRECKED THE BAND.** Five sample counts timed at both settings and slope-fitted:
+   **dec 1 = 0.0118 ms/sample, dec 2 = 0.0195, ratio 1.653.** ⭐ The dec-1 slope is the tell —
+   0.0118 where 125 kHz predicts 0.0080 — a ~47% surcharge that is the **USB readback**. ⇒
+   **acquisition doubles at dec 2 and readback does NOT (the stored count is unchanged), and a 2x
+   term plus a 1x term lands at 1.65.** ⭐ It is the host-timed ELAPSED the regions live on, not the
+   acquisition: P1 has held arrivals at 0.50 in every cell of every ladder, so the field never drops
+   and the readback is part of the lead time.
+   ⇒ ⛔⛔ **DESIGN THE BAND SO IT DOES NOT DEPEND ON THE FACTOR: ask only whether the regions sit at
+   the SAME nominal `-s N` at dec 2, and REPORT where they moved to without testing it** (M64).
+   1.653 is a host constant with unmeasured jitter, the same class as the ~192 ms overhead C535
+   caught being optimistic by 10 ms.
+   ⚠ **The factor is then only needed to choose the LADDER's range**: the five regions' predicted
+   dec-2 positions are **9-12, 33-39, 60-64, 85-88, 109-115 ms nominal**, well separated from their
+   dec-1 positions of 15-20, 55-65, 100-105, 140-145, 180-190.
+   ⚠ And **recompute the ladder's top** — a dec-2 primer eats ~1.65x the burst (M77 on the REAL
+   duration, and P1 decides).
+   ⛔ **Had 2.0 been assumed, every predicted cell would have been 25-45 ms out — wider than the
+   regions — and the band would have returned a confident *fixed samples*. The knob would have
+   refuted the truth.**
    ⛔ Criterion first, power simulated both ways first (M70/M75), no-verdict branch given a
    meaning in advance (M74), reference from `--inventory` (M76).
 ⛔⛔ **AND THE RULES ANY OF THOSE MUST SATISFY, ALL EARNED THIS ROUND:** derive every reference
