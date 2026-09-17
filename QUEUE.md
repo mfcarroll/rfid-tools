@@ -244,7 +244,24 @@ re-measure it** — a further sweep would be C473's method: re-measuring a quest
      returned confidently against a truth of `A5A5A5A5`), that is the blocker before everything
      else. ⭐ **Building one, over the pure `analyse_*.py` functions against the 264 KB already
      banked in `addrprobe_captures/`, is its item 1** — hands-off, and it unblocks every later tick.
-   ⚠ Nothing there has been worked yet. The process and the assessment are committed; no result is.
+   ✅ **AND ITS ITEM 1 IS UNDER WAY — `./runtests` NOW EXISTS THERE**: 23 tests, 0.4 s, offline,
+   covering `decode_blockread.py` (pinned against a **Proxmark**-read word, not against the code)
+   and `analyse_frame_parity.py` (the popcount-parity claim on real captures, with its Manchester
+   and ST1 controls). Every assertion was break-tested.
+   ⭐⭐ **Two defects found by writing them, both recorded there:**
+   - ⛔ **The working directory is a trap.** 23 of the 126 scripts hardcode repo-root-relative
+     paths, so run from the project directory they see nothing. Seven refuse loudly; **five print
+     an empty table and exit 0** — and two of those read as a clean bill of health (*"no re-verify
+     mismatches recorded"*, *"read 0 of 0, **WRONG 0**"*). They are `expectedFailure` tests, so a
+     fix flags itself; not fixed unattended because two are called by shell scripts that cannot be
+     run offline and the convention is the operator's.
+   - ⭐ **The `$TMPDIR/t5577_fold_reach/probe` six are a STRENGTH once understood**: that probe is
+     compiled from the shipped `lib/lfrfid/tools/t5577.c`, so those analyses measure the real
+     firmware C, not a Python re-implementation. It just said so nowhere and died on a
+     `/var/folders` path; it now names the build step. ⚠ `$TMPDIR` is per-boot, so the probe
+     evaporates on reboot.
+   ⚠ **The science there is still entirely blocked** — no capture can be taken until the operator
+   returns.
 
 ⛔ **Read `METHOD.md` M58, M59 and M60 before measuring anything.** All three were earned this
 round, on my own numbers: n too small, comparing across a wandering bench, and sweeping in a fixed
