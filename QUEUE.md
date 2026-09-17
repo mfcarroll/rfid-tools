@@ -354,7 +354,8 @@ on this bench, which is the thing to exploit:
    milliseconds* has always meant *fixed `-s N`*, and no knob on this bench separates them widely
    enough to beat the feature's skirt. **Say that plainly rather than reaching for a fourth variant.**
 
-3b. ⭐⭐⭐ **THE ONE LEVER THAT WOULD REOPEN IT IS OURS, AND IT IS A FIRMWARE CONSTANT** —
+3b. ⭐⭐⭐⭐ **PINNED AS K34 (`burstsync.py` docstring, commit `4bf718ee`) — READ IT BEFORE
+   TOUCHING THIS. THE ONE LEVER THAT WOULD REOPEN IT IS OURS, AND IT IS A FIRMWARE CONSTANT** —
    `LF_TAG_BURST_TARGET_MS (500)` at `lf_tag_em.c:75`. Every bound above is proportional to it: at
    1000 ms the budget triples to ~600 dec-1 nominal ms, the cap goes to ~150 ms, and **R4 and R5
    both come into reach at dec 2 with 63 and 83 ms of separation** — clear of the skirt with room.
@@ -365,8 +366,14 @@ on this bench, which is the thing to exploit:
    *different experiment* and needs its own pre-registration, not a quiet re-run of K33.
    ⛔ **And it needs a cu2 FLASH.** That is permitted (`enterdfu.py`, no bench move, **cu2 only,
    never cu1**) but it is the largest step this round would take unattended, and AUTOPILOT's warning
-   stands: a flash that goes wrong with nobody present ends the week. ⇒ **Pin the design first;
-   treat the flash as the decision it is.**
+   stands: a flash that goes wrong with nobody present ends the week. ⇒ ⭐⭐ **THE DESIGN IS NOW PINNED AND IT IS TWO STAGES: K34a asks whether a longer burst MOVES the
+   regions (the control), and only a *same lead times* answer licenses K34b, which is K33 finally
+   runnable at 41% of the reachable top instead of 101% of it.** ⛔ If the regions MOVE, that is the
+   bigger finding and **K34b must not be run at all**. ⛔ **Stage 2 alone is not a valid experiment.**
+   ⇒ **The next tick's decision is the FLASH, and K34 prices it**: permitted, cu2 only, `enterdfu.py`
+   retries on a trigger failure, a bad flash costs Rig B but not the bench (cu1 untouched), and the
+   new build must be verified **functionally and from the AIR** — a primer that broke P1 at burst 500
+   must come back clean at 0.50, because a version string is not evidence (C461).
 
 ⛔⛔ **AND THE RULES ANY OF THOSE MUST SATISFY, ALL EARNED THIS ROUND:** derive every reference
 from `--inventory` and never from a write-up (**M76**); compute the power **per arm** first
