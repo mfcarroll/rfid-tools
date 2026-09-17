@@ -276,68 +276,37 @@ on this bench, which is the thing to exploit:
    the pad or the coupling — ⛔ **which needs the operator**, so it is a return item and not a
    tick's. ⭐ Name it in the handover so the operator can decide whether to spend a bench move on
    it; it is now a well-posed question rather than a fishing trip.
-3. ⭐⭐⭐⭐ **AND THE CLIENT-SIDE POSSIBILITY NOW HAS A VERIFIED KNOB — DO THIS ONE FIRST (C539).**
-   ⛔⛔ **THE CONFOUND NOBODY HAD NAMED: every lead-time result varies the primer with
-   `lf read -s N`, and N sets the primer's SAMPLE COUNT and its DURATION together.** So *fixed
-   milliseconds* has always meant *fixed N*, and a **client-side** reading of this whole line has
-   never been excluded. ⭐⭐ **`lf config --dec N` separates them**: it stores 1 sample in N while
-   the ADC keeps sampling, so the same `-s N` takes **N times as long** with the carrier, the
-   field and the emission untouched.
-   ✅ **BOTH FEASIBILITY CHECKS ARE DONE AND PASSED** (`decprobe.py`, C539, ~20 s, no bench move):
-   **the probe still decodes** (dec set for the primer, reset to 1 before the probe — `keri`'s
-   marker 3 of 3 at dec 1 AND 3 of 3 at dec 2) and **the read really stretches** (0.19 / 0.28 /
-   0.39 s at dec 1 / 2 / 4 against a 0.48 s baseline).
-   ⇒ ⭐⭐⭐ **THE TEST: run the ladder at dec 1 and dec 2 with an IDENTICAL command sequence**
-   (`lf config --dec D; lf read -s N; lf config --dec 1; <probe>`) **so the CLIENT's own cost is
-   equal in both and only the primer's AIR duration differs. Fixed ms ⇒ the regions MOVE to N/2
-   at dec 2. Fixed samples ⇒ they STAY at N.** ⛔ There is no third outcome to fish for; say both
-   branches in the band.
-   ⛔⛔ **AND THE STRETCH IS 1.65x, NOT 2x — MEASURED (C540/M79), AND THIS IS THE NUMBER THAT WOULD
-   HAVE WRECKED THE BAND.** Five sample counts timed at both settings and slope-fitted:
-   **dec 1 = 0.0118 ms/sample, dec 2 = 0.0195, ratio 1.653.** ⭐ The dec-1 slope is the tell —
-   0.0118 where 125 kHz predicts 0.0080 — a ~47% surcharge that is the **USB readback**. ⇒
-   **acquisition doubles at dec 2 and readback does NOT (the stored count is unchanged), and a 2x
-   term plus a 1x term lands at 1.65.** ⭐ It is the host-timed ELAPSED the regions live on, not the
-   acquisition: P1 has held arrivals at 0.50 in every cell of every ladder, so the field never drops
-   and the readback is part of the lead time.
-   ⇒ ⛔⛔ **DESIGN THE BAND SO IT DOES NOT DEPEND ON THE FACTOR: ask only whether the regions sit at
-   the SAME nominal `-s N` at dec 2, and REPORT where they moved to without testing it** (M64).
-   1.653 is a host constant with unmeasured jitter, the same class as the ~192 ms overhead C535
-   caught being optimistic by 10 ms.
-   ⭐⭐⭐ **AND THE DESIGN IS NOW FULLY WORKED OUT — C541. THE ARITHMETIC KILLED THE OBVIOUS
-   VERSION TWICE, SO DO NOT RE-DERIVE IT:**
-   ⛔ **(1) REACHABILITY.** A dec-2 primer costs **1.653x its nominal ms** of the 500 ms burst, so
-   the top is `(500−192−probe)/1.653` = **138 ms nominal** for `keri`, 157 for `idteck`.
-   ⇒ **R4 (140-145) and R5 (180-190) cannot be observed at their *stayed* positions AT ALL**, and
-   their absence there is uninformative.
-   ⛔ **(2) A COLLISION.** *fixed elapsed* moves each region to `label/1.653` — R1→9-12,
-   R2→**33-39**, R3→**60-64**, R4→85-88, R5→109-115 — and **R3's moved position lands INSIDE R2's
-   stayed position (55-65)**, so a region there is produced by BOTH hypotheses and discriminates
-   nothing.
-   ⇒ ⭐⭐⭐ **WHAT SURVIVES IS A TWO-CELL DISCRIMINATOR AND IT IS BETTER THAN THE FIVE-REGION
-   VERSION:**
-     • **a region at ~35 ms nominal ⟺ FIXED ELAPSED** (it is R2 moved; at dec 1 nothing is there —
-       `--inventory` has `keri` **LOW at 35-45 in EVERY seed**)
-     • **a region at ~100 ms nominal ⟺ FIXED SAMPLES** (under fixed-elapsed R3 has moved to 60-64,
-       and R5's 109-115 is two cells away)
-   ⇒ **the ladder need only span 5-120 ms at 5 ms — 24 cells, ~18 min per seed for two arms.**
-   ⚠ **Name BOTH remaining outcomes in the band with their meaning in advance** (M74): regions at
-   **both** ⇒ the knob changes something neither hypothesis describes; at **neither** ⇒ the dec-2
-   profile has no structure the detector can see, which the gates and a per-arm A1 separate.
-   ⚠ **Two arms** — `keri` and `idteck`, both forward-detector arms (C537) — so it is not one arm's
-   law (C514); `keri` hit 5 of 5 regions in K29 and is the stronger instrument.
-   ⛔ **What is left to do is mechanical**: add `--dec` to `burstsync.py` (set it for the primer and
-   **reset to 1 before the probe** — `decprobe.py` shows that path decodes), simulate the power both
-   ways, and capture two fresh seeds.
-   ⛔ Criterion first and committed before the capture, as every unit this round was.
-   meaning in advance (M74), reference from `--inventory` (M76).
+3. ⚠⚠ **THE CLIENT-SIDE TEST WAS BUILT AND RUN, AND IT NEEDS EXACTLY ONE MORE CAPTURE (C539-C542).**
+   ⛔⛔ **THE CONFOUND IT CLOSES: every lead-time result varies the primer with `lf read -s N`, and
+   N sets its SAMPLE COUNT and its DURATION together** — so *fixed milliseconds* has always meant
+   *fixed N*, and a purely **client-side** reading is not excluded. **`lf config --dec` separates
+   them** (C539, verified two ways) at a **measured 1.653x** stretch (C540/M79 — NOT 2x, because
+   the USB readback does not scale).
+   ✅ **DONE: the knob, its transfer function, the collision/reachability/narrowing arithmetic
+   (C541), the band, `--dec` in `burstsync.py`, and one full capture (K30, two arms, two seeds).**
+   ⛔⛔ **K30 RETURNED *NO VERDICT — regions at NEITHER* ON BOTH ARMS, AND THE FAULT IS THE
+   THRESHOLD, NOT THE BENCH.** All four gates passed with **P1 clean in every cell**. But the
+   decimated profile is **systematically lower**: `keri` pools **42 → 26%** (61% of it), `idteck`
+   **43 → 31%** (73%), dec-2 cell medians **12%** and **25%** — and the band's absolute **62.5%**
+   threshold came from the **dec-1** level.
+   ⇒ ⭐ **M80: an ABSOLUTE threshold buys independence from the ARM, never from the CONDITION** —
+   and it was foreseeable, because decimation changes the primer's duration and this whole line
+   exists because the rate is a function of that duration.
+   ⇒ ⭐⭐⭐ **THE ONE REMAINING CAPTURE: re-run K30's ladder on FRESH seeds with the threshold and
+   the power derived from the dec-2 level THIS run measured** (medians 12-25%, maxima 75-100%).
+   ⛔ **Do NOT simply lower 62.5% and re-score the banked caps — that is fitting.** The caps are
+   banked as the PILOT; its product is the level, not a verdict.
+   ⚠ **POST-HOC, LABELLED, AND IT CUTS BOTH WAYS**: `keri` has single elevated cells at **35
+   (62/50%)**, **105 (75/25%)** and **110 (50/100%)** — hints on BOTH sides of the question, none
+   making two adjacent cells in both seeds. ⇒ **the answer is genuinely open and one properly
+   powered capture decides it.**
 ⛔⛔ **AND THE RULES ANY OF THOSE MUST SATISFY, ALL EARNED THIS ROUND:** derive every reference
 from `--inventory` and never from a write-up (**M76**); compute the power **per arm** first
 (**M68**); simulate **both** a false-fire rate and a power figure before the capture (**M70/M75**);
 **give the no-verdict branch a MEANING in advance** (**M74**, and K29 shows it is cheap); name the
 arm each clause was measured on (**M71**); name the ladder and n **in the same string** as every
 rate (**M73**); compute the ladder's top **per arm** (**M77**); and before withdrawing a band,
-work out **which way its defect pushes** (**M78**).
+work out **which way its defect pushes** (**M78**); and ask what a threshold assumes about **the condition you are about to vary**, because *absolute* hides that assumption rather than removing it (**M80**).
 
 ---
 
