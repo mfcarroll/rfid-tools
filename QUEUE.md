@@ -260,20 +260,56 @@ from `indala`/`keri`'s **argmax** when their **range** was already known — C50
 not the number* applied to the peak I report but not to the window I test. ⇒ **State the window
 from the known range and score a CONTIGUOUS RUN inside it**, not the whole of it.
 
-⭐⭐ **THE NEXT HANDS-OFF UNITS, in order — and the first is now cheap and decisive:**
-1. ⭐⭐⭐ **Run the 100-170 ms band on `indala` and `keri`.** They have **never been measured above
-   80 ms**. If their second bump is also at 135-140 ms, the structure is **periodic in wall-clock
-   lead time at ~75 ms spacing** and that is a much bigger fact than one working point; if it
-   scales with the frame it lands near 67 ms and would already have shown in K15/K16. ⛔ Criterion
-   first, and **build the window from a range with a contiguous-run clause** (M66) — the same
-   ladder that just mis-fired must not be copied.
-2. ⭐⭐ **The mechanism.** Still nothing proposed survives (not the beat, not settling, not the
-   frame, not the modulation). ⛔ Criterion first.
-3. **A 5 ms grid across the full 20-200 ms range** — expensive, a tick of its own, and it is the
-   only way to say *there are no other features*. ⚠ C520 makes it more attractive: two reproducing
-   humps on one arm means the profile has more structure than any single ladder has seen.
+## ⛔⛔ AND UNIT 1 WAS RUN — THE MEASUREMENT IS GOOD AND **MY BAND WAS NOT** (C521, M67)
+
+**`indala` and `keri` measured above 80 ms for the first time** — 15 cells at 100-170 plus a 65 ms
+control, two seeds each, **all four gates passing** (pooled 75.0/64.1% and 40.6/36.7%, split-half
+Δ 3.1/6.2/3.1/1.6, P1 at 0.50 arrivals to 170 ms, disarmed in the `finally`).
+
+⭐ **`keri` has a three-cell feature at 140-150 ms** — **75/88/88%** and **75/100/75%**, the SAME
+cells in both seeds, against 0-38% below and 0-25% above. `indala` is high nearly everywhere up
+there with a dip at 120-130 and a collapse to 0-25% at 165-170.
+
+⛔⛔⛔ **AND K18's BAND SCORED `keri` AS *NO SECOND FEATURE HERE*.** Clause (a) came to **−3.1 and
+−5.7 points**, because `keri`'s wing cells at **100 and 105 ms are 62-88%**: the ladder's EDGES sit
+on another elevated region, so eleven mostly-low inner cells pooled against wings containing a peak
+give a negative gap. **M67 — a wing fixed by POSITION is only safe if the position is known to be
+outside the structure, and an edge is not outside anything; it is wherever the ladder stopped.**
+⚠ That is M63 by a different route, **in the round that cited M63 while writing the band.**
+
+⛔⛔ **NOTHING IS CLAIMED, AND DO NOT PROMOTE THE CONJUNCT THAT FIRED.** K18's clause (c) — the run
+against the wings — came to **+29.7 (`indala`) and +44.3 (`keri`)** with runs present in both seeds
+at overlapping cells. It was a conjunct of V1, and reading it as the verdict now that V1 failed is
+M62 exactly. **V1 did not fire. That is the result**, and the captures are banked for a ladder that
+is built right.
+
+⚠ **POST-HOC, LABELLED, NOT A PERIOD**: `keri` 140-150, `nexwatch` 135-140, `indala` overlapping
+145-160 — three arms with elevated regions inside **135-160 ms**, and all three collapse by
+160-170. A lead for a wider ladder.
+
+⭐⭐ **THE NEXT HANDS-OFF UNITS, in order:**
+1. ⭐⭐⭐ **Re-run 85-200 ms on `indala` and `keri` with JUSTIFIED wings** (M67). The low wing is
+   defensible at **85-90 ms** — both arms are 17-25% and 8-17% at 80 ms in K15/K16, which is
+   **independent prior data, not the run being scored**. ⛔ **The high edge cannot be assumed and
+   must be MEASURED past 170** before it is allowed to be a wing. ⚠ P1 at a 200 ms primer is the
+   budget risk on `keri` (200 + ~192 + 80 = 472 ms against the 500 ms burst) — **P1 decides it, not
+   the arithmetic** (C516). ⭐ Banked: `caps/k18_{indala,keri}_s{31,47}.json`.
+2. ⭐⭐ **The mechanism.** Nothing proposed survives — not the beat, not settling, not the frame,
+   not the modulation. ⛔ Criterion first.
+3. **A 5 ms grid across the full 20-200 ms range**, a tick of its own, the only way to say *there
+   are no other features*. ⚠ C520/C521 make it more attractive: every arm looked at closely has
+   turned out to have more structure than the ladder that found it was built for.
 4. `idteck` and `indala224` remain unmeasured on this knob. ⚠ `indala224`'s precision is 0% (C502),
-   so it can only be scored on *decoded*, not on *exact*, and that has to be said in the band.
+   so it can only be scored on *decoded*, never on *exact*, and the band must say so.
+
+⛔⛔⛔ **READ THIS BEFORE WRITING ANY BAND. SIX PRE-REGISTERED CRITERIA HAVE NOW MIS-FIRED IN TWO
+ROUNDS** — M62 a statistic decided by one cell, M63 a control presuming the shape it polices, M64 a
+criterion reading a shape off its argmax, M65 a refutation inheriting its one contrast arm's every
+difference, M66 a pooled window presuming the feature fills it, M67 a wing justified by position
+alone. **Every one was committed before its capture.** ⇒ Pre-registration is necessary and is
+nowhere near sufficient. Ask of every band: *what single cell decides this? what does it presume
+about the shape? what else differs between the arms? does the reference region have to be quiet,
+and do I KNOW it is?*
 
 ⚠ **Banked**: `caps/k17_nexwatch_s11.json`, `caps/k17_nexwatch_s23.json` hold every per-round
 score, and `./framescale.py --k17 <caps>` re-derives the whole verdict offline. ⭐ `framescale.py`
