@@ -207,7 +207,7 @@ self-consistent with every banked run and the item-6 corrections are confirmed a
 
 ## ⭐⭐⭐⭐⭐ 2026-09-17 03:5x-05:0x — THE INTERLEAVING IS WITHDRAWN AND THE REGIONS ARE REAL. READ THIS FIRST.
 
-util7 **81 → 82** across the round (util5 7 at 05:0x). **SEVEN units closed: K21 (C524), K22 (C525), K23 (C526), the `keri` re-run (C528) the drift gate's own price (C527) the frame-locked notch (C529, closed offline with no capture) and a correction to C527's own scope (C530/M73). ⛔ C526 RETRACTS a number C525 published an hour earlier — read that retraction before quoting any level — and C527 makes every *NO VERDICT, DRIFTED* on this line one-in-four likely to be noise.** ⛔ **No bench move, nothing flashed on
+util7 **81 → 82** across the round (util5 7 at 05:0x). **EIGHT units closed: K21 (C524), K22 (C525), K23 (C526), the `keri` re-run (C528) the drift gate's own price (C527) the frame-locked notch (C529, closed offline with no capture) a correction to C527's own scope (C530/M73) and Y1's costed remedy spent to a decisive end (C531/M74 — *interleaving* is EXCLUDED). ⛔ C526 RETRACTS a number C525 published an hour earlier — read that retraction before quoting any level — and C527 makes every *NO VERDICT, DRIFTED* on this line one-in-four likely to be noise.** ⛔ **No bench move, nothing flashed on
 either unit**, cu2 armed and disarmed through the `finally` on **both** capture runs — `disarm: ok`
 twice, and its mode verified as `Tag Reader` **by asking the device** before the first arm — and
 **cu1 untouched**. **Detail: `ChameleonUltra` C524, M69, M70, `burstsync.py` K21/K22,
@@ -421,6 +421,47 @@ selection rule **did no work here** and is reported because it was pinned. And i
 rule did not specify** — ✅ checked rather than hoped: the other tie-break gives the **identical**
 verdict. ⛔ The rule must name a tie-break before its next use.
 
+## ⭐⭐⭐⭐⭐ AND THE COSTED REMEDY WAS SPENT — *INTERLEAVING* IS DEAD, AND THE QUESTION WAS WRONG (C531, M74)
+
+⭐⭐⭐ **K25 re-ran Y1's bands UNCHANGED at `--reps 12`** on two fresh seeds (163, 179), both arms
+per run, per-arm shuffled, **all gates passing** (split-half **5.6/6.2 and 0.7/5.6**). C524 priced
+the move at 77% → **90%** power. ⛔ **Y1 RETURNED NO VERDICT AGAIN: +0.603 and +0.490 against
+±0.52** — one clearing, one missing by three hundredths, exactly as at reps 8.
+
+| | cross-arm Spearman |
+|---|---|
+| reps 8 (K21) | +0.402, +0.664 |
+| reps 12 (K25) | +0.603, +0.490 |
+| **all four** | **mean +0.540 — ALL POSITIVE, none below the p=0.05 critical 0.402** |
+
+⭐⭐⭐⭐ **WHAT IS NOW FIRM: *INTERLEAVING* IS EXCLUDED.** Y1's OPPOSED branch needed r <= −0.52 in
+both runs and had **77% power at reps 8 and 90% at reps 12** by its own pre-capture simulation. It
+fired **0 of 4** while **every** measurement came back positive. ⇒ **one arm is NOT high where the
+other is low, and that reading is finished** — the claim C524 could only make weakly.
+⭐ **A band whose middle is unusable can still have a decisive END, and a write-up that reports
+*no verdict* and stops has thrown that away.**
+
+⛔⛔ **AND *ONE SHARED PROFILE* IS STILL NOT ESTABLISHED — BECAUSE THE LIMIT WAS NEVER POWER, IT WAS
+THE QUESTION (M74).** Simulating weighted mixes of one shared profile and two private ones at reps
+12 gives median r **+0.83 at a shared weight of 1.0 (5th pct +0.66), +0.71 at 0.8, +0.47 at 0.6,
++0.03 at 0.0.** ⇒ the observations sit at **w ≈ 0.6-0.8: substantially but not completely shared**,
+and +0.490 is *below a fully-shared truth's 5th percentile*. **Y1's dichotomy has no branch for
+that** — a limitation C524 named as a limitation before this run confirmed it.
+
+⛔⛔⛔ **DO NOT MOVE THE THRESHOLD TO +0.45 AND DECLARE SHARED.** It was the p=0.01 permutation
+critical value, fixed before any cross-arm number existed; lowering it now is fitting, whatever
+justification is attached. **The band stands, its verdict stands, and what changes is the next
+band's QUESTION.**
+
+⇒ ⭐⭐ **M74 — THE SEQUENCE, DECIDED IN ADVANCE SO IT IS CHEAP:** a pre-registered band returns NO
+VERDICT on consistent-looking data → **raise n ONCE** (legitimate, pre-priceable, answers *was it
+power?*) → if it repeats, **replace the dichotomy with an ESTIMATION band** that reports the
+quantity with an interval. ⛔ **Never a fourth step of re-tuning the original threshold.**
+
+⭐ **Y3 FIRED A SECOND TIME**, so the four named locations have now held across **three independent
+seed pairs** since K19/K20 named them. ⚠ `indala`'s 130 ms cell missed in one seed of this pair;
+the region still carries its two cells in both.
+
 ## ⭐⭐ THE NEXT HANDS-OFF UNITS, IN ORDER — ITEMS 0 AND 1 ARE K22'S OWN CONSEQUENCES
 
 0. ✅ ~~**K22, the sub-20 ms ladder, and `keri`'s re-run**~~ **ALL RUN THIS ROUND —
@@ -449,11 +490,16 @@ verdict. ⛔ The rule must name a tie-break before its next use.
    power table and its two caps are in the ChameleonUltra tree; `./framescale.py --k22 caps/k22_*`
    re-derives the whole verdict offline. ⛔ **Do not re-run it and do not re-derive its design** — what is
    open is items 0 and 1 above, which are its consequences.
-3. ⭐⭐ **Y1 AT `--reps 12`, WHICH IS THE COSTED REMEDY C524 NAMED.** Same ladder, same arms,
-   `--per-arm-shuffle`, two fresh seeds (**163** and **179**; 113/127 are spent). It takes Y1 from
-   77% to **90%** power and is the one thing that can turn this round's NO VERDICT into an answer.
-   ⚠ ~30 min per seed. ⛔ The band is unchanged and must not be re-tuned — re-running a band at
-   higher n is replication; re-running it with new thresholds is fitting.
+3. ✅ ~~**Y1 AT `--reps 12`**~~ **SPENT THIS ROUND — C531. ⛔ Do not spend it again.**
+   ⇒ ⭐⭐⭐ **WHAT REPLACES IT: AN ESTIMATION BAND FOR THE SHARED WEIGHT.** Four independent
+   measurements (+0.402, +0.490, +0.603, +0.664) put it near **w ≈ 0.6-0.8**, but that is a
+   POST-HOC estimate off banked caps. ⛔ Pre-register the INTERVAL'S METHOD, not a pass/fail
+   line: the simulation that maps w → the expected cross-arm r already exists in C531, so the
+   band is *report w with a 90% interval by matching the observed r against that mapping*,
+   declared before the capture. ⚠ **Compute its width first (M70/M73, and name the n it
+   assumes in the same sentence)** — if the interval is 0.2-1.0 wide, the band cannot say
+   anything and should not run. ⭐ It can be scored on the FOUR banked pairs as a
+   sensitivity check before any fresh capture, which costs nothing.
 4. ⭐ **The mechanism.** Still open and still the biggest prize. Nothing proposed survives — not the
    beat, not settling, not the frame, not the modulation. ⛔ Criterion first, **and now simulated
    twice first** (M70).
