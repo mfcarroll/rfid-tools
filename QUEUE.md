@@ -6,6 +6,21 @@ detail and its method rules, newest first. ⛔ The blocks further down are HISTO
 their claims were **retracted or scoped inside the same round**, and each carries its own
 pointer. **Do not quote a level or a rate from them without reading its pointer.**
 
+⛔⛔⛔ **BENCH STATE 2026-09-17 13:4x — cu2 IS BEING FLASHED TO A BURST-1000 BUILD FOR K34a.
+READ THIS BEFORE TOUCHING THE BENCH.** ⭐ **cu1 WAS NOT TOUCHED and is never flashed.**
+
+| | |
+|---|---|
+| **what** | `LF_TAG_BURST_TARGET_MS` 500 → **1000** (`lf_tag_em.c:75`), ChameleonUltra commit **`e81062da`** — ⛔ **EXPERIMENTAL, marked in its own message as TO BE REVERTED** |
+| **why** | K34a — does a longer burst MOVE the lead-time regions or only reveal more of them? Pre-registered at `41c3aabc`; read `burstsync.py`'s **K34a PRE-REGISTERED** section |
+| **both DFU zips are kept OUTSIDE the tree** so no rebuild is needed to go either way | `/Users/Shared/code/personal/rfid/.tools/builds/k34a-b500-dfu-app.zip` and `k34a-b1000-dfu-app.zip` (plus `fallback-df053dd-b500-dfu-app.zip`, the build cu2 ran before this tick) |
+| **how to flash either** | `./enterdfu.py --port /dev/tty.usbmodemF429364E46961 --program <zip>` — ⚠ it fails to TRIGGER two or three times before succeeding, with nothing flashed; retry rather than suspecting the device |
+| ⭐⭐ **how to tell which build is on it — ASK THE DEVICE, never a version string (C461)** | arm any LF slot, then `hw emudebug`: **`frames per burst` reads 31 at burst 500 and 62 at burst 1000.** Measured 31 on all three arms before this flash |
+
+⭐ **TO PUT THE BENCH BACK**: flash `k34a-b500-dfu-app.zip`, confirm `frames per burst` is **31**
+again, and revert `e81062da` in the ChameleonUltra tree. ⛔ **Neither build is a proposal** — the
+burst-1000 constant must not reach any branch as a change.
+
 ⛔⛔ **BENCH STATE CHANGED 2026-09-16 — cu2 WAS REFLASHED.**
 `v2.2.0-920-gdf053dd` — **a committed, clean build** of this tree, carrying the `hw emuhold
 --top` instrumentation (ChameleonUltra `17d65d50`). **cu1 was never touched.**
