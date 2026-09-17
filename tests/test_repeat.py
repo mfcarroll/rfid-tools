@@ -11,13 +11,26 @@ meant ten rebuilds. The licence is earned once and the read taken N times.
 """
 
 import unittest
+from unittest import mock
 
 from benchmatrix import plan as planning, registry as reg, runner
 from benchmatrix.stations import Bench
 from tests.helpers import make_devices, quiet
 
 
-class RepeatingHoldsTheConditionsFixed(unittest.TestCase):
+class NoRealPauses(unittest.TestCase):
+    """⛔ EVERY TEST HERE PATCHES THE PAUSE, AND THE SUITE'S RUNTIME IS WHY IT IS A SEAM AT ALL.
+    `_read` waits between repeats (C507). Left alone, a four-repeat test sleeps for real and the
+    467-test suite went from 0.2 s to 2.2 s — which is how a fast suite stops being run."""
+
+    def setUp(self):
+        self.slept = []
+        patch = mock.patch.object(runner, "_sleep", self.slept.append)
+        patch.start()
+        self.addCleanup(patch.stop)
+
+
+class RepeatingHoldsTheConditionsFixed(NoRealPauses):
 
     def _run(self, repeat, pm3_answers=None):
         protos = reg.resolve(["em410x"])
@@ -52,7 +65,7 @@ class RepeatingHoldsTheConditionsFixed(unittest.TestCase):
         self.assertEqual([c.outcome.value for c in res.cells], ["EXACT"])
 
 
-class ADisagreementIsNotResolvedByVoting(unittest.TestCase):
+class ADisagreementIsNotResolvedByVoting(NoRealPauses):
 
     class Flaky:
         """A reader that answers differently on successive reads OF AN ARMED CELL.
@@ -114,3 +127,63 @@ class ADisagreementIsNotResolvedByVoting(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TheRepeatsAreSpacedBecauseUnspacedTheyResampleOnePhase(NoRealPauses):
+    """⛔⛔ C507. Six IDENTICAL reads in one pm3 session returned the decode pattern `.X.XX.` in
+    16 of 16 sessions — index 1, 3 and 4 every time and 0, 2 and 5 never — because each read lands
+    at its own phase of the emission's ~61-80 ms beat and the cadence is deterministic. A host-side
+    pause alone moved both the pattern and the rate (`gproxii` 29.2% → 70.8%).
+
+    ⇒ back-to-back repeats revisit the same phases, so AGREEMENT CAN BE MANUFACTURED BY THE
+    SCHEDULE. The flag's whole purpose is that agreement means something, so the pause is not a
+    nicety — without it the option reports a tight, confident and wrong answer.
+    """
+
+    def _run(self, repeat, jitter=None):
+        protos = reg.resolve(["em410x"])
+        p = planning.build(protos, ["t55.pm3"], ["rd.pm3"], Bench())
+        p.repeat = repeat
+        if jitter is not None:
+            p.repeat_jitter = jitter
+        return runner.run(p, make_devices(), interactive=False, session="S", out=quiet)
+
+    def test_a_single_read_never_waits(self):
+        """⚠ THE DEFAULT PATH MUST BE UNTOUCHED. `repeat` is 1 for every run ever banked, so a
+        pause reachable at repeat=1 would tax every station for a feature nobody asked for."""
+        self._run(1)
+        self.assertEqual(self.slept, [])
+
+    def test_the_pauses_go_BETWEEN_the_reads_so_n_reads_take_n_minus_one(self):
+        """⛔ Not before the first and not after the last: a pause with no read on both sides of
+        it decorrelates nothing and still costs the operator time."""
+        self._run(4)
+        self.assertEqual(len(self.slept), 3)
+
+    def test_every_pause_is_inside_the_configured_span(self):
+        self._run(6)
+        self.assertTrue(all(0.0 <= d <= runner.REPEAT_JITTER_S for d in self.slept), self.slept)
+
+    def test_the_span_covers_more_than_one_beat_period(self):
+        """⭐ THE NUMBER HAS TO BE BIGGER THAN THE THING IT DECORRELATES. C486 measured a null
+        every ~61-80 ms; a span shorter than that would leave successive repeats correlated, which
+        is the whole defect. Pinned so a later 'tidy' cannot shrink it silently."""
+        self.assertGreater(runner.REPEAT_JITTER_S, 0.080)
+
+    def test_the_pauses_are_not_all_identical(self):
+        """⚠ A CONSTANT pause is not a fix — it is a different fixed cadence, which is what
+        C507 measured as deterministic in the first place. They must be drawn, not set."""
+        self._run(12)
+        self.assertGreater(len(set(self.slept)), 1, "a constant pause is just another cadence")
+
+    def test_it_can_be_turned_off_to_reproduce_a_pre_C507_run(self):
+        self._run(4, jitter=0.0)
+        self.assertEqual(self.slept, [0.0, 0.0, 0.0],
+                         "disabled means a zero wait, not a skipped code path")
+
+    def test_turning_it_off_does_not_change_what_is_read(self):
+        """⚠ The pause must be the ONLY thing the flag changes."""
+        spaced = self._run(4)
+        unspaced = self._run(4, jitter=0.0)
+        self.assertEqual([c.outcome.value for c in spaced.cells],
+                         [c.outcome.value for c in unspaced.cells])
