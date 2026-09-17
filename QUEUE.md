@@ -210,7 +210,68 @@ it (M60/C500), and corrected two of its own claims (C499's best-length argmax, C
 magnitudes). Everything the tagless bench can say about read length has been said. ⛔ **Do not
 re-measure it** — a further sweep would be C473's method: re-measuring a question already answered.
 
-## ⭐⭐⭐ 2026-09-17 01:0x — THE TIMING ROUND. READ THIS FIRST.
+## ⭐⭐⭐⭐ 2026-09-17 02:0x — THE LEAD TIME IS A WORKING POINT. READ THIS FIRST.
+
+util7 **79 → 80** across the whole round (util5 21 at 02:04). ⛔ **No bench move, nothing flashed
+on either unit**, and **both** Chameleons verified in `Tag Reader` **by asking the device** at the
+end. **Detail: `ChameleonUltra` C515-C518, M62/M63/M64, `burstsync.py` K12-K16.**
+
+⭐⭐⭐ **THE HEADLINE: the field-up lead time before a read is worth 0% → ~95% on three arms, and a
+65 ms lead time puts ALL THREE above 75% in every session measured.**
+
+| arm | 40-45 ms | **65 ms** | 60 ms | its baseline |
+|---|---|---|---|---|
+| `gproxii` | 100% | **100%** | ⛔ **0-8%** | ~50% |
+| `indala` | 8-17% | **96% / 83%** | 83% | ~50% |
+| `keri` | 0-12% | **92% / 75%** | 88% | ~33% |
+
+⭐ `indala` and `keri` have a **HUMP** (wings collapse, middle 50-70 ms reaches 88-96%) where
+`gproxii` has a **HOLE** at 60 ms in a field of 100%. **The arms differ in SIGN at the same lead
+time** — one arm's hole is the other two's peak — so no value is merely *safe*: **65 ms works for
+all three, 60 ms is catastrophic for one.**
+
+⛔⛔ **CARRY THE RANGE, NOT THE NUMBER.** The peak's position does **not** reproduce (`indala`
+65 → 55 ms, `keri` 65 → 60). The working region is **~50-70 ms**. This is C504's read-length
+lesson arriving in a new variable, and it was re-learned the hard way (M64).
+
+⛔⛔⛔ **WHAT IT DOES NOT LICENSE, AND THIS IS THE LINE THAT MATTERS.** Ungraded — 7 runs, 3 arms,
+no null sweep, no calibration row — so it **moves no cell**. ⛔ **A fitted lead time in the GRADED
+path re-bases every past cell**, exactly as re-pointing `pm3_read` would, and is the **operator's
+decision**. What this round produced is a number with a control attached, in the gap register.
+
+⚠ **The mechanism is unexplained**: not the beat (C515 — cells 60 and 180 are at the same phase
+and score 2/72 vs 42/48), not settling (C515 — Q3 failed in both runs), and now not
+protocol-independent either. ⭐ **That is the open question on this line.**
+
+⚠⚠ **THREE METHOD RULES, AND THEY ARE ONE DISEASE: A STATISTIC DECIDED BY A SINGLE CELL.**
+**M62** a pooled contrast fired at +21 pts on one notch (bottom TWO cells were above the top
+three); **M63** a bench-moved control presumed the flatness it was testing, so two healthy runs
+were declared uninterpretable; **M64** a criterion read a shape off its argmax and gave two arms
+with equally reproducing shapes opposite verdicts on one 5 ms cell. ⛔⛔ **All three were
+pre-registered before their captures.** ⇒ **Pre-registration protects against fitting a criterion
+to the data; it does nothing about a criterion that was badly built.** Ask of every band: *what
+single cell could decide this?*
+
+⭐ **THE NEXT HANDS-OFF UNITS, in order:**
+1. ⭐⭐ **The mechanism.** Nothing proposed so far survives. A 5-25 ms structure that differs in
+   sign between arms is the clue; `gproxii` is ASK/biphase and the other two are PSK, which is the
+   first thing to line up against it. ⛔ Criterion first.
+2. **Is the hole/hump fixed in lead time or in the arm's own frame count?** `gproxii`'s frame is
+   1.6 of its probe and the PSK arms' differ — the same arithmetic that turned C494's 6x spread
+   into frames (C499). ⭐ Cheap, and it would explain the sign difference if it works.
+3. **A 5 ms grid across the full 20-200 ms range** (37 cells) — C515's notch and this hump were
+   both found on ladders that could have missed them; a 20 ms grid misses a 5 ms feature ~3 times
+   in 4. Expensive (a tick of its own) but it is the only way to say *there are no others*.
+4. `nexwatch`, `idteck`, `indala224` are **entirely unmeasured** on this knob.
+
+⚠ **Raw per-round scores for every run are banked** — `caps/k12_gproxii_s17.json`,
+`k13_gproxii_s41.json`, `k14_gproxii_s73.json`, `k15_indala_keri_s91.json`,
+`k16_indala_keri_s137.json` — so every band can be re-derived offline, and each run's analysis was
+exercised against banked data before the capture that used it.
+
+---
+
+## ⭐⭐⭐ 2026-09-17 01:0x — the timing round, as it stood an hour in
 
 util7 **79 → 80** across the round. ⛔ **No bench move, nothing flashed on either unit**, cu2
 verified back in `Tag Reader` **by asking the device**, cu1 untouched. Operator checked in over VNC
