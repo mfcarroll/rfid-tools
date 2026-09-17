@@ -159,13 +159,34 @@ The real question is whether PSK emulation is reachable on this board at all:
   with our subcarrier either, but it decoded Indala/KERI/IDTECK from a *Flipper* emulation. ⛔
   Needs the operator — the Flipper is on Rig A.
 
-### ⛔⛔ `gproxii` IS NOW THE SHARPEST OPEN QUESTION, AND IT IS NOT THIS
+### ✅ `gproxii` IS ANSWERED TOO — AND IT IS NOT AN EMITTER DEFECT (C487, `42373544`)
 
-`gproxii.c` builds **duty 32 of `counter_top` 64** at the 125 kHz clock. `em410x.c` builds
-**`msb | 32` at `counter_top` 64** on the same clock. **Same shape, same rate, same peripheral
-— em410x decodes and gproxii does not.** So gproxii is not a duty problem, not a rate problem
-and not a clock problem. Whatever it is, it is in the frame or the encoding, and it needs its own
-unit.
+⭐⭐ **Our GProxII emission decodes byte-exact.** The Proxmark's own decoder on the captured
+emission returns `G-Prox-II - Len: 26 FC: 123 Card: 1337 xor: 141, Raw: fac2a38c2b081af0210b12c2`
+— **exactly** the registry's expected raw — and `data rawdemod --ab` recovers the same 96
+bits independently.
+
+⛔⛔ **The failure is ONE STEP, isolated in a single session on the same 40,000 samples:**
+
+    lf read -s 40000  →  lf gproxii demod   →  nothing
+    data save → data load → lf gproxii demod   →  DECODES
+
+Live `lf gproxii reader`: **0 of 8**. Capture → save → load → demod: **3 of 3**.
+⭐ Control: the identical test on `indala` fails **both** ways, so save/load rescues gproxii
+specifically and is not a universal get-out.
+
+⇒ **So the six had TWO causes, and both are now measured**: coherence for the five PSK arms
+(C486), and a **margin/instrument artifact** for gproxii — our frame is on the air, byte-exact,
+and the reader's live read-then-demod path will not lock onto it.
+
+⚠⚠ **AND THIS TOUCHES THE HARNESS.** `lf <proto> reader` IS the path every emulate cell is
+graded on, so **a SILENT grade is not by itself evidence that the emitter is silent.** ⛔ It
+does NOT follow that other SILENT cells are artifacts — gold-tag readings decode live on that
+same path, so whatever the mechanism, it bites a marginal signal and not a real tag's.
+⇒ **The honest next unit** (bounded, no bench move, ⚠ ungraded — it is about the INSTRUMENT,
+not about re-grading cells): arm each emulate protocol on cu2 in turn and compare live demod
+against save/load demod on one capture each. That says how wide the artifact is. Recorded as a row
+in the `rfid-tools` gap register.
 
 ## 4. ~~Rig A's tag contents are unknown~~ — READ (C480/L448, `e3e8de6e`)
 
