@@ -36,11 +36,18 @@ import time as _time
 #: ⛔⛔ THIS NUMBER IS MEASURED NOW, AND THE FIRST VERSION OF IT WAS WRONG. It was set to 0.25
 #: from C507 alone, on the reasoning that the span only had to exceed the ~61-80 ms beat period.
 #: **A pause is not a neutral randomiser**: ChameleonUltra C513 swept it and the gap systematically
-#: changes the RATE, because past a certain gap the Chameleon's field-arrival burst restarts and a
-#: FRESH burst does not decode at all (C512: `gproxii` 50% at no gap, 22% at 300 ms, **0% at 600
-#: and 900**, with arrivals per read climbing 0.50 -> 1.00 as it goes). At the 250 ms originally
-#: shipped, arrivals were already 0.83 and the rate 33% against 50% — **the "fix" was suppressing
-#: the thing it was meant to measure.**
+#: changes the RATE, because past a certain gap the Chameleon's field-arrival burst restarts
+#: (C512: `gproxii` 50% at no gap, 22% at 300 ms, **0% at 600 and 900**, arrivals per read climbing
+#: 0.50 -> 1.00). At the 250 ms originally shipped, arrivals were already 0.83 and the rate 33%
+#: against 50% — **the "fix" was suppressing the thing it was meant to measure.**
+#:
+#: ⛔⛔ AND THE SCOPE, WHICH COST AN HOUR TO GET RIGHT: **that collapse is `gproxii`-ONLY**
+#: (C514). Run on `indala` and `keri` with the same arrivals control passing (0.33 -> 1.00 at
+#: 600 ms), **neither lost anything** — `indala` 50% -> 67%, `keri` 33% -> 54%, against a
+#: criterion asking for a halving. ⚠ Those rises are NOT significant at n=24 and are not claimed;
+#: what is established is that the collapse does not generalise. ⇒ **this span is justified FOR
+#: `gproxii` and is simply UNMEASURED at intermediate gaps for the other arms**, which is a
+#: different thing from being right for them.
 #:
 #: ⭐ C513's sweep, `gproxii`, arrivals per read and rate by gap:
 #:     0ms 0.50/50%   40 0.50/67%   80 0.50/33%   120 0.50/50%
