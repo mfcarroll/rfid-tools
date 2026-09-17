@@ -205,10 +205,86 @@ self-consistent with every banked run and the item-6 corrections are confirmed a
 
 ## ⭐⭐ WHERE THE NEXT TICK STARTS
 
+⭐⭐⭐ **UNIT 2 AND UNIT 4 OF THE 02:0x LIST ARE BOTH CLOSED** by the 02:4x block above — the
+hump does not travel with the frame (C519/C520), and `nexwatch` is measured. ⛔ **Do not re-open
+them**; the open units are the ones that block names, and the first of those is now cheap.
+
 ⭐⭐ **THE READ-LENGTH LINE IS CLOSED.** C499-C504 answered it, audited the method that nearly broke
 it (M60/C500), and corrected two of its own claims (C499's best-length argmax, C493's leading-bit
 magnitudes). Everything the tagless bench can say about read length has been said. ⛔ **Do not
 re-measure it** — a further sweep would be C473's method: re-measuring a question already answered.
+
+## ⭐⭐⭐⭐⭐ 2026-09-17 02:4x — THE WORKING POINT IS IN MILLISECONDS, NOT FRAMES. READ THIS FIRST.
+
+util7 **80 → 81** (util5 24 at 02:32). ⛔ **No bench move, nothing flashed on either unit**, cu2
+armed and disarmed through the `finally` and verified back in `Tag Reader`; **cu1 untouched**.
+**Detail: `ChameleonUltra` C519, C520, M65, M66, `framescale.py`, `burstsync.py` K17, commits
+`41dfc800` `a7de9290` `fdd31f49` `feeec8b0` `977ddd49`.**
+
+⭐⭐⭐ **THE HEADLINE: the lead-time hump does NOT travel with the protocol's frame — it sits at
+the same 55-65 ms on an arm whose frame is twice as long.** That was the round's unit 2, and it is
+now answered from both ends.
+
+| step | what it did |
+|---|---|
+| **C519**, offline, no device | `gproxii`'s banked K12/K13 ladders refute the frame reading — **80.6% and 78.5%** pooled at its own 2.44 frames, where the band needed <= 30%, and FLAT across 0.41-4.07 frames but for the 60 ms hole |
+| **M65**, my own band's defect | ⛔ `gproxii` is the only arm with a different frame **and** the only ASK/biphase one, so C519 alone cannot separate *not frames* from *a PSK effect* |
+| **C520**, one capture, tagless Rig B | ⭐ `nexwatch` breaks the confound — PSK, but a 4096-sample frame, so the two readings are **66 ms apart**. **U1 fires in both seeds: +50.8 and +45.8 points**, 4 of 5 window cells above the highest wing |
+
+⛔⛔ **`indala` AND `keri` COULD NEVER HAVE ANSWERED THIS — THEY SHARE A 2048-SAMPLE FRAME.** Their
+matching humps at the same 65 ms are what *both* hypotheses predict. Any future cross-arm question
+about units has to start by asking which arms can discriminate; two of the six always can't.
+
+⭐ **`nexwatch`'s profile, two seeds at n=8** (and this closes the old item 4 — it was the last arm
+entirely unmeasured on this knob):
+
+| lead ms | 40 | 45 | **55** | **60** | **65** | 70 | 75 | 80 | 120 | 125 | 130 | **135** | **140** | 160 |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| seed 11 | 12% | 0% | **88%** | **88%** | **75%** | 25% | 0% | 0% | 12% | 12% | 0% | **62%** | **88%** | 25% |
+| seed 23 | 0% | 12% | **62%** | **75%** | **88%** | 25% | 0% | 0% | 12% | 0% | 25% | **75%** | **88%** | 12% |
+
+⭐ Both gates passed **before** any band was read: pooled 34.8% / 33.9% against a 15% no-power
+floor, K16 split-half **Δ 1.8 and 3.6** against a 15-point drift ceiling, and **P1 at 0.50 arrivals
+in every cell including 160 ms**, so the whole ladder sat inside one 500 ms burst.
+
+⚠⚠ **THE SECOND BUMP AT 135-140 ms IS A LEAD, NOT A FINDING, AND THE DISTINCTION IS THE POINT.**
+It reproduced in both seeds at the same two cells (62-88% against 0-25% either side) — and **the
+band aimed at it did NOT fire** (+22.5 / +33.8 points, 2 of 5 on its shape clause), so by the rule
+written before the capture nothing is claimed about a second working point. ⛔ Do not quote
+135-140 ms as a working point; quote it as the thing the next ladder is for.
+
+⛔⛔ **M66 IS WHY IT MISSED, AND IT IS THE FIFTH MEMBER OF M62's FAMILY.** **A pooled band over a
+window presumes the feature FILLS the window.** U2 pooled five cells and the rise occupied two;
+U1's rise was three cells wide and fired on a comparable magnitude. ⚠ And the window was built
+from `indala`/`keri`'s **argmax** when their **range** was already known — C504's *carry the range,
+not the number* applied to the peak I report but not to the window I test. ⇒ **State the window
+from the known range and score a CONTIGUOUS RUN inside it**, not the whole of it.
+
+⭐⭐ **THE NEXT HANDS-OFF UNITS, in order — and the first is now cheap and decisive:**
+1. ⭐⭐⭐ **Run the 100-170 ms band on `indala` and `keri`.** They have **never been measured above
+   80 ms**. If their second bump is also at 135-140 ms, the structure is **periodic in wall-clock
+   lead time at ~75 ms spacing** and that is a much bigger fact than one working point; if it
+   scales with the frame it lands near 67 ms and would already have shown in K15/K16. ⛔ Criterion
+   first, and **build the window from a range with a contiguous-run clause** (M66) — the same
+   ladder that just mis-fired must not be copied.
+2. ⭐⭐ **The mechanism.** Still nothing proposed survives (not the beat, not settling, not the
+   frame, not the modulation). ⛔ Criterion first.
+3. **A 5 ms grid across the full 20-200 ms range** — expensive, a tick of its own, and it is the
+   only way to say *there are no other features*. ⚠ C520 makes it more attractive: two reproducing
+   humps on one arm means the profile has more structure than any single ladder has seen.
+4. `idteck` and `indala224` remain unmeasured on this knob. ⚠ `indala224`'s precision is 0% (C502),
+   so it can only be scored on *decoded*, not on *exact*, and that has to be said in the band.
+
+⚠ **Banked**: `caps/k17_nexwatch_s11.json`, `caps/k17_nexwatch_s23.json` hold every per-round
+score, and `./framescale.py --k17 <caps>` re-derives the whole verdict offline. ⭐ `framescale.py`
+also re-derives C519 from K12-K16 with no device at all.
+
+⛔⛔ **STILL LICENSES NOTHING HERE.** Ungraded — no null sweep, no calibration row — so it **moves
+no cell**. A fitted lead time in the graded path re-bases every past cell exactly as re-pointing
+`pm3_read` would, and remains the **operator's decision**. The gap register carries the evidence.
+
+---
+
 
 ## ⭐⭐⭐⭐ 2026-09-17 02:0x — THE LEAD TIME IS A WORKING POINT. READ THIS FIRST.
 
