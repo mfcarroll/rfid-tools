@@ -86,147 +86,127 @@ byte-exact**, then the tail collapses to all-ones. A 224-bit frame is **57.3 ms*
 sit just under that spacing. ⛔ The wrong-frame reading was made without looking at the payload —
 see item 8.
 
-## ⭐⭐⭐ 2026-09-16, 21:00 — THE READ WINDOW IS 3-4 FRAMES, AND MY OWN FIRST SWEEP WAS CONFOUNDED
+## ⭐⭐⭐ 2026-09-16, EVENING — THE READ-LENGTH ROUND, CONSOLIDATED (C499-C504)
 
-**Repo for the detail: `ChameleonUltra` C499 and METHOD.md M60** (`0a0c201b`).
+**Detail: `ChameleonUltra` C499, C500, C501, C502, C503, C504 and METHOD.md M60.** Six claims from
+one evening, all ungraded, all on the tagless Rig B. This block replaces the 21:00 and 22:10 ones.
 
-⭐⭐ **THE 6x SPREAD IN THE PM3'S SAMPLE COUNTS (C494) HAS A UNIT: FRAMES.** Converted to
-multiples of each protocol's own frame length, the client asks for indala **14.6**, keri 4.9,
-idteck 2.4, nexwatch 4.9, gproxii **1.6**. A per-arm ladder (1,2,3,4,6x the frame, plus the
-reader's own count), every rung inside ONE arming and ONE pm3 session, arms round-robined, **rungs
-shuffled**, two seeds pooled to **n=24**, tagless null **0 hits**:
+### What it measured
 
-| arm | frame | 1f | 2f | 3f | 4f | 6f | its own reader | ⚠ argmax (NOT stable) |
-|---|---|---|---|---|---|---|---|---|
-| `indala` | 2048 | **0** | 14 | **21** | 19 | 17 | 1/24 (14.6f) | `-s 6144` |
-| `keri` | 2048 | **0** | 6 | 9 | **14** | 9 | 8/24 (4.9f) | `-s 8192` |
-| `idteck` | 2048 | **0** | 5 | **9** | 6 | 6 | 7/24 (2.4f) | `-s 6144` |
-| `nexwatch` | 4096 | 1 | 7 | 7 | **10** | 3 | 5/24 (4.9f) | `-s 16384` |
-| `gproxii` | 6144 | **0** | 15 | **24 of 24** | 18 | 8 | 9/24 (1.6f) | `-s 18432` |
-| `indala224` | 7168 | **0** | **0** | **0** | **0** | — | 0/24 (4.2f) | ⛔ none |
+⭐⭐ **THE UNIT IS THE PROTOCOL'S OWN FRAME, NOT MILLISECONDS** (C499). A per-arm ladder of read
+lengths, interleaved and shuffled, two seeds pooled to n=24, tagless null 0 hits. The control that
+separates the units was already in the ladder: at **`-s 6144`** — one sample count, one duration,
+one session — `indala` is **21/24** (3 frames) and `gproxii` **0/24** (1 frame). The per-arm peak
+spans 49-147 ms in time and only 3-4 in frames.
 
-⭐⭐⭐ **`gproxii` AT `-s 18432` IS 24 OF 24 — perfect, in both seeds independently.** ⭐⭐ **ONE
-FRAME IS 0,0,0,1,0,0 OF 24 ACROSS THE SIX**, and it is the rung that most often returns a decode
-marker with the WRONG payload — C490's confident-wrong-answer, reproduced on purpose.
+⭐⭐ **THE SHAPE, WHICH REPRODUCED ACROSS TWO SESSIONS:**
 
-⛔⛔⛔ **AND READ M60 BEFORE YOU SWEEP ANYTHING, BECAUSE IT NEARLY COST THIS FINDING.** The FIRST
-version of this run ran the ladder ASCENDING, so every length sat at a fixed position after the
-arming and position was perfectly correlated with length. It scored `lf keri reader` **2/12**
-against `lf read -s 10000` + `lf keri demod` **10/12** — and `cmdlfkeri.c:222` is `lf_read(false,
-10000); demodKeri()`, i.e. the *same count through the same demodulator*. **Nothing but position
-could differ.** Shuffled, the two agree, and `gproxii`'s zeros became 8-12/12. ⇒ **The confound was
-as large as the effect being measured**, and would have been written up as a knife-edge length
-window with n=12 behind it.
+| read length | what happens |
+|---|---|
+| **1 frame** | ⛔ fails on **every** arm — and it does not fail quietly (see precision) |
+| **2-6 frames** | works; **3-4 is the best region** |
+| beyond ~6 frames | declines — `lf indala reader`'s 30,000 is **14.6 frames** and scores 1/24 |
 
-⛔ **What that REFUTES**, including two things this repo's own gap register asserted:
-- the ~61 ms fading period does **not** cap the usable read — `gproxii` peaks at **147 ms**
-  (2.4 null intervals) and is still 18/24 at 197 ms;
-- *a read-length sweep on nexwatch shows no trend* — it does, swept in frames (1f 1/24, 4f 10/24);
-- the reader command's code path is **not** different from `lf read -s N` + `demod` at the same N,
-  so C487's save/load rescue is about save/load and nothing else;
-- ⭐ **`idteck` is not a zero** — 9/24 at 3 frames. It was item 2 of the old next-tick list.
+⛔⛔ **DO NOT QUOTE A SPECIFIC `-s N` PER ARM** (C504). A second session at n=20 moves the argmax
+for **four of the five** arms that decode (`indala` 3f→6f, `keri` 4f→3f, `nexwatch` 4f→3f,
+`gproxii` 3f→4f; only `idteck` holds at 3f). C499 read a peak off a noisy plateau. **Carry the
+range, not the number.** ⭐ The two readers genuinely outside the window are `lf indala` (14.6
+frames) and `lf gproxii` (1.6) — that part is solid and is C494's 6x spread explained in one unit.
 
-## ⭐⭐ 2026-09-16, 22:10 — AND THE ARMS SPLIT BY *FAILURE MODE*, NOT ONLY BY RATE
+⭐⭐ **PRECISION IS THE READER'S, NOT THE LENGTH'S** (C502 post-hoc, C503 and C504 with criteria
+written first). Every read scores twice — **decoded** (a frame of this protocol at all) and
+**exact** (it was ours) — and the gap is a credential reported confidently and wrongly:
 
-**ChameleonUltra C502** (`facb0df3`), ⚠ **post-hoc** over C499's own scores, seed 2, n=12/rung.
-Each read already scores twice — **decoded** (a frame of this protocol at all) and **exact** (it was
-ours) — and the difference is a credential the reader reports confidently and wrongly:
+| arm | precision above 1 frame | note |
+|---|---|---|
+| `idteck` | **100%** | 25/25 decodes, and **0 wrong in 24** at n=24 (C503) |
+| `gproxii` | **100%** | 62 of 63; the one miss was its single 1-frame decode |
+| `keri` | 98% | |
+| `nexwatch` | 77% | |
+| `indala` | 76% | |
+| `indala224` | **0%** | ⛔ **51 decodes, none correct, at every length** |
 
-| arm | decoded | wrong | mode |
-|---|---|---|---|
-| `indala` | 51 | **16** | fails OPEN |
-| `nexwatch` | 26 | **10** | fails OPEN |
-| `indala224` | 28 | **28** | fails OPEN, always |
-| `keri` | 20 | 3 | fails OPEN, rarely |
-| `idteck` | 11 | **0** | ⭐ fails CLOSED |
-| `gproxii` | 35 | **0** | ⭐ fails CLOSED |
+⛔ **`indala` and `indala224` share `lf indala demod`, and it is the permissive one.** One
+demodulator, not two arms.
+⭐⭐ **AND AT ONE FRAME PRECISION COLLAPSES ON EVERY ARM** (`indala` 0% of 4, `indala224` 0% of 18,
+`gproxii` 0% of 1, `keri` 20% of 5) ⇒ *one frame never decodes* is really ***one frame decodes and
+lies***. The demodulator does not go quiet; it locks onto a partial frame and reports it.
 
-⭐⭐ **At a ONE-FRAME read `lf indala demod` locks and is wrong 6 times out of 6.**
-⛔ **Not a harness defect — the harness's design being right.** `benchmatrix/outcomes.py` already
-makes WRONG first-class and never merges it into SILENT, and `devices.py` refuses to grade a reader
-with no decode marker for exactly this reason. ✅ **And today's SILENT grades are correct**: at each
-arm's own graded sample count the open-failing arms barely decode at all.
-⛔⛔ **THE SECOND REASON NOT TO RE-POINT `pm3_read`**: at 3-4 frames `indala` decodes 12/12 with
-**2 of those 12 wrong**, so cells would move to **WRONG** as well as to EXACT and the matrix would
-gain real ❌ cells. An argument for it being the operator's call, not against the change.
+⭐⭐ **THAT ALSO DISSOLVES THE EQUAL-GEOMETRY RESIDUAL** (C503, criterion first). `indala`, `keri`
+and `idteck` share a 2048-sample frame, so one ladder compares them legitimately. **exact = decode
+x precision:** `indala` **92% / 66%**, `keri` 38% / 94%, `idteck` 31% / **100%**. ⇒ **The readers
+differ in strictness and that alone accounts for the spread — no difference in our emission need be
+invoked.** ⚠ It removes the need for one; it cannot prove there is none.
+
+⭐ **`indala224`** (C501): leading-bit agreement at n=46 is min 33, **median 89, max 154 of 224** —
+8.4 / 22.8 / 39.4 ms — and **flat across read length**, so the cut is in the EMISSION, not the
+capture. ⛔ C493's 189/199/202/212 do **not** reproduce (all four sit above all 46 of mine; its
+computation is not recoverable from L461). ⭐ What stands harder: **the payload IS ours.** And the
+smaller window explains the frame-length column better than 48-54 ms did — 16.4 ms frames fit
+almost always, 32.8 ms sometimes, 57.3 ms never.
+
+### ⛔⛔ The method rule this round cost, and the audit that followed
+
+**M60 — ORDER IS A VARIABLE.** The first version of the ladder ran ascending, so every length sat
+at a fixed position after the arming. It scored `lf keri reader` **2/12** against `lf read -s 10000`
++ `lf keri demod` **10/12** — and `cmdlfkeri.c:222` is `lf_read(false, 10000); demodKeri()`, the
+same count through the same demodulator. **Nothing but position could differ.** Shuffled, they
+agree, and `gproxii`'s zeros became 8-12/12. ⇒ **The confound was as large as the effect.**
+
+✅ **Audited across every sweep in the tree (C500), and C469 survived by measurement.** The
+discriminator is **whether the statistic was PREDICTED or read off the sweep's own shape**.
+`holdsweep.py` had the same ascending order, but C469's criterion was fixed before the firmware
+existed — re-run **shuffled** (order 2 7 8 5 1 9 4 3 6) every N landed on its prediction, no knee.
+`gaintest`/`oversample_test`/`inputtest` are **blocked** and `phasesweep` fixes phase order within a
+rep, but all of those sweep a **real T5577**, which is coherent, and score a tag/empty ratio — real
+defects, **no claim known to be wrong**, and all need the operator. `offsetsweep`/`sweep`/`airduty`/
+`nullframe` re-analyse a file and cannot be affected; `drivesoak` sweeps order on purpose.
+
+### ⛔ What none of it licenses
+
+Ungraded throughout — no null sweep, no calibration row, no licence, **moves no cell**. It licenses
+a per-arm `--repeat` on the operator's return. ⛔ It does **not** license re-pointing the registry's
+`pm3_read`: that silently re-bases every past cell, and C502 adds a second reason — at 3-4 frames
+`indala` decodes 12/12 with **2 of those wrong**, so cells would move to **WRONG** as well as to
+EXACT. ✅ **Today's SILENT grades are correct**: at each arm's own graded count the open-failing
+arms barely decode at all.
+
 
 ## ⭐⭐ WHERE THE NEXT TICK STARTS
 
-1. ~~⭐⭐⭐ **AUDIT EVERY OTHER SWEEP TOOL FOR M60's CONFOUND**~~ — ✅ **DONE, AND C469 SURVIVED IT
-   BY MEASUREMENT** (ChameleonUltra **C500**, `c02e34dd`). ⭐ **The discriminator is whether the
-   statistic was PREDICTED in advance or read off the sweep's own SHAPE.** `holdsweep.py` has the
-   same fixed ascending order `shortread.py` did, but C469's criterion (modal run = N x 256us,
-   slope 1) was fixed before the firmware existed — so it was re-run **shuffled, order 2 7 8 5 1 9
-   4 3 6**, and every N landed on its prediction, 91.8-97.2% modal share, no knee. ⛔ `gaintest`,
-   `oversample_test` and `inputtest` are **BLOCKED** (all repeats of one setting contiguous, which
-   is worse than merely ordered) and `phasesweep` fixes phase order within each rep — **but all
-   five affected tools sweep a REAL T5577**, which divides the reader's carrier and is coherent, so
-   they carry neither the beat nor the wandering rate, and they score a tag/empty ratio that a
-   common-mode drift divides out. Real defects, **no claim known to be wrong**, and all five need
-   the operator anyway. `offsetsweep`/`sweep`/`airduty`/`nullframe` re-analyse a file on disk and
-   cannot be affected; `drivesoak` sweeps order on purpose.
+⭐⭐ **THE READ-LENGTH LINE IS CLOSED.** C499-C504 answered it, audited the method that nearly broke
+it (M60/C500), and corrected two of its own claims (C499's best-length argmax, C493's leading-bit
+magnitudes). Everything the tagless bench can say about read length has been said. ⛔ **Do not
+re-measure it** — a further sweep would be C473's method: re-measuring a question already answered.
 
-2. ~~⭐⭐ **`indala224` is the ONLY arm that never decodes**~~ — ✅ **MEASURED AT n=46, AND IT
-   CORRECTS C493** (ChameleonUltra **C501**, `786f8900`). `shortread.py --leading` reports how much
-   of each decoded payload is ours before it diverges. **min 33, median 89, max 154 of 224** —
-   8.4 / 22.8 / **39.4 ms** at 256 us per bit — and **flat across read length** (max 139/154/129 at
-   1/2/3 frames), so the cut is in the EMISSION and not the capture window. ✅ Controls: `indala`
-   gives **64 of 64** on 18 of 19 clean decodes and truncates to 40-55 at a one-frame read; no
-   payload matched a bit-shift better than offset 0. ⛔⛔ **C493's 189/199/202/212 do NOT
-   reproduce** — its four values sit above all 46 of mine and its computation is not recoverable
-   from L461. ⭐ **What stands harder than before: the payload IS ours** (median 89 leading bits at
-   offset 0, 46 times, against ~1 from an unrelated frame). ⭐⭐ **And the smaller window explains
-   the frame-length column BETTER**: ~23 ms median fits 16.4 ms frames almost always (21/24, 14/24,
-   9/24), 32.8 ms sometimes (10/24) and 57.3 ms never (0/24) — where 48-54 ms would have `nexwatch`
-   fitting nearly always, which is the one thing that column does not do.
-   ⇒ ⭐ **What is left open here** is the residual the geometry does NOT explain: at 3 frames and
-   an identical 16.4 ms frame, `indala` is 21/24 while `keri` and `idteck` are 9/24 each. Equal
-   geometry, unequal level, and the demodulator, the sample count, the burst gap, frame length, the
-   credential's bit pattern and per-read re-arming are all already excluded.
+**So the next tick works `AUTOPILOT.md` §2 from the top, and that now means §2d and §2e:**
 
-3. ~~**§2d: `benchmatrix/grid.py:313`'s invalid escape**~~ — ✅ fixed (`3d509c7`); the rendered
-   table is byte-identical, only the deprecation goes away.
+1. ⭐⭐ **§2e — upstream preparation.** The biggest remaining hands-off unit. `LF_RESEARCH_CMDS_ENABLED`
+   defaults to 0 and is set only on our branch, so an upstream PR drops that one `-D`. Give thought
+   to **how the protocol-support work should be split into PRs** and write it down.
+   ⛔ **Open nothing** — the operator's instruction, and they are not reachable to ask.
+   ⭐ There is real material to draw on now: `cmdlfkeri.c:176`'s 64-bit `Raw:` against a 32-bit
+   internal ID, the 6x spread in `lf_read()` counts with no documentation, and the fail-open
+   demodulators — all of them upstream-facing observations about the **Proxmark**, not about us.
 
-4. ~~⭐⭐⭐ **THE RESIDUAL: EQUAL GEOMETRY, UNEQUAL LEVEL**~~ — ✅ **ANSWERED, CRITERION WRITTEN
-   FIRST** (ChameleonUltra **C503**, `1608b577`). `indala`, `keri` and `idteck` share a 2048-sample
-   frame, so one ladder compares them legitimately. Rungs 3f/4f, interleaved + shuffled, n=24, null
-   0. **exact = decode x precision:** `indala` **92% / 66%** / 60% · `keri` 38% / 94% / 35% ·
-   `idteck` 31% / **100%** / 31%. ⇒ **The readers differ in STRICTNESS and that alone accounts for
-   the spread — no difference in our emission need be invoked.** `indala` produces something on 92
-   reads in 100 and is wrong on a third; `idteck` produces something on 31 and is never wrong.
-   ⚠ It removes the need for a signal difference; it cannot prove there is none, because `idteck`'s
-   demodulator cannot be made permissive to test the converse. ✅ H6 too: `idteck` is **0 wrong in
-   24 decodes**, all 64/64 — p<2% at indala's rate, so the zero is evidence now where C502's n=11
-   was not. ⭐ And a longer read makes `indala` LESS precise: 74% at 3f, 57% at 4f.
+2. ⭐ **§2d — tidying behind the 467 tests.** `./runtests` before and after every change. This
+   codebase errs long; reduce comments to what is needed. ✅ Done this round: `benchmatrix/grid.py`'s
+   invalid `"\|"` escape (`3d509c7`).
 
-5. ~~C502 is post-hoc and wants a purpose-built run~~ — ✅ **done as part of item 4**, which carried
-   its own criterion. ⛔ C502 keeps its post-hoc label where it stands; C503 is the measured version
-   for the three equal-frame arms. ⚠ `nexwatch`, `gproxii` and `indala224` have NOT had the
-   decode/precision decomposition measured with a criterion written first — only C502's post-hoc
-   count covers them.
+3. ⚠ **What is left of the measurement work needs the operator** — see §5 below, which is unchanged:
+   `--repeat` over the formerly-silent arms, the `⁇` cells, a third reader for `fdxb emu.pm3`, a
+   meter ahead of VD1, and `t55.pm3 → rd.cu2` returning when a tag can go back in the stack.
+   ⭐ **And one architecture question outstanding for them** (§3 below): can the PWM clock be slaved
+   to the received field? C489 says no pin on this board sees a carrier cycle — check whether that
+   is still true of this hardware revision before accepting it.
 
-6. ~~⭐ **Sharpen the per-arm peak**~~ — ⛔ **DON'T: THERE IS NO PEAK TO SHARPEN** (ChameleonUltra
-   **C504**, `2493b528`). A second session at n=20 moves the argmax for **four of the five** arms
-   that decode — `indala` 3f→6f, `keri` 4f→3f, `nexwatch` 4f→3f, `gproxii` 3f→4f; only `idteck`
-   holds at 3f. ⇒ **C499 read a peak off a noisy plateau, and the `⭐ best` column above is
-   decoration.** What reproduces is the SHAPE: **one frame fails on every arm, 2-6 frames works,
-   the best region is 3-4 frames**, and both `lf indala` (14.6f) and `lf gproxii` (1.6f) sit
-   outside it. ⭐ That is what goes to the operator — a range, not an `-s N`.
-   ⭐⭐ **And C504 answers the precision question for the other three arms.** Precision **collapses
-   at ONE frame on every arm and is flat above it** (1f: `indala` 0% of 4, `indala224` 0% of 18,
-   `gproxii` 0% of 1, `keri` 20% of 5) ⇒ *one frame never decodes* is really ***one frame decodes
-   and lies***. Above one frame the split is the READER's: `idteck` 100%, `gproxii` 100%, `keri`
-   98% against `nexwatch` 77% and `indala` 76%. ⛔ **`indala` and `indala224` share `lf indala
-   demod` and it is the permissive one** — `indala224` is 0% precise at every length, **51 decodes,
-   none correct**. One demodulator, not two arms. ⚠ H7(b) took one refuting event: `gproxii` was
-   wrong on its single 1-frame decode, so *never fails open* became *100% precise at every rung
-   with two or more whole frames* (62 of 63).
+4. If §2d and §2e are exhausted, `AUTOPILOT.md` §5: hand off to the **T5577 Flipper deep-read**
+   project under `Momentum-Firmware/T5577_block0_analysis_data/`, carrying §1, §3 and §4 across.
 
-7. Then `AUTOPILOT.md` §2d (tidying behind the 467 tests) and §2e (upstream prep).
+⛔ **Read `METHOD.md` M58, M59 and M60 before measuring anything.** All three were earned this
+round, on my own numbers: n too small, comparing across a wandering bench, and sweeping in a fixed
+order. M60 cost the most and was caught only by a control that could have failed.
 
-⛔ **Read `METHOD.md` M58, M59 and M60 before measuring anything**: all three were earned this
-round, by me, on my own numbers — n too small, comparing across a wandering bench, and sweeping in
-a fixed order.
 
 ## 1. ~~`seqdump.py` arms 1 of 5 steps~~ — DONE, AND THE DIAGNOSIS WAS WRONG (C475/L443)
 
