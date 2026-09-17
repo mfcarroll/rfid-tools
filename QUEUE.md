@@ -181,7 +181,19 @@ re-measure it** — a further sweep would be C473's method: re-measuring a quest
 
 **So the next tick works `AUTOPILOT.md` §2 from the top, and that now means §2d and §2e:**
 
-1. ⭐⭐ **§2e — upstream preparation.** The biggest remaining hands-off unit. `LF_RESEARCH_CMDS_ENABLED`
+1. ⭐⭐ **§2e — upstream preparation.** ⭐ **The PROXMARK-facing half is DONE and the answer is
+   *do not file*** (ChameleonUltra **C505**, `b85c99f0`). The fail-open behaviour has a mechanism
+   and it is the **preamble's entropy, which belongs to the FORMAT, not the client**: ones carried
+   in each preamble are `idteck` **11/32** → 100% precise, `indala` 3/33 → 76%, `indala224`
+   **1/30** → **0%**, while `gproxii`'s 6-bit preamble is backed by 18 enforced parity bits → 100%.
+   Our emission fades to a constant level through nulls, and a preamble that is thirty zeros is
+   matched by a quiet stretch for free. ⛔ `lf idteck` does not verify a checksum at all (its source
+   says `TBD`), so the preamble alone is doing the work — a demodulator cannot do better against a
+   format carrying no CRC.
+   ⚠⚠ **AND THE SCOPING LIMIT THIS EXPOSED, NOW AT THE HEAD OF THE GAP REGISTER**: every Proxmark
+   read-length and precision figure from this round was measured against **our own emulation**,
+   which free-runs and fades (C486). **None of it shows the Proxmark reads real tags badly.**
+   ⇒ **What is LEFT of §2e is the ChameleonUltra protocol-support PR split.** `LF_RESEARCH_CMDS_ENABLED`
    defaults to 0 and is set only on our branch, so an upstream PR drops that one `-D`. Give thought
    to **how the protocol-support work should be split into PRs** and write it down.
    ⛔ **Open nothing** — the operator's instruction, and they are not reachable to ask.
