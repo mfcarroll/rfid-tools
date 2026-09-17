@@ -8,9 +8,44 @@ then **reverted and reflashed away** (C485) — cu2 is back on the committed bui
 FUNCTIONALLY, never by version string (C461): an armed Indala must show **64 entries, `seq
 repeats` 15** (`hw emuseq --count 0`), and `hw emuhold -n 1 --top 8` must succeed. Both checked.
 ⚠ **cu1 WAS PUT INTO READER MODE** (`hw mode -r`) to read Rig A's tag for item 4. Its prior mode was **not recorded first**, so if the operator had left it emulating something, that is gone — reader mode is the safe state (an emulating Chameleon jams the pad) but the change is disclosed rather than glossed. ⛔ cu1 was never flashed.
+⚠ **2026-09-16 LATE: cu2 was ARMED AND DISARMED repeatedly** (indala, keri, idteck, nexwatch,
+indala224, gproxii) for C490/C491, always through a `finally`, and its mode was **verified as
+`Tag Reader` at the end** by asking the device. **Nothing was flashed this round, on either unit.**
+
 ⚠ `enterdfu.py` failed to trigger twice in a row before succeeding on the third try, with
 nothing flashed either time — it says so explicitly and distinguishes a trigger failure from a
 flash failure. **Retry it; do not go looking for a broken device.**
+
+## ⭐⭐⭐ 2026-09-16, LATE: THE SIX "SILENT" ARMS ARE NOT SILENT — READ THIS BEFORE ITEM 3
+
+**Repo for the detail: `ChameleonUltra` C489/C490/C491 (`3a3e2793`, `9dfeca77`, `cedf4d3f`).**
+
+⭐⭐ **The Proxmark reads our Indala emulation byte-exact, live, 9 of 11.** `lf indala reader`
+is silent because it reads **30,000 samples** (`cmdlfindala.c:633`, 240 ms); `lf read -s 4096`
+followed by `lf indala demod` returns `a0000000e6bd0e92` / Fmt 26 FC 52 Card 63612. Same session,
+same field, same arm, alternated. ⛔ Controls: cu2 disarmed silent 3/3 live, a PAC capture asked
+for Indala silent, the same samples at 40,000 silent, and Rig B is tagless.
+
+⭐⭐ **And four of the six arms decode through the READER COMMAND THE MATRIX GRADES ON**, at
+1-in-9 to 1-in-3 — `keri` 3/9, `idteck` 1/9, `nexwatch` 1/9, `gproxii` 3/9, against **0 of 36**
+with nothing armed. They are **intermittent, not silent**. A cell graded from one read lands on
+SILENT most of the time, which is exactly what the graded run and C488's one-capture probe saw.
+
+⛔⛔ **WHAT THIS DOES NOT DO.** It is ungraded — no null sweep, no calibration row, no
+licence — and it **licenses no re-grade of anything**. What it licenses is `--repeat` on the
+operator's return. ⛔ Do not "fix" the harness to use a short read: the registry's `pm3_read` is
+what the matrix's history is graded against, and changing it silently re-bases every past cell.
+That is an operator decision, and the gap register now carries the evidence for it.
+
+⚠ **What is retracted**: C488's *the artifact is one arm wide* (both its paths read 40,000
+samples), and C489's verdict that the six-gap is closed as a hardware limitation. ⭐ **What
+stands**: C486's beat measurement, and C489's hardware facts — no pin on this board can see a
+carrier cycle (VD1 rectifies at the coil) and the nRF52 PWM has no external clock input, so
+COHERENT emulation is unreachable. It turns out coherence was not required.
+
+⚠ **`indala224` is a DIFFERENT defect and must not be pooled with the rest**: the short read
+recovers a well-formed Indala frame **7 times in 9** and the payload is **never ours**. That is a
+wrong-frame problem, not a margin problem — see item 8.
 
 ## 1. ~~`seqdump.py` arms 1 of 5 steps~~ — DONE, AND THE DIAGNOSIS WAS WRONG (C475/L443)
 
@@ -233,6 +268,8 @@ operator has seen it. **Leave it for them.**
   or our reader. Ambiguous (run 20260916_161528).
 - `em410x` `pm3·emu` and `fdxb` `cu1·emu` read `⁇` — need `--repeat 10`.
 - `t55.pm3 → rd.cu2` for everything: gone while Rig B is tagless.
+- ⭐⭐ **`--repeat 10` over ALL SIX formerly-silent arms**, not just the two `‽` cells — C491 measured hit rates of 1-in-9 to 1-in-3 through the graded reader command, so one read cannot characterise any of them.
+- ⭐ **A meter on the board, ahead of VD1.** C489 rests entirely on the schematic putting the rectifier at the coil; that is the one cheap check that could overturn it, and it takes minutes.
 
 ## 6. ~~Registry work, no bench~~ — BOTH DONE (`rfid-tools`, 467 tests green)
 
@@ -252,6 +289,28 @@ operator has seen it. **Leave it for them.**
   go out of step every `indala224` `rd.cu*` reading silently turns from EXACT into SILENT. It wants
   one commit touching both repos together, with the operator present. The registry row carries that
   warning now so nobody "tidies" the marker on its own.
+
+## 8. ⭐ `indala224` emits a well-formed frame with the WRONG payload — NEW, and it is real work
+
+**Repo: `ChameleonUltra`.** Measured 2026-09-16 (C491): `lf read -s 16384` + `lf indala demod`
+recovers a well-formed Indala frame **7 times in 9** while the armed payload
+`80000001b23523a6...28c14e5` comes back **0 of 9**. Every other arm that decodes at all decodes
+byte-exact, so this one is not a margin problem.
+
+⭐ **The lead is already written down**: the registry row records that `lf indala read --224`
+prints `Indala224 PSK1` while the same file configures **PSK2** at `chameleon_cli_unit.py:6331/6349`,
+and `indala224_modulator` builds with `LF_PSK1_PHASE_DIFFERENTIAL`, which IS PSK2. A frame that
+decodes as Indala but carries the wrong bits is what a phase-encoding mismatch looks like.
+⛔ The cosmetic label fix is still NOT to be done unattended (it is coupled to the marker across
+two repos — item 6), but the ENCODING question is host-side work that needs no bench.
+
+## 9. ⭐ Why is it intermittent? A hypothesis that costs nothing to test
+
+Each `lf read` raises the field, and the emulation plays a **finite burst per field arrival**
+(`m_frames_per_burst`; `playbacks started` counts arrivals, not repeats — C475). So the reader's
+capture window and the burst are unsynchronised, which would produce exactly the 1-in-9 to 1-in-3
+hit rates C491 measured. ⭐ Testable with no bench move: vary the settle before the capture, or
+count playbacks across a read, and see whether the hit rate tracks. ⚠ Write the criterion first.
 
 ## 7. When 1–6 are done or blocked
 
