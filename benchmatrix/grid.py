@@ -310,7 +310,7 @@ def _unparsed(result) -> list[str]:
            "", "| protocol | reader | what it printed that we did not recognise |", "|---|---|---|"]
     for (proto, reader), said in sorted(odd.items()):
         out.append("| `%s` | `%s` | `%s` |"
-                   % (proto, reader, " / ".join(said)[:120].replace("|", "\|")))
+                   % (proto, reader, " / ".join(said)[:120].replace("|", "\\|")))
     out.append("")
     return out
 
