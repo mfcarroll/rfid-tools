@@ -108,6 +108,22 @@ Do these in order. Move on when a thing is done **or blocked**, and say which.
 
 ### 2a. The measured emitter gaps — the real finding, and the biggest prize
 
+⛔⛔ **2026-09-16 23:xx — THREE THINGS IN THIS SECTION ARE NOW ANSWERED. READ `QUEUE.md` FIRST;
+this section is kept for its reasoning, not its status.**
+1. **`QUEUE.md` item 9 (the burst) is CLOSED** — it is not what makes the arms intermittent
+   (C506). And behind it: **the decode is a function of the read's POSITION, not a rate** — six
+   identical reads gave `gproxii` the same pattern in **16 of 16** sessions, and a host-side
+   `msleep` moves it (C507). ⇒ the `--repeat` this section queues needed **spaced** repeats, now
+   implemented and tested in this repo (`f22feec`).
+2. **The "meter ahead of VD1" was never operator-blocked** — the schematic is committed in the
+   ChameleonUltra repo and had not been opened. C489 is confirmed by enumerating the LF sheet's
+   ports: the only two MCU inputs are both downstream of VD1 (C508).
+3. **The architecture question is re-posed: not *can we lock* but *can we TRIM*.** PSK needs the
+   phase to stay put across one frame (~27 ppm), not phase lock. ⛔ No INTEGER trim exists at any
+   prescaler — one `counter_top` tick is 125,000 ppm at the clock in use — so only a dither
+   could work, at the cost of C485's 16x buffer. Whether that is worth building turns on whether
+   the offset is stable, which `clockdrift.py` measures with no hands.
+
 ⛔⛔⛔ **SUPERSEDED LATE ON 2026-09-16 — THE ARMS ARE NOT SILENT, THEY ARE INTERMITTENT.
 READ `QUEUE.md`'s TOP SECTION FIRST; EVERYTHING BELOW IS THE STATE BEFORE THAT.** The Proxmark
 reads our Indala emulation byte-exact 9 of 11 through `lf read -s 4096` + `lf indala demod`, and
