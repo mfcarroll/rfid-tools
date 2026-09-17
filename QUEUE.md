@@ -290,19 +290,23 @@ operator has seen it. **Leave it for them.**
   one commit touching both repos together, with the operator present. The registry row carries that
   warning now so nobody "tidies" the marker on its own.
 
-## 8. ⭐ `indala224` emits a well-formed frame with the WRONG payload — NEW, and it is real work
+## 8. ~~`indala224` emits a frame with the WRONG payload~~ — CORRECTED SAME NIGHT (C493)
 
-**Repo: `ChameleonUltra`.** Measured 2026-09-16 (C491): `lf read -s 16384` + `lf indala demod`
-recovers a well-formed Indala frame **7 times in 9** while the armed payload
-`80000001b23523a6...28c14e5` comes back **0 of 9**. Every other arm that decodes at all decodes
-byte-exact, so this one is not a margin problem.
+**Repo: `ChameleonUltra`.** ⛔ **The payload is OURS.** Nobody had looked at what the reader
+actually returns; five short reads give **212, 202, 199 and 189 of 224 leading bits byte-exact**,
+with the tail collapsing to all-ones and the reported length nonsense (254-611 against 224).
+A phase-encoding mismatch cannot produce 212 correct leading bits, so the PSK1/PSK2 lead was
+wrong and the arm is **not** a separate defect.
 
-⭐ **The lead is already written down**: the registry row records that `lf indala read --224`
-prints `Indala224 PSK1` while the same file configures **PSK2** at `chameleon_cli_unit.py:6331/6349`,
-and `indala224_modulator` builds with `LF_PSK1_PHASE_DIFFERENTIAL`, which IS PSK2. A frame that
-decodes as Indala but carries the wrong bits is what a phase-encoding mismatch looks like.
-⛔ The cosmetic label fix is still NOT to be done unattended (it is coupled to the marker across
-two repos — item 6), but the ENCODING question is host-side work that needs no bench.
+⭐⭐ **It is the beat's cleanest confirmation instead.** An Indala224 frame is 224 x RF/32 =
+**57.3 ms** against a measured null spacing of **60.8 ms** — the frame is as long as the gap
+between nulls, so it cannot finish inside one, and the survival times (48-54 ms) sit just under
+that spacing. ⭐ Frame length then orders the entire column: 16.4 ms arms 9/11, 4/9, 3/9;
+32.8 ms (nexwatch) 0/9; 57.3 ms (indala224) 0/9.
+
+⚠ **What is still open here**: the geometric model over-predicts `nexwatch` (it says ~1 in 3,
+the bench says 0 of 9), and the spread among the three 16.4 ms arms is unexplained. Neither is
+an `indala224` question any more.
 
 ## 9. ⭐ Why is it intermittent? A hypothesis that costs nothing to test
 
