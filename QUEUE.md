@@ -230,8 +230,21 @@ re-measure it** — a further sweep would be C473's method: re-measuring a quest
    to the received field? C489 says no pin on this board sees a carrier cycle — check whether that
    is still true of this hardware revision before accepting it.
 
-4. If §2d and §2e are exhausted, `AUTOPILOT.md` §5: hand off to the **T5577 Flipper deep-read**
-   project under `Momentum-Firmware/T5577_block0_analysis_data/`, carrying §1, §3 and §4 across.
+4. ✅ **THE HANDOFF IS DONE — `AUTOPILOT.md` §5 EXECUTED** (`Momentum-Firmware` `56f37bf2b`, branch
+   `t5577-deep-read`). That project had its tracking but **no offline process**; it now has
+   `T5577_block0_analysis_data/AUTOPILOT.md` and `QUEUE.md`, with §1, §3 and §4 carried across.
+   ⭐⭐ **Two things the assessment found, and the next tick should know both before going there:**
+   - ⛔⛔ **It is MORE blocked than this project, not less.** Its independent variable **is the
+     placement** — settle time, air gap, re-seats are what its results turn on (`IT WAS THE SETTLE.
+     AGAIN.`, `0 mm FLAT CONTACT`, `SETTLE IS TIME-SINCE-POWER-UP`), and none of them can be changed
+     over USB. **A round there cannot produce a new capture.**
+   - ⛔⛔ **THERE IS NO TEST SUITE THERE.** 126 scripts, no `tests/`, no `runtests` ⇒ **§4's
+     *tests green before every commit* cannot be satisfied at all.** In a codebase whose own record
+     holds a regression found only by bisect and a **silent-wrong-answer** decoder (`4B4B4B4B`
+     returned confidently against a truth of `A5A5A5A5`), that is the blocker before everything
+     else. ⭐ **Building one, over the pure `analyse_*.py` functions against the 264 KB already
+     banked in `addrprobe_captures/`, is its item 1** — hands-off, and it unblocks every later tick.
+   ⚠ Nothing there has been worked yet. The process and the assessment are committed; no result is.
 
 ⛔ **Read `METHOD.md` M58, M59 and M60 before measuring anything.** All three were earned this
 round, on my own numbers: n too small, comparing across a wandering bench, and sweeping in a fixed
