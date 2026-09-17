@@ -537,7 +537,19 @@ def gap_register(result, protocols: list[reg.Protocol]) -> list[str]:
                      "and that alone accounts for the exact-rate spread at equal geometry** "
                      "\u2014 no difference in the emission need be invoked. \u26a0 It removes "
                      "the need for one; it does not prove there is none. \u2b50 A longer read "
-                     "makes `lf indala` LESS precise, not more: 74% at 3 frames, 57% at 4",
+                     "makes `lf indala` LESS precise, not more: 74% at 3 frames, 57% at 4. "
+                     "\u2b50\u2b50 **AND THE SPLIT HAS A MECHANISM: THE PREAMBLE'S "
+                     "ENTROPY, WHICH IS THE FORMAT'S AND NOT THE CLIENT'S.** Ones carried "
+                     "in each preamble, from the client's own tables: `lf idteck` "
+                     "**11 of 32** (alternating) \u2192 100% precise; `lf indala` 3 of 33 "
+                     "(`101` then thirty zeros) \u2192 76%; `lf indala --224` **1 of 30** "
+                     "(a `1` and 29 zeros) \u2192 **0%**; `lf gproxii` has only a 6-bit "
+                     "preamble but enforces 18 parity bits over 90 \u2192 100%. Our emission "
+                     "fades to a CONSTANT level through nulls, and a preamble that is a long "
+                     "run of zeros is matched by a quiet stretch for free. \u26d4 `lf idteck` "
+                     "does NOT verify a checksum \u2014 its source says `TBD` \u2014 so the "
+                     "preamble alone is doing the work. \u21d2 **NOT a Proxmark defect: a "
+                     "demodulator cannot do better against a format carrying no CRC**",
          "ChameleonUltra C502 (\u26a0 post-hoc, n=12/rung) and C503 (criterion written first, "
          "n=24/rung), 2026-09-16 \u2014 ungraded, moves no cell"),
         # ⛔ RETRACTED ROW, KEPT AS A ROW. The register used to carry this as a Proxmark
@@ -556,6 +568,7 @@ def gap_register(result, protocols: list[reg.Protocol]) -> list[str]:
          "ChameleonUltra bench"),
     ]
     out = ["## gap register", "",
+           "\u26d4\u26d4 **EVERY PROXMARK ROW BELOW THAT CITES A READ-LENGTH OR PRECISION FIGURE WAS MEASURED AGAINST OUR OWN EMULATION, NOT A REAL TAG.** That emitter free-runs and fades through nulls (ChameleonUltra C486); a real tag divides the reader's carrier and does not fade that way. \u21d2 **None of it shows the Proxmark reads real tags badly**, and it must not be quoted as if it did. What those rows DO establish is how the reader behaves against a marginal, fading source \u2014 which is what our emulate column is.", "",
            "⚠ The rows above the run's own are carried from `SCOPE.md` and are only as current as "
            "it is. The ChameleonUltra is missing 4 of the Flipper's protocols rather than 10 "
            "(retracted 2026-09-15 against source). ⛔ **And the Electra retraction was itself "
