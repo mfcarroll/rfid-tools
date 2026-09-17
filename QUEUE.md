@@ -275,10 +275,22 @@ re-measure it** — a further sweep would be C473's method: re-measuring a quest
      returned confidently against a truth of `A5A5A5A5`), that is the blocker before everything
      else. ⭐ **Building one, over the pure `analyse_*.py` functions against the 264 KB already
      banked in `addrprobe_captures/`, is its item 1** — hands-off, and it unblocks every later tick.
-   ✅ **AND ITS ITEM 1 IS UNDER WAY — `./runtests` NOW EXISTS THERE**: 23 tests, 0.4 s, offline,
-   covering `decode_blockread.py` (pinned against a **Proxmark**-read word, not against the code)
-   and `analyse_frame_parity.py` (the popcount-parity claim on real captures, with its Manchester
-   and ST1 controls). Every assertion was break-tested.
+   ✅✅ **AND ITS ITEM 1 CORE IS NOW COMPLETE (2026-09-16 late, this round)**: `./runtests` there is
+   **143 offline tests over ALL 13 pure `analyse_*.py` scripts** (+2 slow BASELINE/SAFETY controls
+   behind `T5577_SLOW=1`), every assertion break-tested. The ten added this round:
+   `analyse_odd_parity_candidates`, `_modulation_mislabel`, `_diphase_bitmodel`, `_q11_rate_min`,
+   `_rate_height`, `_st_falls_frame`, `_capture_provenance`, `_stprobe_sweep`, `_settle_reposition`,
+   `_psk_span_safety`. Values pinned come from OUTSIDE the code (datasheet rate/mod tables, shipped
+   firmware constants, the F16/F18 anchor words, D16/D17 findings), cross-checked between scripts.
+   ⭐⭐ **Two things writing them produced:** a **crash fixed** in `analyse_rate_height` (its
+   documented `campaign_2026*` invocation died on the `"?"` unknown-gap sentinel — `float("")`
+   ValueError; the sort key now sends `"?"`/`"flat"` last), and a **6th empty-as-success script
+   found** (`analyse_capture_provenance`, invoked by `verify_harness_parsers.sh`, so recorded as an
+   `expectedFailure` not fixed — same class the item 1b table tracks).
+   ⇒ **What is LEFT of item 1 is only the IMPURE scripts** (serial/subprocess/input), which drive
+   hardware or shell gates — operator territory, not a hands-off tick's. See that project's `QUEUE.md`.
+   ~~Earlier this round it stood at 23 tests / 2 files:~~ it covered `decode_blockread.py` (pinned
+   against a **Proxmark**-read word) and `analyse_frame_parity.py`; that is now 13 files.
    ⭐⭐ **Two defects found by writing them, both recorded there:**
    - ⛔ **The working directory is a trap.** 23 of the 126 scripts hardcode repo-root-relative
      paths, so run from the project directory they see nothing. Seven refuse loudly; **five print
