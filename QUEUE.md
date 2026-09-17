@@ -1,5 +1,11 @@
 # Work queue — newest decisions at the top of each item
 
+⛔⛔ **BENCH STATE CHANGED 2026-09-16 — cu2 RUNS A DIRTY BUILD.**
+`v2.2.0-918-g64ddadc-dirty`, flashed from this tree with the `hw emuhold --top` instrumentation
+(ChameleonUltra `17d65d50`). **cu1 was not touched.** The change is committed, so the build is
+reproducible — but `hw version` alone cannot tell two builds apart (C461), so verify
+FUNCTIONALLY: `hw emuhold -n 1 --top 8` succeeds only on this build.
+
 ⛔ **EVERY ITEM NAMES ITS REPO. Read `AUTOPILOT.md` §0b before committing** — three repos, three
 gates, and tonight's findings were filed in the wrong one until the operator caught it.
 
@@ -111,6 +117,29 @@ rewriting the buffer, not after.
 ⚠ **Hypothesis with a precedent, not a measurement** — that an intermediate duty is
 dropped at 16 ticks has not been shown directly, only that the air carries held levels and that the
 one family never needing an intermediate duty works.
+
+⭐⭐⭐ **AND THE ASSUMPTION UNDER THE FIX IS NOW MEASURED, NOT ASSUMED (C484,
+`17d65d50`).** The fix rests on the modulator being able to switch level every **8 us**, which
+nothing on this bench had tested — FSK2a proves only 16 us. `hw emuhold --top` now builds the
+synthetic buffer from **held levels only**, so rate is the only variable. Predictions fixed first,
+measured on cu2 with an Indala arm for its 1 MHz clock:
+
+| request | rate | predicted | measured | p-p |
+|---|---|---|---|---|
+| `-n 1 --top 16` | 31.2 kHz (FSK2a's proven rate) | 2-sample runs | **19,455** | 186 |
+| `-n 2 --top 8` | 31.2 kHz, 8 us entries | 2-sample runs | **19,482** | 185 |
+| `-n 1 --top 8` | **62.5 kHz — what PSK needs** | 1-sample runs | **32,979 / 34,498** | **35** |
+
+⭐⭐ **The controlled comparison finally exists**: `psk1.c` asks for 62.5 kHz via **duty**
+and the air holds a level (C479); `emuhold` asks for it via **alternating entries** and the air
+carries it. Same rate, clock, peripheral and pad — **duty is dropped, entry pattern is not.**
+⇒ The fix is **viable**, not just plausible.
+
+⚠ **The one open risk is AMPLITUDE**: p-p falls 5.3× at the doubled rate (35 vs 186). That
+is **not yet shown to be ours** — 62.5 kHz is exactly the Proxmark's Nyquist for its own
+125 kHz sampling, where its front end attenuates hardest. A real Indala tag emits the same
+subcarrier and this Proxmark decodes it, so 35 is not self-evidently too small. **Only rebuilding
+the emitter and reading it answers this.**
 
 ⭐ **It is verifiable unattended**: rebuild, flash **cu2 only** (`enterdfu.py`, no bench move),
 arm, read with the Proxmark, disarm in a `finally`. An arm that turns EXACT is real evidence —
