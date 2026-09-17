@@ -304,15 +304,32 @@ on this bench, which is the thing to exploit:
    the SAME nominal `-s N` at dec 2, and REPORT where they moved to without testing it** (M64).
    1.653 is a host constant with unmeasured jitter, the same class as the ~192 ms overhead C535
    caught being optimistic by 10 ms.
-   ⚠ **The factor is then only needed to choose the LADDER's range**: the five regions' predicted
-   dec-2 positions are **9-12, 33-39, 60-64, 85-88, 109-115 ms nominal**, well separated from their
-   dec-1 positions of 15-20, 55-65, 100-105, 140-145, 180-190.
-   ⚠ And **recompute the ladder's top** — a dec-2 primer eats ~1.65x the burst (M77 on the REAL
-   duration, and P1 decides).
-   ⛔ **Had 2.0 been assumed, every predicted cell would have been 25-45 ms out — wider than the
-   regions — and the band would have returned a confident *fixed samples*. The knob would have
-   refuted the truth.**
-   ⛔ Criterion first, power simulated both ways first (M70/M75), no-verdict branch given a
+   ⭐⭐⭐ **AND THE DESIGN IS NOW FULLY WORKED OUT — C541. THE ARITHMETIC KILLED THE OBVIOUS
+   VERSION TWICE, SO DO NOT RE-DERIVE IT:**
+   ⛔ **(1) REACHABILITY.** A dec-2 primer costs **1.653x its nominal ms** of the 500 ms burst, so
+   the top is `(500−192−probe)/1.653` = **138 ms nominal** for `keri`, 157 for `idteck`.
+   ⇒ **R4 (140-145) and R5 (180-190) cannot be observed at their *stayed* positions AT ALL**, and
+   their absence there is uninformative.
+   ⛔ **(2) A COLLISION.** *fixed elapsed* moves each region to `label/1.653` — R1→9-12,
+   R2→**33-39**, R3→**60-64**, R4→85-88, R5→109-115 — and **R3's moved position lands INSIDE R2's
+   stayed position (55-65)**, so a region there is produced by BOTH hypotheses and discriminates
+   nothing.
+   ⇒ ⭐⭐⭐ **WHAT SURVIVES IS A TWO-CELL DISCRIMINATOR AND IT IS BETTER THAN THE FIVE-REGION
+   VERSION:**
+     • **a region at ~35 ms nominal ⟺ FIXED ELAPSED** (it is R2 moved; at dec 1 nothing is there —
+       `--inventory` has `keri` **LOW at 35-45 in EVERY seed**)
+     • **a region at ~100 ms nominal ⟺ FIXED SAMPLES** (under fixed-elapsed R3 has moved to 60-64,
+       and R5's 109-115 is two cells away)
+   ⇒ **the ladder need only span 5-120 ms at 5 ms — 24 cells, ~18 min per seed for two arms.**
+   ⚠ **Name BOTH remaining outcomes in the band with their meaning in advance** (M74): regions at
+   **both** ⇒ the knob changes something neither hypothesis describes; at **neither** ⇒ the dec-2
+   profile has no structure the detector can see, which the gates and a per-arm A1 separate.
+   ⚠ **Two arms** — `keri` and `idteck`, both forward-detector arms (C537) — so it is not one arm's
+   law (C514); `keri` hit 5 of 5 regions in K29 and is the stronger instrument.
+   ⛔ **What is left to do is mechanical**: add `--dec` to `burstsync.py` (set it for the primer and
+   **reset to 1 before the probe** — `decprobe.py` shows that path decodes), simulate the power both
+   ways, and capture two fresh seeds.
+   ⛔ Criterion first and committed before the capture, as every unit this round was.
    meaning in advance (M74), reference from `--inventory` (M76).
 ⛔⛔ **AND THE RULES ANY OF THOSE MUST SATISFY, ALL EARNED THIS ROUND:** derive every reference
 from `--inventory` and never from a write-up (**M76**); compute the power **per arm** first
