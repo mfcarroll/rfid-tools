@@ -1,5 +1,11 @@
 # Work queue — newest decisions at the top of each item
 
+⭐⭐⭐⭐⭐ **READ IN THIS ORDER**: the bench state below, then **THE ROUND'S HEADLINE** and
+**WHERE THE NEXT TICK STARTS** (both around line 206) — everything after them is the round's
+detail and its method rules, newest first. ⛔ The blocks further down are HISTORY: several of
+their claims were **retracted or scoped inside the same round**, and each carries its own
+pointer. **Do not quote a level or a rate from them without reading its pointer.**
+
 ⛔⛔ **BENCH STATE CHANGED 2026-09-16 — cu2 WAS REFLASHED.**
 `v2.2.0-920-gdf053dd` — **a committed, clean build** of this tree, carrying the `hw emuhold
 --top` instrumentation (ChameleonUltra `17d65d50`). **cu1 was never touched.**
@@ -203,13 +209,94 @@ self-consistent with every banked run and the item-6 corrections are confirmed a
 
 ---
 
-## ⭐⭐ WHERE THE NEXT TICK STARTS
+## ⭐⭐⭐⭐⭐ THE ROUND'S HEADLINE, AND IT IS THE STRONGEST RESULT THIS LINE HAS PRODUCED (C538)
+
+⭐⭐⭐ **THE LEAD-TIME REGIONS ARE THE SAME REGIONS ON THREE ARMS AND TWO FRAME LENGTHS — ONE
+PRE-REGISTERED CROSS-ARM STATISTIC, B1 FIRES AT 12 OF 15.** `keri`, `idteck` and `nexwatch`
+measured **together** on the common 38-cell 10-195 ms ladder, two fresh seeds, per-arm shuffled,
+**all six gates passing and tight** (split-half **0.0, 0.7, 2.0, 3.9, 5.9, 0.0**; P1 0.50 in every
+cell of every arm).
+
+| region | `keri` | `idteck` | `nexwatch` |
+|---|---|---|---|
+| **R2 55-65 ms** | **HIT** | **HIT** | **HIT** |
+| **R5 180-190 ms** | **HIT** | **HIT** | **HIT** |
+| R1 15-20 | HIT | no | HIT |
+| R3 100-105 | HIT | no | HIT |
+| R4 140-145 | HIT | **HIT** | no |
+
+⭐⭐ **Simulated BEFORE the capture: 11+ occurs 98.8-100% when 4-5 of the 5 regions are genuinely
+shared, and 0.0% when each arm carries independent structure of its own.** The observed **12 is
+exactly the simulation's median for *4 of 5 shared*.** ⭐ The five reference regions were **derived
+mechanically by `--inventory` from the banked caps and not from any write-up** (M76 — the mistake
+that cost K26's A2), and this ran on seeds none of them used.
+
+⭐⭐⭐ **TWO REGIONS ARE HIT BY ALL THREE ARMS, AND ONE OF THOSE ARMS HAS A 4096-SAMPLE FRAME
+AGAINST THE OTHERS' 2048.** ⇒ **the decode's dependence on lead time sits at the same MILLISECONDS
+across three protocols, three demodulators, three reader commands and two frame lengths.**
+⚠ C536 already showed milliseconds-not-frames for `nexwatch` at two regions, so this **strengthens
+rather than establishes**; what is new is that it is now **one** cross-arm statistic instead of four
+per-arm ones.
+
+⚠ **DESCRIPTIVE, NOT UPGRADED: all three misses were ONE CELL SHORT** — `idteck` had 1 of the 2
+cells needed in R1 and R3, `nexwatch` 1 in R4 — marginal rather than absent, and the band counted
+them as misses.
+
+⛔⛔ **WHAT IT DOES NOT DO: it says nothing about WHY**, it **excludes `indala` by construction**
+(C537 — its 75% median puts the forward threshold at the ceiling), and a REFUTED B1 could not have
+told *each arm's own structure* from *no structure*, which is why it is read beside the per-arm A1
+verdicts — **all three of which fired** (C533, C536, C537).
+
+⚠⚠ **AND THE INFERENCE, LABELLED AS ONE AND NOT A BAND: a structure fixed in milliseconds and
+shared across arms that differ in protocol, demodulator, reader command AND frame length is very
+hard to locate in the EMISSION's own timing — it points at the READER or the FIELD.**
+⛔ **Nothing tests that yet.** ⭐ **It is the first direction this line has had**: the beat, settling,
+the frame and the modulation are all dead, and this is the first positive constraint pointing
+anywhere. ⇒ **That is what the next criterion is for.**
+
+## ⭐⭐⭐⭐⭐ WHERE THE NEXT TICK STARTS — THE MECHANISM, AND IT FINALLY HAS A DIRECTION
+
+✅ ~~**Run the three-arm shared-regions band**~~ **DONE — C538. ⛔ Do not re-run it.**
+
+⭐⭐⭐ **THE ONE OPEN UNIT IS THE MECHANISM, AND C538 POINTS IT SOMEWHERE FOR THE FIRST TIME.**
+Everything proposed so far is dead — **not the beat** (C515), **not settling** (C515), **not the
+frame** (C520/C529/C536), **not the modulation**, **not a protocol property** (C538). And the
+positive constraint is now strong: **the structure is at fixed MILLISECONDS, shared across three
+arms differing in protocol, demodulator, reader command AND frame length, bounded at 5-10 ms below
+and not bounded above by anything but the burst.**
+
+⇒ ⭐⭐ **THAT POINTS AT THE READER OR THE FIELD, NOT AT THE EMISSION** — and the two are separable
+on this bench, which is the thing to exploit:
+1. ⭐⭐⭐ **IF IT IS THE READER**, it should move when the READER's own timing moves and not when
+   the emission's does. The primer is already a reader-side knob; a second reader-side knob that
+   changes the field WITHOUT changing the emission would separate them. ⚠ Design it against
+   `--inventory`'s regions, and **simulate a false-fire rate AND a power figure before capturing**
+   (M70/M75).
+2. ⭐⭐ **IF IT IS THE FIELD**, the regions should be a property of the PAIR and should move with
+   the pad or the coupling — ⛔ **which needs the operator**, so it is a return item and not a
+   tick's. ⭐ Name it in the handover so the operator can decide whether to spend a bench move on
+   it; it is now a well-posed question rather than a fishing trip.
+3. ⚠ **A third possibility nothing has tested: the CLIENT.** C507 measured that a host-side
+   `msleep` moves the pattern, and the primer is issued by the same client. ⛔ Before spending a
+   capture on the reader/field split, ask whether a pure client-side change with an identical
+   air-side sequence moves the regions — that is cheap and it would reframe everything.
+
+⛔⛔ **AND THE RULES ANY OF THOSE MUST SATISFY, ALL EARNED THIS ROUND:** derive every reference
+from `--inventory` and never from a write-up (**M76**); compute the power **per arm** first
+(**M68**); simulate **both** a false-fire rate and a power figure before the capture (**M70/M75**);
+**give the no-verdict branch a MEANING in advance** (**M74**, and K29 shows it is cheap); name the
+arm each clause was measured on (**M71**); name the ladder and n **in the same string** as every
+rate (**M73**); compute the ladder's top **per arm** (**M77**); and before withdrawing a band,
+work out **which way its defect pushes** (**M78**).
+
+---
+
 
 ## ⭐⭐⭐⭐⭐ 2026-09-17 03:5x-05:0x — THE INTERLEAVING IS WITHDRAWN AND THE REGIONS ARE REAL. READ THIS FIRST.
 
-util7 **81 → 82** across the round (util5 7 at 05:0x). **FIFTEEN units closed: K21 (C524), K22 (C525), K23 (C526), the `keri` re-run (C528) the drift gate's own price (C527) the frame-locked notch (C529, closed offline with no capture) a correction to C527's own scope (C530/M73) and Y1's costed remedy spent to a decisive end (C531/M74 — *interleaving* is EXCLUDED) the replacement estimation band withdrawn before it ran (C532/M75), `idteck` measured over the full span and `indala224` closed as not-measurable (C533), M76's fix built as the `--inventory` tool (C534), the burst ceiling located on the air and traced to the PROBE (C535/M77) **the frame reading refuted at a second unambiguous region on `nexwatch`** (C536) and the common ladder measured, which settles that the cross-arm band is a THREE-arm band (C537/M78).
+util7 **81 → 84** across the whole round, 03:5x-10:1x. **SIXTEEN units closed: K21 (C524), K22 (C525), K23 (C526), the `keri` re-run (C528) the drift gate's own price (C527) the frame-locked notch (C529, closed offline with no capture) a correction to C527's own scope (C530/M73) and Y1's costed remedy spent to a decisive end (C531/M74 — *interleaving* is EXCLUDED) the replacement estimation band withdrawn before it ran (C532/M75), `idteck` measured over the full span and `indala224` closed as not-measurable (C533), M76's fix built as the `--inventory` tool (C534), the burst ceiling located on the air and traced to the PROBE (C535/M77) **the frame reading refuted at a second unambiguous region on `nexwatch`** (C536) the common ladder measured, which settles that the cross-arm band is a THREE-arm band (C537/M78), and ⭐⭐⭐ **THE THREE-ARM BAND RUN AND FIRED — the regions are SHARED across three arms and two frame lengths** (C538).
 
-⚠⚠ **AND THE ROUND'S OWN SCORE ON ONE DISEASE, WHICH IS THE MOST USEFUL LINE IN IT: FIVE OVER-REACHES, ALL CAUGHT AND ALL WALKED BACK INSIDE THE ROUND** — **M71** a gate justified on the wrong **ARM** · **C526** a level from one session **PAIR** · **C530** a rate from one **LADDER** · **C532** a point estimate quoted for an **INTERVAL** · **M76** a reference list from the **WRITE-UPS** instead of the data. ⇒ **Every one is a reference or a scope taken from the wrong place.** ⭐ Each was found by a check this round itself added, not by the next round paying for it. ⇒ **the checks are working and the instinct is not: assume every number quoted from one configuration is wrong until its configuration is named beside it, in the SAME STRING and not a nearby header** (M73). ⛔ C526 RETRACTS a number C525 published an hour earlier — read that retraction before quoting any level — and C527 makes every *NO VERDICT, DRIFTED* on this line one-in-four likely to be noise.** ⛔ **No bench move, nothing flashed on
+⚠⚠ **AND THE ROUND'S OWN SCORE ON ONE DISEASE, WHICH IS THE MOST USEFUL LINE IN IT: FIVE OVER-REACHES, ALL CAUGHT AND ALL WALKED BACK INSIDE THE ROUND** — **M71** a gate justified on the wrong **ARM** · **C526** a level from one session **PAIR** · **C530** a rate from one **LADDER** · **C532** a point estimate quoted for an **INTERVAL** · **M76** a reference list from the **WRITE-UPS** instead of the data. ⇒ **Every one is a reference or a scope taken from the wrong place** — plus **M78**, where A2 was called *unsound* when its defect could only bias it toward REFUTED, so a FIRING verdict was thrown away that did not need to be. ⭐ **That one gives something back, and it is the same error in the other direction: a conclusion drawn without checking which way the evidence could bend.** ⭐ Each was found by a check this round itself added, not by the next round paying for it. ⇒ **the checks are working and the instinct is not: assume every number quoted from one configuration is wrong until its configuration is named beside it, in the SAME STRING and not a nearby header** (M73). ⛔ C526 RETRACTS a number C525 published an hour earlier — read that retraction before quoting any level — and C527 makes every *NO VERDICT, DRIFTED* on this line one-in-four likely to be noise.** ⛔ **No bench move, nothing flashed on
 either unit**, cu2 armed and disarmed through the `finally` on **both** capture runs — `disarm: ok`
 twice, and its mode verified as `Tag Reader` **by asking the device** before the first arm — and
 **cu1 untouched**. **Detail: `ChameleonUltra` C524, M69, M70, `burstsync.py` K21/K22,
@@ -586,39 +673,6 @@ sound.** ⚠ Its 50-65 region missed the three-cell rule in this pair though the
 in every seed at 60-65 — the two-cell width A1's false-fire budget deliberately refuses.
 ⇒ ⭐ **M78: before withdrawing a band, work out which way its defect PUSHES. The verdicts on the
 other side of that direction survive.**
-
-## ⭐⭐⭐⭐⭐ WHERE THE NEXT TICK STARTS — ONE UNIT, FULLY SPECIFIED, NO DESIGN WORK NEEDED
-
-⭐⭐⭐ **RUN THE THREE-ARM SHARED-REGIONS BAND. Everything it needs is decided and committed.**
-
-    ./burstsync.py --k12 --arms keri,idteck,nexwatch \
-      --primers 10,15,20,...,195 --reps 8 --per-arm-shuffle --seed 283 \
-      --out caps/k29_three_s283.json        # and again at --seed 293
-
-⭐ **Why these three and not four**: C537 measured `indala`'s full-span median at **75%**, where the
-forward detector's threshold is the ceiling. `keri` (25%), `idteck` (25%) and `nexwatch` (25-38%)
-all take one forward detector. ⭐ **`nexwatch` is in it because its frame is 4096 against the
-others' 2048 — the only frame discriminator on the bench** (M65/C520/C536).
-⛔ **Top the ladder at 195, not 200** (M77, measured twice). ⛔ **`--per-arm-shuffle` is mandatory**
-(M69). ⚠ Three arms x 38 cells x 8 reps is ~**40 min per seed**.
-
-⛔⛔ **THE BAND ITSELF IS THE ONE THING STILL TO WRITE, AND ITS RULES ARE ALREADY FIXED:**
-1. ⭐ **Derive its reference region list from `./framescale.py --inventory caps/k1*.json
-   caps/k2*.json` and NEVER from a write-up** (M76 — this is the mistake that cost K26's A2).
-2. ⭐ **Compute the power PER ARM before writing it** (M68), and **simulate a false-fire rate AND a
-   power figure** (M70/M75). **Name the ladder and the n in the same string as every rate** (M73).
-3. ⭐ **Name the arm each clause was measured on** (M71), and **work out which way any defect would
-   push before withdrawing anything** (M78).
-4. ⛔ **A run length belongs to the LADDER**: over 38 cells a 2-cell run false-fires 13-26%; use 3
-   (C533).
-5. ⛔ **It may NOT be scored on any banked cap** — the inventory it is built against was derived
-   from them.
-
-⇒ ⭐⭐ **AND WHAT IT WOULD BUY: the lead-time structure is already measured at FIXED MILLISECONDS on
-four arms and two frame lengths (C536). A three-arm band firing on shared locations, with
-`nexwatch` in it, turns that from four separate per-arm results into one cross-arm statement — and
-that is the first thing on this line that would point at a MECHANISM rather than at another
-profile.**
 
 ## ⭐⭐ THE NEXT HANDS-OFF UNITS, IN ORDER — ITEMS 0 AND 1 ARE K22'S OWN CONSEQUENCES
 
