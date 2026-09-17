@@ -25,7 +25,6 @@ correction bought. The published markdown says which of the two it is, in its ow
 from __future__ import annotations
 
 import dataclasses
-from typing import Optional
 
 from . import registry as reg
 from .outcomes import (Calibration, CalibrationRefused, Cell, Outcome, grade, observe,
