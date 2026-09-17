@@ -520,9 +520,19 @@ def gap_register(result, protocols: list[reg.Protocol]) -> list[str]:
                      "carry the wrong credential \u2014 so cells would move to **WRONG** as well as "
                      "to EXACT, and the matrix would gain real \u274c cells. \u2705 At each arm's "
                      "OWN graded sample count the open-failing arms barely decode at all, so the "
-                     "SILENT grades the matrix holds today are correct",
-         "ChameleonUltra C502, 2026-09-16 \u2014 \u26a0 POST-HOC over C499's run, n=12 per rung, "
-         "seed 2; ungraded and moves no cell"),
+                     "SILENT grades the matrix holds today are correct. "
+                     "\u2b50\u2b50 **QUANTIFIED, AND IT EXPLAINS A SPREAD THAT LOOKED LIKE "
+                     "OUR EMITTER.** `indala`, `keri` and `idteck` share a 2048-sample frame, "
+                     "so at one read length their geometry is identical; interleaved, "
+                     "shuffled, n=24 per rung, **exact = decode x precision**: `lf indala` "
+                     "decode **92%** / precision **66%** \u00b7 `lf keri` 38% / 94% \u00b7 "
+                     "`lf idteck` 31% / **100%**. \u21d2 **The readers differ in STRICTNESS, "
+                     "and that alone accounts for the exact-rate spread at equal geometry** "
+                     "\u2014 no difference in the emission need be invoked. \u26a0 It removes "
+                     "the need for one; it does not prove there is none. \u2b50 A longer read "
+                     "makes `lf indala` LESS precise, not more: 74% at 3 frames, 57% at 4",
+         "ChameleonUltra C502 (\u26a0 post-hoc, n=12/rung) and C503 (criterion written first, "
+         "n=24/rung), 2026-09-16 \u2014 ungraded, moves no cell"),
         # ⛔ RETRACTED ROW, KEPT AS A ROW. The register used to carry this as a Proxmark
         # capability and the correction below used to assert it. The hardware says otherwise.
         ("Proxmark", "**cannot distinguish Electra from plain em410x**: `lf em 410x clone "
