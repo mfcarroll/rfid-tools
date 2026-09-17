@@ -4,3 +4,8 @@ runs/*.md
 runs/*.json
 .env
 .venv/
+
+# The unattended round's liveness lock (AUTOPILOT.md §6). Per-machine, per-tick, and
+# deliberately NOT tracked: a committed heartbeat would be restored by a checkout and stand a
+# fresh round down against one that had already ended.
+.loop-heartbeat
