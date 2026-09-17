@@ -74,6 +74,10 @@ immediately against readings already banked.** That is a genuine measurement loo
 
 ## 2. The work order
 
+⭐⭐ **`QUEUE.md` IS THE LIVE LIST — READ IT AFTER THIS FILE AND WORK FROM IT.** This section is the
+standing shape of the work; `QUEUE.md` is what is actually outstanding right now, in order, and it
+is the only thing that carries between cold sessions. **Update and commit it before you exit.**
+
 Do these in order. Move on when a thing is done **or blocked**, and say which.
 
 ### 2a. The measured emitter gaps — the real finding, and the biggest prize
