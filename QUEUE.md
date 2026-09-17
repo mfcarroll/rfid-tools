@@ -89,12 +89,29 @@ move** (`enterdfu.py`), and ⛔ never cu1.
 Proxmark, disarm in a `finally`. A fix that turns one of the six EXACT is real evidence — and
 **ungraded**; say so every time.
 
-## 4. Rig A's tag contents are unknown
+## 4. ~~Rig A's tag contents are unknown~~ — READ (C480/L448, `e3e8de6e`)
 
-**Repo: `ChameleonUltra`** notes if it is about cu1; **`Momentum-Firmware`** if it is T5577 work.
+**Repo: `ChameleonUltra`.**
 
-Read them before assuming anything, write down what you find. Chameleon 1 writes T5577s and has raw
-`lf t55xx` block access, so Rig A is self-sufficient for the successor project. ⛔ Never flash cu1.
+⭐ **Rig A's T5577 carries a PSK-family credential that none of our five PSK readers can
+decode.** cu1 in reader mode, all 21 registered read commands: every ASK/FSK reader returns `LF tag
+not found`; `indala`, `keri`, `nexwatch`, `idteck` and `indala224` all return *a tag-like
+subcarrier is present but no frame of the requested type could be decoded* — stable, 3 of 3.
+
+⭐ **Two controls, and it needed both.** The same reads on **tagless Rig B** return a plain `LF
+tag not found`, so the message is not what the PSK path prints whenever it finds nothing. And the
+message offers *an emulated tag* as a cause while Rig A carries a Flipper — so the Flipper was
+asked: `loader info` → **`No application is running`**. ⇒ The source is the tag.
+
+⚠ **Why it will not decode is open.** Leading candidate: a **partial write** — raw `lf
+t55xx write` is unreliable by design (field up, 1 ms, one attempt, field down) and measured **0 of
+11** on this bench (C305), which leaves a valid PSK config block over data blocks that never
+landed. A PSK variant our readers do not try is the other.
+
+⛔ **It licenses nothing** — `GOLD_SOURCES = {t55.pm3, oem}` and its provenance is
+unrecorded, so it is a source under test, never a reference. ⛔ **And it was deliberately NOT
+rewritten**: cu1 could reprogram it with no hands, which would destroy the evidence before the
+operator has seen it. **Leave it for them.**
 
 ## 5. Queued, needs the operator
 
