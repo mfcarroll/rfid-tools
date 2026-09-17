@@ -210,6 +210,60 @@ it (M60/C500), and corrected two of its own claims (C499's best-length argmax, C
 magnitudes). Everything the tagless bench can say about read length has been said. ⛔ **Do not
 re-measure it** — a further sweep would be C473's method: re-measuring a question already answered.
 
+## ⭐⭐⭐ 2026-09-17 00:15 — THE OVERNIGHT ROUND, CONSOLIDATED. READ THIS FIRST.
+
+util7 **78 → 79** across the round. Operator checked in over VNC mid-round and is away from home
+until **Sunday — no bench changes at all until then**, confirmed by them. ⛔ Everything below was
+done with **no bench move, nothing flashed on either unit**, and cu2 verified back in `Tag Reader`.
+
+⭐⭐ **THE ONE-LINE RESULT: the emulate arms' "intermittency" is a SCHEDULING artifact, and the
+obvious remedy for it is exactly backwards.**
+
+| what | where |
+|---|---|
+| Item 9's burst is **not** the intermittency (K1-K4) | C506 |
+| The decode is **a function of the read's POSITION**, not a rate — `.X.XX.` in 16 of 16 | C507 |
+| It is the AIR, not the client — a host-side `msleep` moves it | C507 (K6) |
+| The "meter ahead of VD1" was **never blocked** — the schematic is in the repo | C508 |
+| The clock offset is **131.5 ppm and stable to ~1 ppm** ⇒ PSK is blocked by a BUFFER, not physics | C509 |
+| Determinism **reproduced** in a third run; survives 9 s randomised gaps | C510 (K7) |
+| A lead-in delay moves **nothing** ⇒ the phase reference travels with the first read | C511 (K8) |
+| ⛔⛔ **A FRESH BURST SCORES ZERO** — 50% → 0% when each read gets its own | C512 (K9) |
+| That caught a constant **I had shipped four hours earlier** | C513 (K10) |
+
+⛔⛔⛔ **THE WARNING THAT MATTERS MOST TO WHOEVER TOUCHES THE HARNESS NEXT (C512).** Giving each
+read a clean field-down so it is *independent* takes `gproxii` from **50% to zero**. Every one of
+these arms would grade SILENT, with a completely defensible-sounding justification attached. **Do
+not add settling between graded reads.**
+
+⚠⚠ **AND THE ROUND'S OWN WORST MOMENT, KEPT ON PURPOSE.** On C507's evidence I added a random
+pause to `--repeat` and set its span to 250 ms from the beat period alone. C512/C513 then measured
+that a pause is **not a neutral randomiser** — at 250 ms the rate is 33% against 50%. **The fix
+was suppressing the thing it existed to measure**, for four hours, behind a test that pinned only
+its lower bound. Now 120 ms, both bounds pinned, break-tested. ⇒ **a constant derived from one
+finding is not measured; it is guessed with a citation.**
+
+⚠ **Three things are recorded as NOT holding, and none should be quietly upgraded**: K5 is
+**UNREPLICATED** (−15.6 pts against the ≥ 20 it needed); K8 has **NO POWER** for periodicity (its
+flat profile fired the branch written for it); and K10's span has **no margin** — 120 ms against a
+121.6 ms requirement, a 1.6 ms gap inside a 40 ms resolution.
+
+⭐ **WHAT IS LEFT, AND IT IS ALL THE OPERATOR'S:**
+1. **Split the 131.5 ppm between our crystal and this Proxmark's.** `clockoffset.py` measures the
+   PAIR, so a trim fitted here is fitted to THIS reader. Needs a **second reader** ⇒ Rig A, ⇒
+   Sunday. **This is the next thing on the live line.**
+2. The **cost/benefit on a dithered trim**, now fully priced: C485's 16x buffer, and a correction
+   that may be reader-specific.
+3. `--repeat` over the six arms — now safe to run, and the jitter is measured rather than guessed.
+4. Whether the **board** matches the V1.0 schematic C508 read, and what revision the units are.
+5. The post-hoc mechanism from C512 (*the emission needs time after field arrival before it is
+   decodable*) — **a hypothesis, and it needs its own criterion written first.**
+
+⛔ **Read `METHOD.md` M61 before quoting any rate.** It was earned twice tonight, the second time
+on a number I had already committed.
+
+---
+
 ⭐⭐⭐ **2026-09-16 23:0x — ITEM 9 IS ANSWERED AND IT WAS THE LAST OPEN HANDS-OFF ITEM.**
 util7=77.0 at the start of the tick and 77.0 at 22:59. See item 9 below for C506/C507 in full.
 The headline for a cold session: **the burst is not the intermittency, and the decode is not a
