@@ -509,6 +509,40 @@ def gap_register(result, protocols: list[reg.Protocol]) -> list[str]:
          "ChameleonUltra C490/C491/C494/C499, 2026-09-16 \u2014 \u26a0 ungraded manual "
          "observations; they license a per-arm `--repeat`, never a re-grade, and never a "
          "change to the registry's own `pm3_read` \u2014 that would re-base every past cell"),
+        # ⭐⭐⭐ THE SIBLING OF THE ROW ABOVE, AND THE SHARPER OF THE TWO. That one is
+        # about how LONG the read is; this one is about WHEN it starts, which nothing in this
+        # harness controls or records. ⛔ A 5 ms difference is the whole distance between
+        # 0% and 100% on one arm, so "we read it twice and it was silent" is not the statement
+        # it sounds like.
+        ("Proxmark", "**the decode depends on how long the field has been UP when the read "
+                     "starts, and there is a 5 ms-wide hole in it.** A primer `lf read -s N` "
+                     "immediately before the graded probe — no pause, one continuous field, "
+                     "one emission burst (arrivals held at 0.50 per read in every cell) — "
+                     "holds the probe at ONE command and ONE index and moves only the emission's "
+                     "elapsed run-time. Three seeds, cells shuffled within every round, n=24 "
+                     "each: at a **60 ms** primer `gproxii` scores **2 of 72**, while at **55 "
+                     "and 65 ms** it scores **24/24 and 24/24** and at 40 and 80 ms **140 of "
+                     "144**. The no-primer control — a fresh burst, the condition a single "
+                     "graded read is in — is **0 of 72**. ⛔ **It is not the beat**: the "
+                     "60 ms cell and the 180 ms cell sit at the same phase to within 1.6 ms "
+                     "(8.8 against 7.2) and score 2/72 against 42/48. ⛔ **And it is not a "
+                     "warm-up**: the profile is not monotone in elapsed time in either scoring "
+                     "run (non-decreasing in 5 of 9 steps both times), which refutes the obvious "
+                     "reading rather than supporting it. ⇒ **What a SILENT emulate grade "
+                     "means is now narrower again**: the grade depends on a timing variable this "
+                     "harness neither sets nor logs, and on this arm that variable spans the "
+                     "entire range from never to always. ⚠⚠ **ATTRIBUTION, AND IT IS "
+                     "THE LIMIT THAT MATTERS**: this was measured against OUR emulation, which "
+                     "free-runs and fades (C486). **It is a property of the PAIRING and shows "
+                     "nothing about how the Proxmark reads a real tag** — the head of this "
+                     "register applies to this row in full. ⚠ **One arm.** `indala` and "
+                     "`keri` are unmeasured on this knob, and C514 is the standing reason not to "
+                     "assume they behave the same",
+         "ChameleonUltra C515/C516 and M62, 2026-09-17 — ⚠ ungraded manual "
+         "observations, three replications, no null sweep and no calibration row. ⛔ They "
+         "license NOTHING here: not a re-grade, not a re-pointing of `pm3_read`, and not a "
+         "timed read in the graded path — each would re-base every past cell and is the "
+         "operator's decision"),
         # ⭐⭐ THE ROW THAT JUSTIFIES `Outcome.WRONG` EXISTING. It is measured evidence for
         # the rule in outcomes.py that WRONG is never merged into SILENT.
         ("Proxmark", "**four of its six LF demodulators FAIL OPEN \u2014 they report a credential "
@@ -569,7 +603,7 @@ def gap_register(result, protocols: list[reg.Protocol]) -> list[str]:
     ]
     out = ["## gap register", "",
            "\u26d4\u26d4 **EVERY PROXMARK ROW BELOW THAT CITES A READ-LENGTH OR PRECISION FIGURE WAS MEASURED AGAINST OUR OWN EMULATION, NOT A REAL TAG.** That emitter free-runs and fades through nulls (ChameleonUltra C486); a real tag divides the reader's carrier and does not fade that way. \u21d2 **None of it shows the Proxmark reads real tags badly**, and it must not be quoted as if it did. What those rows DO establish is how the reader behaves against a marginal, fading source \u2014 which is what our emulate column is.", "",
-           "\u26d4\u26d4 **AND A HIT RATE OVER BACK-TO-BACK READS IS A STATISTIC ABOUT THE SCHEDULE, NOT A SAMPLE OF THE EMITTER** (ChameleonUltra C507). Six IDENTICAL reads in one pm3 session returned the pattern `.X.XX.` in **16 of 16 sessions** \u2014 index 1, 3 and 4 decoding every time and 0, 2 and 5 never \u2014 and a host-side `msleep`, which touches no device and raises no field, moves both the pattern and the rate (`gproxii` 29.2% \u2192 70.8%). \u21d2 **Reads issued back-to-back do not sample independently**: they revisit the same phases of the emission's ~61-80 ms beat. A `--repeat N` that does not VARY ITS SPACING would report a tight, confident and wrong rate. \u26a0 Ungraded, and it moves no cell \u2014 it is a caveat on how any rate here may be read.", "",
+           "\u26d4\u26d4 **AND A HIT RATE OVER BACK-TO-BACK READS IS A STATISTIC ABOUT THE SCHEDULE, NOT A SAMPLE OF THE EMITTER** (ChameleonUltra C507, sharpened by C515 \u2014 a 5 ms change in the read's field-up lead time is the whole distance between 0 of 24 and 24 of 24 on `gproxii`). Six IDENTICAL reads in one pm3 session returned the pattern `.X.XX.` in **16 of 16 sessions** \u2014 index 1, 3 and 4 decoding every time and 0, 2 and 5 never \u2014 and a host-side `msleep`, which touches no device and raises no field, moves both the pattern and the rate (`gproxii` 29.2% \u2192 70.8%). \u21d2 **Reads issued back-to-back do not sample independently**: they revisit the same phases of the emission's ~61-80 ms beat. A `--repeat N` that does not VARY ITS SPACING would report a tight, confident and wrong rate. \u26a0 Ungraded, and it moves no cell \u2014 it is a caveat on how any rate here may be read.", "",
            "⚠ The rows above the run's own are carried from `SCOPE.md` and are only as current as "
            "it is. The ChameleonUltra is missing 4 of the Flipper's protocols rather than 10 "
            "(retracted 2026-09-15 against source). ⛔ **And the Electra retraction was itself "
