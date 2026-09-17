@@ -142,12 +142,24 @@ window with n=12 behind it.
    the operator anyway. `offsetsweep`/`sweep`/`airduty`/`nullframe` re-analyse a file on disk and
    cannot be affected; `drivesoak` sweeps order on purpose.
 
-2. ⭐⭐ **`indala224` is now the ONLY arm that never decodes** — 0/24 at all five lengths, both
-   seeds, with wrong-payload markers at four of them. C493 explains it geometrically (57.3 ms frame
-   against 60.8 ms null spacing, so it cannot finish inside one interval) and the ladder is
-   consistent with that: no length helps, because the problem is not the window. ⭐ **The cheap
-   open test: does it decode if the frame is SHORTER?** Nothing else in the six can vary its own
-   frame length, and `indala224` can — a 224-bit frame is the only one longer than the null spacing.
+2. ~~⭐⭐ **`indala224` is the ONLY arm that never decodes**~~ — ✅ **MEASURED AT n=46, AND IT
+   CORRECTS C493** (ChameleonUltra **C501**, `786f8900`). `shortread.py --leading` reports how much
+   of each decoded payload is ours before it diverges. **min 33, median 89, max 154 of 224** —
+   8.4 / 22.8 / **39.4 ms** at 256 us per bit — and **flat across read length** (max 139/154/129 at
+   1/2/3 frames), so the cut is in the EMISSION and not the capture window. ✅ Controls: `indala`
+   gives **64 of 64** on 18 of 19 clean decodes and truncates to 40-55 at a one-frame read; no
+   payload matched a bit-shift better than offset 0. ⛔⛔ **C493's 189/199/202/212 do NOT
+   reproduce** — its four values sit above all 46 of mine and its computation is not recoverable
+   from L461. ⭐ **What stands harder than before: the payload IS ours** (median 89 leading bits at
+   offset 0, 46 times, against ~1 from an unrelated frame). ⭐⭐ **And the smaller window explains
+   the frame-length column BETTER**: ~23 ms median fits 16.4 ms frames almost always (21/24, 14/24,
+   9/24), 32.8 ms sometimes (10/24) and 57.3 ms never (0/24) — where 48-54 ms would have `nexwatch`
+   fitting nearly always, which is the one thing that column does not do.
+   ⇒ ⭐ **What is left open here** is the residual the geometry does NOT explain: at 3 frames and
+   an identical 16.4 ms frame, `indala` is 21/24 while `keri` and `idteck` are 9/24 each. Equal
+   geometry, unequal level, and the demodulator, the sample count, the burst gap, frame length, the
+   credential's bit pattern and per-read re-arming are all already excluded.
+
 3. ⭐ **Sharpen the per-arm peak.** The ladder has one rung at 2f, 3f and 4f; the peak is somewhere
    in 2.5-4.5 frames and only three points bracket it. `./shortread.py <arm> --lengths a,b,c
    --repeat 12` per arm, shuffled. ⚠ Worth doing only after item 1 — it is the same instrument.
