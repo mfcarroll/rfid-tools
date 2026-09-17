@@ -39,6 +39,32 @@ the operator is away, and a round that does not know this will spend itself disc
 
 ---
 
+## 0b. WHICH REPO ⭐ READ BEFORE YOU COMMIT ANYTHING
+
+Three repos, three jobs. ⛔ **Tonight's findings were all committed here and several belong in
+ChameleonUltra — do not compound it.**
+
+| what you changed or learned | repo | gate before commit |
+|---|---|---|
+| Chameleon **firmware**, or any fact about it (a hang, an emitter defect, a command's behaviour) | `ChameleonUltra`, branch `indala-psk-read` | `./autopilot.sh gate` **and** `./checkdocs.sh` (run WITHOUT a pipe) |
+| the research record — `LOG.md`, `FINDINGS.md`, `METHOD.md`, `TOOLS.md`, `NEXT.md` | `ChameleonUltra/research/indala-psk-read/` | same |
+| `seqdump.py`, `pm3cap.py`, `pacdiff.py`, `enterdfu.py`, `holdsweep.py`, `autopilot.sh` | ⭐ **`ChameleonUltra/research/indala-psk-read/` — they live there, NOT here** | same; `TOOLS.md` must describe every tool (checkdocs enforces it) |
+| the harness — planner, registry, grid, runner, stations, its tests | `rfid-tools` | `./runtests` |
+| a **cross-firmware** fact (the Proxmark or the Flipper cannot do X) | `rfid-tools` gap register | `./runtests` |
+| T5577 deep-read work | `Momentum-Firmware/T5577_block0_analysis_data/` | that project's own |
+
+⭐ **THE TEST: who would look for it here in a year?** A Chameleon emitter bug is not tooling and
+must not be discoverable only from the harness's brief. `rfid-tools` stays **tooling plus the
+cross-firmware register**; the Chameleon's own story — what was tried, what it cost, what was
+retracted — lives in `ChameleonUltra`'s notes, where `LOG.md` is append-only and commit-pinned.
+
+⚠ **A finding can need BOTH, and that is not duplication.** "Our `indala` emulation is not decoded
+by the Proxmark" is a ChameleonUltra finding (our emitter) **and** a gap-register row (what the
+bench measured). Write each to fit its file; do not paste one into the other.
+
+⛔ **Push only to `origin indala-psk-read` in ChameleonUltra. Never to a PR head or a shared
+branch** — the operator's standing rule, and they are not reachable to ask.
+
 ## 1. What is physically impossible without hands
 
 Two facts in the code, not opinions:
