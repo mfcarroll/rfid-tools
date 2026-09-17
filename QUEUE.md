@@ -207,7 +207,7 @@ self-consistent with every banked run and the item-6 corrections are confirmed a
 
 ## ⭐⭐⭐⭐⭐ 2026-09-17 03:5x-05:0x — THE INTERLEAVING IS WITHDRAWN AND THE REGIONS ARE REAL. READ THIS FIRST.
 
-util7 **81 → 82** across the round (util5 7 at 05:0x). **ELEVEN units closed: K21 (C524), K22 (C525), K23 (C526), the `keri` re-run (C528) the drift gate's own price (C527) the frame-locked notch (C529, closed offline with no capture) a correction to C527's own scope (C530/M73) and Y1's costed remedy spent to a decisive end (C531/M74 — *interleaving* is EXCLUDED) the replacement estimation band withdrawn before it ran (C532/M75), `idteck` measured over the full span and `indala224` closed as not-measurable (C533), and M76's fix built as the `--inventory` tool (C534).
+util7 **81 → 82** across the round (util5 7 at 05:0x). **THIRTEEN units closed: K21 (C524), K22 (C525), K23 (C526), the `keri` re-run (C528) the drift gate's own price (C527) the frame-locked notch (C529, closed offline with no capture) a correction to C527's own scope (C530/M73) and Y1's costed remedy spent to a decisive end (C531/M74 — *interleaving* is EXCLUDED) the replacement estimation band withdrawn before it ran (C532/M75), `idteck` measured over the full span and `indala224` closed as not-measurable (C533), M76's fix built as the `--inventory` tool (C534), the burst ceiling located on the air and traced to the PROBE (C535/M77) and **the frame reading refuted at a second unambiguous region on `nexwatch`** (C536).
 
 ⚠⚠ **AND THE ROUND'S OWN SCORE ON ONE DISEASE, WHICH IS THE MOST USEFUL LINE IN IT: FIVE OVER-REACHES, ALL CAUGHT AND ALL WALKED BACK INSIDE THE ROUND** — **M71** a gate justified on the wrong **ARM** · **C526** a level from one session **PAIR** · **C530** a rate from one **LADDER** · **C532** a point estimate quoted for an **INTERVAL** · **M76** a reference list from the **WRITE-UPS** instead of the data. ⇒ **Every one is a reference or a scope taken from the wrong place.** ⭐ Each was found by a check this round itself added, not by the next round paying for it. ⇒ **the checks are working and the instinct is not: assume every number quoted from one configuration is wrong until its configuration is named beside it, in the SAME STRING and not a nearby header** (M73). ⛔ C526 RETRACTS a number C525 published an hour earlier — read that retraction before quoting any level — and C527 makes every *NO VERDICT, DRIFTED* on this line one-in-four likely to be noise.** ⛔ **No bench move, nothing flashed on
 either unit**, cu2 armed and disarmed through the `finally` on **both** capture runs — `disarm: ok`
@@ -508,6 +508,45 @@ as NOTHING.** It is the reference list a pre-registered band must be built again
 of M76 — and **not** evidence for the pattern it displays. ⚠ And read the tool's own caveat:
 *adjacent* means adjacent in **that arm's measured cells**, which are not a common grid.
 
+## ⭐⭐⭐⭐⭐ AND THE LAST TWO UNITS ANSWERED THE FRAME QUESTION AGAIN AND FOUND THE CEILING'S CAUSE (C535, C536, M77)
+
+⭐⭐⭐⭐ **`nexwatch` — THE ONE ARM THAT CAN DISCRIMINATE — PUTS ITS REGIONS AT THE SAME MILLISECONDS
+AS THE 2048-FRAME ARMS, NOT AT TWICE THEM.** Its frame is **4096 samples against the others' 2048**,
+so a frame-locked structure predicts DOUBLE positions. Measured over its own full ladder, two fresh
+seeds, all gates passing, P1 clean in every cell, and **A1 — the band already committed for
+`idteck`, applied unchanged — FIRES with three regions:**
+
+| `nexwatch` measured | frame-locked predicted | the 2048-arms' own region |
+|---|---|---|
+| **50-65 ms** | 100-130 ms | 50-65 ms |
+| **180-190 ms** | 360-380 ms | 180-190 / 190-195 ms |
+| **10-20 ms** | 20-40 ms | 10-15 / 15-20 ms |
+
+⇒ ⭐⭐ **THE WORKING POINTS ARE FIXED IN MILLISECONDS, ON FOUR ARMS AND TWO FRAME LENGTHS.** This
+extends C520 — which had only the 55-65 hump — to a second unambiguous region **125 ms away.**
+⚠⚠ `nexwatch` is also high at **100-105 ms**, which is **BOTH** where the others are high (95-110)
+**AND** the double of their 50-65 ⇒ **ambiguous, excluded from the argument, said so out loud.**
+⚠⚠ **AND THE DISCLOSURE: A1 is pre-registered and fired; the FRAME COMPARISON is not a band.** A2 is
+that band and it is **unsound** (M76), which K27 pinned in advance. ⭐ It is carried in this
+direction only, because **foreknowledge cannot manufacture the ABSENCE of a region at 360-380 ms.**
+
+⛔⛔⛔ **AND THE INSTRUMENT'S OWN CEILING NOW HAS A MEASURED CAUSE — M77, AND IT COST A CAPTURE.**
+`nexwatch`'s first ladder (10-200, `idteck`'s exactly) **FAILED P1 on both seeds, on exactly one
+cell and the same one: 200 ms** (arrivals 0.94/1.00) while **195 ms sat at exactly 0.50 in both**,
+as did the other 38. ⭐⭐ **`idteck` is the control: its 200 ms cell passed cleanly, and the ONLY
+difference is the probe — `lf read -s 6144` (49 ms) against `-s 12288` (98 ms).**
+⇒ **the 500 ms burst must cover `primer + overhead + THE PROBE ITSELF`, and the probe was never in
+the arithmetic.** ⇒ ⭐ **A ladder's reachable top is `500 − overhead − probe_ms` and is PER ARM —
+K19's *~200 ms is the reachable maximum on this rig* was `keri`'s number quoted as the bench's.**
+`burstsync` now **computes and prints that top per arm before every run** and flags cells above it.
+⚠ **The computed top is OPTIMISTIC** (it says ~210 for `nexwatch`, which failed at 200), so it is an
+**upper bound and P1 decides.** ⛔ **K27's first pair is NO VERDICT by the gate as committed** — one
+bad cell of 39 ends the arm, and **the gate was NOT loosened after seeing the data**; whether it
+should be per-cell is the operator's call.
+⭐⭐ **AND THE CONTROL CAUGHT WHAT I DID NOT**: P1 was written for K12 to police a different worry
+entirely, and it landed on the one arm and the one cell where a term was missing from the design's
+arithmetic. ⇒ **keep a control even when it looks redundant.**
+
 ## ⭐⭐ THE NEXT HANDS-OFF UNITS, IN ORDER — ITEMS 0 AND 1 ARE K22'S OWN CONSEQUENCES
 
 0. ✅ ~~**K22, the sub-20 ms ladder, and `keri`'s re-run**~~ **ALL RUN THIS ROUND —
@@ -550,9 +589,22 @@ of M76 — and **not** evidence for the pattern it displays. ⚠ And read the to
    reason — a 24-cell **RANK** correlation at 8-12 reps is blunt here — so it needs either
    far more reps per cell or a statistic using the cell **LEVELS** rather than their ranks.
    ⛔ Criterion first, and **simulate its precision before the capture** (M70/M75).
-4. ⭐ **The mechanism.** Still open and still the biggest prize. Nothing proposed survives — not the
-   beat, not settling, not the frame, not the modulation. ⛔ Criterion first, **and now simulated
-   twice first** (M70).
+4. ⭐⭐⭐ **THE MECHANISM — STILL OPEN, STILL THE BIGGEST PRIZE, AND NOW MUCH BETTER CONSTRAINED.**
+   ⭐ What this round added to the constraint set, all of it measured: the working points are fixed
+   in **MILLISECONDS** on **four arms and two frame lengths** (C536 extends C520 to a second
+   unambiguous region 125 ms away); **four of five arms share high regions near 15-20, 55-65,
+   95-105 and 140-145 ms** (`--inventory`, post-hoc); both arms' lowest region **begins between 5
+   and 10 ms** (C526/C528); there is **no frame-locked notch at 20 ms** (C529); and the two PSK
+   arms' profiles **correlate positively in all four measurements** while *interleaving* is
+   **excluded** (C531).
+   ⛔⛔ **WHAT IS STILL DEAD: not the beat (C515), not settling (C515), not the frame (C520/C536),
+   not the modulation, not a protocol property** — and a structure at fixed milliseconds shared
+   across four arms and two frame lengths points at something in the READER or the FIELD, not in
+   the emission's own timing. ⭐ **That is the first time this line has had a direction.**
+   ⛔ Criterion first, and **simulate its false-fire rate AND its power before the capture**
+   (M70/M75), **derive every reference from `--inventory` and not from a write-up** (M76), **name
+   the arm each clause was measured on** (M71), **name the ladder and n beside every rate** (M73),
+   and **compute the ladder's top per arm** (M77).
 5. ✅ ~~`idteck` and `indala224` on this knob~~ **BOTH CLOSED — C533.** `idteck` RAN and has three
    regions; `indala224` is **not measurable on this knob at all** and is closed rather than
    deferred (no usable rate exists for it — see the block above).
@@ -564,8 +616,9 @@ of M76 — and **not** evidence for the pattern it displays. ⚠ And read the to
    2048-frame arms are high at 55-65 and 140-145.
    ⛔ **Derive the reference from `--inventory` and NEVER from a write-up** (M76). ⛔ Compute the
    power **per arm** first (M68), and **name the ladder and n beside every rate** (M73).
-   ⚠ `nexwatch` has only **14 measured cells at 2 seeds**, so it needs its own full 10-200 ms
-   ladder before it can carry a cross-arm band at all — that is the capture to run first.
+   ✅ ~~`nexwatch` needs its own full ladder first~~ **DONE THIS ROUND — C535/C536.** It now has
+   **39 measured cells over 182 cap-measurements** and its own A1 verdict, so the cross-arm band
+   can be built. ⛔ **Top its ladder at 195 ms, not 200** — M77, measured, twice.
 ⛔⛔ **STILL LICENSES NOTHING HERE.** Ungraded — no null sweep, no calibration row — so it **moves
 no cell**. The gap register carries the evidence and now carries the withdrawal too.
 
