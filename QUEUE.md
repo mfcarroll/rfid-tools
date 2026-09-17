@@ -96,7 +96,7 @@ idteck 2.4, nexwatch 4.9, gproxii **1.6**. A per-arm ladder (1,2,3,4,6x the fram
 reader's own count), every rung inside ONE arming and ONE pm3 session, arms round-robined, **rungs
 shuffled**, two seeds pooled to **n=24**, tagless null **0 hits**:
 
-| arm | frame | 1f | 2f | 3f | 4f | 6f | its own reader | ⭐ best |
+| arm | frame | 1f | 2f | 3f | 4f | 6f | its own reader | ⚠ argmax (NOT stable) |
 |---|---|---|---|---|---|---|---|---|
 | `indala` | 2048 | **0** | 14 | **21** | 19 | 17 | 1/24 (14.6f) | `-s 6144` |
 | `keri` | 2048 | **0** | 6 | 9 | **14** | 9 | 8/24 (4.9f) | `-s 8192` |
@@ -205,9 +205,22 @@ gain real ❌ cells. An argument for it being the operator's call, not against t
    decode/precision decomposition measured with a criterion written first — only C502's post-hoc
    count covers them.
 
-6. ⭐ **Sharpen the per-arm peak.** The ladder has one rung at 2f, 3f and 4f; the peak sits
-   somewhere in 2.5-4.5 frames and only three points bracket it. `./shortread.py <arm> --lengths
-   a,b,c --repeat 12` per arm, shuffled.
+6. ~~⭐ **Sharpen the per-arm peak**~~ — ⛔ **DON'T: THERE IS NO PEAK TO SHARPEN** (ChameleonUltra
+   **C504**, `2493b528`). A second session at n=20 moves the argmax for **four of the five** arms
+   that decode — `indala` 3f→6f, `keri` 4f→3f, `nexwatch` 4f→3f, `gproxii` 3f→4f; only `idteck`
+   holds at 3f. ⇒ **C499 read a peak off a noisy plateau, and the `⭐ best` column above is
+   decoration.** What reproduces is the SHAPE: **one frame fails on every arm, 2-6 frames works,
+   the best region is 3-4 frames**, and both `lf indala` (14.6f) and `lf gproxii` (1.6f) sit
+   outside it. ⭐ That is what goes to the operator — a range, not an `-s N`.
+   ⭐⭐ **And C504 answers the precision question for the other three arms.** Precision **collapses
+   at ONE frame on every arm and is flat above it** (1f: `indala` 0% of 4, `indala224` 0% of 18,
+   `gproxii` 0% of 1, `keri` 20% of 5) ⇒ *one frame never decodes* is really ***one frame decodes
+   and lies***. Above one frame the split is the READER's: `idteck` 100%, `gproxii` 100%, `keri`
+   98% against `nexwatch` 77% and `indala` 76%. ⛔ **`indala` and `indala224` share `lf indala
+   demod` and it is the permissive one** — `indala224` is 0% precise at every length, **51 decodes,
+   none correct**. One demodulator, not two arms. ⚠ H7(b) took one refuting event: `gproxii` was
+   wrong on its single 1-frame decode, so *never fails open* became *100% precise at every rung
+   with two or more whole frames* (62 of 63).
 
 7. Then `AUTOPILOT.md` §2d (tidying behind the 467 tests) and §2e (upstream prep).
 
