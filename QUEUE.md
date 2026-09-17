@@ -207,7 +207,9 @@ self-consistent with every banked run and the item-6 corrections are confirmed a
 
 ## ⭐⭐⭐⭐⭐ 2026-09-17 03:5x-05:0x — THE INTERLEAVING IS WITHDRAWN AND THE REGIONS ARE REAL. READ THIS FIRST.
 
-util7 **81 → 82** across the round (util5 7 at 05:0x). **EIGHT units closed: K21 (C524), K22 (C525), K23 (C526), the `keri` re-run (C528) the drift gate's own price (C527) the frame-locked notch (C529, closed offline with no capture) a correction to C527's own scope (C530/M73) and Y1's costed remedy spent to a decisive end (C531/M74 — *interleaving* is EXCLUDED). ⛔ C526 RETRACTS a number C525 published an hour earlier — read that retraction before quoting any level — and C527 makes every *NO VERDICT, DRIFTED* on this line one-in-four likely to be noise.** ⛔ **No bench move, nothing flashed on
+util7 **81 → 82** across the round (util5 7 at 05:0x). **NINE units closed: K21 (C524), K22 (C525), K23 (C526), the `keri` re-run (C528) the drift gate's own price (C527) the frame-locked notch (C529, closed offline with no capture) a correction to C527's own scope (C530/M73) and Y1's costed remedy spent to a decisive end (C531/M74 — *interleaving* is EXCLUDED) and the replacement estimation band withdrawn before it ran (C532/M75).
+
+⚠⚠ **AND THE ROUND'S OWN SCORE ON ONE DISEASE, WHICH IS THE MOST USEFUL LINE IN IT: FOUR OVER-REACHES, ALL CAUGHT AND ALL WALKED BACK INSIDE THE ROUND** — **M71** a gate justified on the wrong **ARM** · **C526** a level from one session **PAIR** · **C530** a rate from one **LADDER** · **C532** a point estimate quoted for an **INTERVAL**. ⭐ Each was found by a check this round itself added, not by the next round paying for it. ⇒ **the checks are working and the instinct is not: assume every number quoted from one configuration is wrong until its configuration is named beside it, in the SAME STRING and not a nearby header** (M73). ⛔ C526 RETRACTS a number C525 published an hour earlier — read that retraction before quoting any level — and C527 makes every *NO VERDICT, DRIFTED* on this line one-in-four likely to be noise.** ⛔ **No bench move, nothing flashed on
 either unit**, cu2 armed and disarmed through the `finally` on **both** capture runs — `disarm: ok`
 twice, and its mode verified as `Tag Reader` **by asking the device** before the first arm — and
 **cu1 untouched**. **Detail: `ChameleonUltra` C524, M69, M70, `burstsync.py` K21/K22,
@@ -490,16 +492,20 @@ the region still carries its two cells in both.
    power table and its two caps are in the ChameleonUltra tree; `./framescale.py --k22 caps/k22_*`
    re-derives the whole verdict offline. ⛔ **Do not re-run it and do not re-derive its design** — what is
    open is items 0 and 1 above, which are its consequences.
-3. ✅ ~~**Y1 AT `--reps 12`**~~ **SPENT THIS ROUND — C531. ⛔ Do not spend it again.**
-   ⇒ ⭐⭐⭐ **WHAT REPLACES IT: AN ESTIMATION BAND FOR THE SHARED WEIGHT.** Four independent
-   measurements (+0.402, +0.490, +0.603, +0.664) put it near **w ≈ 0.6-0.8**, but that is a
-   POST-HOC estimate off banked caps. ⛔ Pre-register the INTERVAL'S METHOD, not a pass/fail
-   line: the simulation that maps w → the expected cross-arm r already exists in C531, so the
-   band is *report w with a 90% interval by matching the observed r against that mapping*,
-   declared before the capture. ⚠ **Compute its width first (M70/M73, and name the n it
-   assumes in the same sentence)** — if the interval is 0.2-1.0 wide, the band cannot say
-   anything and should not run. ⭐ It can be scored on the FOUR banked pairs as a
-   sensitivity check before any fresh capture, which costs nothing.
+3. ✅ ~~**Y1 AT `--reps 12`, AND THE ESTIMATION BAND THAT WAS TO REPLACE IT**~~ **BOTH DONE —
+   C531 AND C532. ⛔ THE *ONE PROFILE OR TWO* LINE IS EXHAUSTED BY THIS LADDER, NOT PENDING.**
+   The remedy was spent (reps 12, 90% power) and the answer did not move; then the estimation
+   band that was to replace the dichotomy was **computed before being run and is not viable**
+   — one run constrains the shared weight to a **0.55-0.80 wide** 90% range on a 0-1 scale,
+   and **pooling all four runs still leaves 0.20..0.85, width 0.65**, non-contiguous. ⛔ Do not
+   run it: an interval two-thirds as wide as its own scale is the NO POWER trap in an
+   estimate's clothes. ⭐ **What the data supports and no more**: four positive cross-arm
+   measurements, **OPPOSED excluded at 77-90% power**, SHARED not established, fully-shared
+   disfavoured **~70x** and independent **~11x**, the middle unresolvable.
+   ⇒ ⭐⭐ **A SHARPER INSTRUMENT IS A NEW DESIGN, NOT A RE-RUN**: both bands failed for one
+   reason — a 24-cell **RANK** correlation at 8-12 reps is blunt here — so it needs either
+   far more reps per cell or a statistic using the cell **LEVELS** rather than their ranks.
+   ⛔ Criterion first, and **simulate its precision before the capture** (M70/M75).
 4. ⭐ **The mechanism.** Still open and still the biggest prize. Nothing proposed survives — not the
    beat, not settling, not the frame, not the modulation. ⛔ Criterion first, **and now simulated
    twice first** (M70).
