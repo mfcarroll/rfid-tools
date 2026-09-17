@@ -446,6 +446,22 @@ def gap_register(result, protocols: list[reg.Protocol]) -> list[str]:
         ("Flipper", "can emulate Indala224 but cannot write it", "operator bench"),
         ("Proxmark", "does not decode the Flipper's Indala224 emulation", "operator bench"),
         ("Proxmark", "no dedicated InstaFob command", "`cmdlf.c` `CommandTable[]`"),
+        # ⭐⭐ THE ONE ROW HERE THAT IS ABOUT THE INSTRUMENT WE GRADE WITH, which is why it
+        # is worth more than the others: `lf <proto> reader` is the path every emulate cell is
+        # judged on, and it can miss a signal that the SAME samples yield once round-tripped.
+        ("Proxmark", "`lf read` → `lf gproxii demod` finds **nothing** on a signal that the "
+                     "**same 40,000 samples** decode after `data save` + `data load` — one "
+                     "session, one buffer, byte-exact `fac2a38c2b081af0210b12c2` either way. Live "
+                     "`lf gproxii reader` 0 of 8; save/load 3 of 3. ⚠ `indala` fails BOTH "
+                     "ways, so it is specific and not a universal rescue",
+         "ChameleonUltra C487, 2026-09-16"),
+        # ⛔ RETRACTED ROW, KEPT AS A ROW. The register used to carry this as a Proxmark
+        # capability and the correction below used to assert it. The hardware says otherwise.
+        ("Proxmark", "**cannot distinguish Electra from plain em410x**: `lf em 410x clone "
+                     "--electra` writes it and prints `Electra 0x7e1eaaaaaaaaaaaa`, but `lf em "
+                     "410x reader` then prints `EM 410x ID 2244668800` and nothing else, and "
+                     "`reader -h` has no Electra flag at all. On this bench only the Flipper "
+                     "tells them apart", "operator bench, measured 2026-09-16"),
         ("ChameleonUltra", "**4** of the Flipper's 26 protocols absent — EM4100/16, EM4100/32, "
                            "HidGeneric, HidExGeneric. A further 4 (fdxa, paradox, pyramid, "
                            "instafob) are read and cloned but not emulated, which is a row shape "
@@ -456,10 +472,13 @@ def gap_register(result, protocols: list[reg.Protocol]) -> list[str]:
     ]
     out = ["## gap register", "",
            "⚠ The rows above the run's own are carried from `SCOPE.md` and are only as current as "
-           "it is. Two were retracted on 2026-09-15 after being checked against source: the "
-           "Proxmark DOES support Electra (`lf em 410x clone --electra`, and its reader prints the "
-           "Electra value), and the ChameleonUltra is missing 4 of the Flipper's protocols rather "
-           "than 10.", "",
+           "it is. The ChameleonUltra is missing 4 of the Flipper's protocols rather than 10 "
+           "(retracted 2026-09-15 against source). ⛔ **And the Electra retraction was itself "
+           "wrong and is now retracted**: this note used to say *the Proxmark DOES support "
+           "Electra and its reader prints the Electra value*, which was read from source and "
+           "never run. Measured 2026-09-16 the reader prints only `EM 410x ID` and has no Electra "
+           "flag — it is a gap row again, above. ⭐ Both directions of that mistake were made by "
+           "reading rather than running.", "",
            "| firmware | gap | evidence |", "|---|---|---|"]
     for fw, gap, ev in known:
         out.append("| %s | %s | %s |" % (fw, gap, ev))
