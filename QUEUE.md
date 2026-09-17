@@ -557,10 +557,15 @@ operator has seen it. **Leave it for them.**
   POSITION, six identical reads gave `gproxii` the identical pattern in 16 of 16 sessions, and a
   host-side `msleep` alone moves both the pattern and the rate (29.2% → 70.8%). ⇒ A naive
   `--repeat 10` would resample the same phases ten times and report a tight, confident and
-  **wrong** rate — the same shape of error as grading with no calibration row. ⭐ The cheap
-  remedy is to **vary the spacing between repeats** (a randomised pause), so the repeats span the
-  beat rather than sit on one phase. ⛔ **Operator decision, not a tick's**: it changes the graded
-  read path, which re-bases every past cell.
+  **wrong** rate — the same shape of error as grading with no calibration row. ✅ **DONE — THE REMEDY IS IMPLEMENTED AND TESTED** (`f22feec`). Each repeat after the
+  first now waits a random interval from [0, 0.25) s, which spans more than one beat period.
+  Seven tests, each break-tested; `--no-repeat-jitter` reproduces the old behaviour.
+  ⛔⛔ **AND IT RE-BASES NOTHING — CHECKED, NOT ASSUMED, BECAUSE THAT IS THE WHOLE QUESTION.**
+  `repeat` defaults to 1, which never enters the pause, and **0 of the 20 banked runs used
+  `repeat > 1`**. ⚠ This is NOT the same class of change as re-pointing the registry's
+  `pm3_read`, which really would re-base every past cell and remains an operator decision.
+  ⚠ A **constant** pause would not have been a fix: it is just another fixed cadence, which is
+  what C507 measured as deterministic. The pause is DRAWN, and a test pins that.
 - ~~⭐ **A meter on the board, ahead of VD1.**~~ ⛔⛔ **THIS ITEM WAS NEVER BLOCKED — THE SCHEMATIC
   IS COMMITTED IN THE ChameleonUltra REPO AND NOBODY HAD OPENED IT** (C508, `b8752613`).
   `hardware/ultra/Chameleon_nrf52_ultra_V1.0.pdf`. Read exhaustively, the LF sheet exports five
