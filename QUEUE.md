@@ -228,13 +228,19 @@ obvious remedy for it is exactly backwards.**
 | The clock offset is **131.5 ppm and stable to ~1 ppm** ⇒ PSK is blocked by a BUFFER, not physics | C509 |
 | Determinism **reproduced** in a third run; survives 9 s randomised gaps | C510 (K7) |
 | A lead-in delay moves **nothing** ⇒ the phase reference travels with the first read | C511 (K8) |
-| ⛔⛔ **A FRESH BURST SCORES ZERO** — 50% → 0% when each read gets its own | C512 (K9) |
+| ⛔⛔ **A FRESH BURST SCORES ZERO** — 50% → 0% when each read gets its own … | C512 (K9) |
+| … **but only on `gproxii`** — `indala` and `keri` lose nothing. One arm is a scope, not a law | C514 (K11) |
 | That caught a constant **I had shipped four hours earlier** | C513 (K10) |
 
-⛔⛔⛔ **THE WARNING THAT MATTERS MOST TO WHOEVER TOUCHES THE HARNESS NEXT (C512).** Giving each
-read a clean field-down so it is *independent* takes `gproxii` from **50% to zero**. Every one of
-these arms would grade SILENT, with a completely defensible-sounding justification attached. **Do
-not add settling between graded reads.**
+⛔⛔⛔ **THE WARNING THAT MATTERS MOST TO WHOEVER TOUCHES THE HARNESS NEXT (C512), AND ITS SCOPE
+(C514).** Giving each read a clean field-down so it is *independent* takes `gproxii` from **50% to
+zero** — that arm would grade SILENT with a completely defensible-sounding justification attached.
+⛔⛔ **BUT IT IS `gproxii`-ONLY, AND I HAD THIS TOO BROAD FOR AN HOUR.** K11 ran the same design
+on `indala` and `keri` with the arrivals control passing on both (0.33 → 1.00, so the bursts did
+restart): **`indala` 50% → 67%, `keri` 33% → 54%** against a criterion asking for a halving.
+⚠ Those rises are **not significant at n=24 and are not claimed** (M58, a third time); what is
+established is that **the collapse does not generalise**. ⇒ **Before changing read timing, measure
+the arm you are changing it for** — one arm is a scope, not a law.
 
 ⚠⚠ **AND THE ROUND'S OWN WORST MOMENT, KEPT ON PURPOSE.** On C507's evidence I added a random
 pause to `--repeat` and set its span to 250 ms from the beat period alone. C512/C513 then measured
