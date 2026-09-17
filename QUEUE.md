@@ -254,9 +254,58 @@ hard to locate in the EMISSION's own timing — it points at the READER or the F
 the frame and the modulation are all dead, and this is the first positive constraint pointing
 anywhere. ⇒ **That is what the next criterion is for.**
 
+## ⭐⭐⭐⭐⭐ 2026-09-17 12:4x-13:2x — THE DECIMATION APPROACH IS CLOSED, AND THE HARNESS'S OWN
+## CEILING FORMULA WAS WRONG IN ITS FORM. READ THIS BEFORE THE SECTION BELOW IT.
+
+util7 **85 → 86**. **Repo for the detail: `ChameleonUltra` C545-C548, M82, L533-L536.** One tick,
+four findings, **one capture and one host-timing run — no band was spent.**
+
+⭐⭐ **K33 — the successor C544 named by arithmetic — IS NOT RUNNABLE, and its pilot said so before
+the capture rather than after.** `idteck`'s burst ends between **130 and 140 nominal at dec 2**, not
+at the computed 157, so C544's unmoved window (140-145) is entirely past the ceiling.
+⚠⚠ **And K33 could not have failed safe**: starvation depresses the *unmoved* window only, so it
+would have fired **ELAPSED** — pre-registered, clean and wrong ⇒ **M82**.
+
+⭐⭐⭐ **THE APPROACH IS CLOSED IN CLOSED FORM, NOT BY SWEEPING.** `dectime.py` slope-fits the
+stretch M79 has been owed since C540 (**dec 2 = 1.775, dec 3 = 2.449, dec 4 = 3.117**; ⛔ dec 4's
+crude ratio implied ~2.05 and was **wrong by half**), and then `sep = L(1-1/S)` under `L <= B/S`
+peaks at **S = 2 exactly**. ⇒ widest reachable separation **45.8 ms at dec 2, R3 — which is exactly
+what K32 ran and found BRIDGED** — against a bound of 61.3 over all stretches. **dec 3 and dec 4
+retired without running either.**
+
+⛔⛔ **AND THE OBVIOUS SUCCESSOR IS ALREADY REFUTED**: an `msleep` lever escapes the cap but means
+the field is **DOWN**, which K10 measured restarts the burst past ~120 ms — **the very reason K12
+switched to the primer knob** (C515). ⇒ **C539's confound stays OPEN and is uncloseable on this
+bench.** Say so plainly; do not reach for a fourth variant. **The one lever that would reopen it is
+`LF_TAG_BURST_TARGET_MS` — see item 3b, and read the warning there before touching it.**
+
+⭐⭐⭐⭐ **THE INCIDENTAL FINDING IS THE BIGGEST ONE, AND IT CORRECTS THE HARNESS (C548).**
+`_top = (500 - 192 - probe_ACQUISITION)/stretch` **charges a read at its acquisition, and a read's
+ELAPSED is not its acquisition** — C540 measured the ~47% USB-readback surcharge and `_top` never
+adopted it. One nominal ms of primer really costs **1.41 ms at dec 1 and 2.50 at dec 2**, and the
+uncounted term **SCALES with the primer**, which is why no constant could absorb it: **`K12_OVERHEAD_MS
+= 192` IS that failed absorption**, and the client's real cost is **~85 ms**, exactly what the comment
+beside the constant always said. ⭐⭐ **Fitted on one boundary and TESTED on another**: `idteck` dec 2
+(clean 130 / broken 140) computes **138.2**; `nexwatch` dec 1 (clean 195 / failed 200, measured long
+before for another reason) computes **196.0** — **both inside their brackets**, where the old form
+said 157 and 210. ✅ **Nothing banked moves**; `burstsync.py` now carries the corrected form.
+⚠ **It is still not an arbiter — P1 is** — but for a new reason: it cannot certify within ~10 ms of
+the edge, because the burst is clamped to whole ~16.4 ms emission frames.
+
+⚠ **ONE RETRACTION INSIDE THE TICK**: C547's first version claimed the overhead is *202-220 ms,
+above the 192 constant*. **Wrong, and wrong in sign** — I assumed the formula's FORM was right and
+solved for its constant, which is the same error the formula makes. Retracted by C548/L536. ⭐ What
+stands from C547: **the dec-2 stretch is known to ~7%, not three decimals** (1.775 here against
+C540's 1.653), so ⛔ no design may lean on it harder than ~10%.
+
+⛔ **Bench**: nothing flashed, on either unit. cu2 armed and disarmed once through `burstsync`'s
+`finally`; `lf config --reset` in `dectime`'s. Nothing moved. `./runtests` green (474).
+
 ## ⭐⭐⭐⭐⭐ WHERE THE NEXT TICK STARTS — THE MECHANISM, AND IT FINALLY HAS A DIRECTION
 
 ✅ ~~**Run the three-arm shared-regions band**~~ **DONE — C538. ⛔ Do not re-run it.**
+✅ ~~**The client-side / decimation test**~~ **CLOSED 2026-09-17 — C545-C548. ⛔ Do not re-run it, and
+do not propose a variant: item 3 below carries why every variant is closed too.**
 
 ⭐⭐⭐ **THE ONE OPEN UNIT IS THE MECHANISM, AND C538 POINTS IT SOMEWHERE FOR THE FIRST TIME.**
 Everything proposed so far is dead — **not the beat** (C515), **not settling** (C515), **not the
@@ -276,32 +325,49 @@ on this bench, which is the thing to exploit:
    the pad or the coupling — ⛔ **which needs the operator**, so it is a return item and not a
    tick's. ⭐ Name it in the handover so the operator can decide whether to spend a bench move on
    it; it is now a well-posed question rather than a fishing trip.
-3. ⭐⭐⭐⭐ **THE CLIENT-SIDE TEST: BUILT, RUN THREE TIMES, AND ITS APPROACH IS NOW CLOSED BY ITS
-   OWN PRE-REGISTERED BRANCH (C539-C544). THE SUCCESSOR IS ONE ARM AND IS SPECIFIED BY
-   ARITHMETIC.**
-   ⛔⛔ **THE CONFOUND: the primer is `lf read -s N`, and N sets its SAMPLE COUNT and its DURATION
-   together** — so *fixed milliseconds* has always meant *fixed N* and a **client-side** reading of
-   this whole line is not excluded. **`lf config --dec` separates them** (C539) at a **measured
-   1.653x** stretch (C540/M79).
-   ✅ **DONE:** the knob and both feasibility checks · the transfer function · the collision,
-   reachability and narrowing arithmetic · the band · `--dec` and fractional cells in the harness
-   (regression-checked across all eight scorers) · **three captures — K30 reps 8, K31 reps 16,
-   K32 at 2.5 ms.**
-   ⛔⛔⛔ **K32 FIRED ITS *CLOSES THIS APPROACH* BRANCH ON BOTH ARMS**: a **single contiguous
-   region spans `105,107.5,110,112.5`**, across the separator cell that was empty under BOTH
-   predictions. ⇒ **honoured — no finer grid was attempted, and none should be.**
-   ⭐⭐⭐ **AND THE REASON IS NOT RESOLUTION: the region runs CONTIGUOUSLY from the top of the
-   unmoved window into the moved one, and no grid splits a contiguous run.** At that region the
-   predictions are 40 ms apart and the feature is 7.5 ms wide — **what bridges them is the
-   feature's SKIRT, not the cell size.**
-   ⇒ ⭐⭐ **THE SUCCESSOR, BY ARITHMETIC: separation = `0.395 x label`** — 24 ms at 55-65, 40 at
-   100-105, **56 at 140-145**, 73 at 180-190. **56 ms is far beyond any skirt a 7.5 ms feature can
-   throw.** ⛔ **140-145 is reachable at dec 2 for `idteck` (top 157 nominal) and NOT for `keri`
-   (138); 180-190 for neither.** ⇒ **the test is `idteck`, unmoved 140-145 against moved
-   84.7-87.7** — one arm, so C514's scope caveat applies in full, but decisive if it fires.
-   ⚠⚠ **A second option has its arithmetic UNDONE: a higher decimation widens the separation for
-   the same label, at the cost of reachability.** C540 timed dec 4 but slope-fitted only dec 1 and
-   2 ⇒ ⛔ **slope-fit its stretch before using it** (M79).
+3. ⛔⛔⛔⛔ **THE CLIENT-SIDE TEST IS CLOSED, AND SO IS EVERY VARIANT OF IT — THE BURST CEILING
+   ENDS IT, NOT A FAILED CAPTURE (C545-C548, 2026-09-17).** K33 was specified by C544 as `idteck`,
+   unmoved 140-145 against moved 84.7-87.7. ⭐⭐ **Its pilot measured the one number it depended on
+   and had never measured: `idteck`'s burst ends between 130 and 140 nominal at dec 2**, not at the
+   computed 157 — arrivals **0.50 at 110/120/130** then **0.81 / 0.94 / 0.75 / 0.69 / 0.75 / 0.88**
+   across 140-170, with the decode level **0% at 145, 150, 155 and 160**. ⇒ **K33's whole unmoved
+   window is past the ceiling.**
+   ⚠⚠ **AND IT COULD NOT HAVE FAILED SAFE, which is the part worth carrying**: starvation depresses
+   the **unmoved** window and leaves the **moved** one alone, so K33 would not have returned *no
+   verdict* — it would have fired **ELAPSED**, pre-registered and clean and wrong, with nothing
+   downstream able to catch it ⇒ **M82: when a design buys its power at the top of a budget, the
+   budget stops being a constraint and becomes a quantity under test. Measure it first.**
+   ⭐⭐⭐ **AND ONE MEASUREMENT RETIRED dec 3 AND dec 4 WITHOUT RUNNING EITHER.** `dectime.py` (new,
+   nothing armed) slope-fits the stretch M79 has been owed since C540: **dec 2 = 1.775, dec 3 =
+   2.449, dec 4 = 3.117** — ⛔ **dec 4's crude fixed-N ratio implied ~2.05 and was wrong by half.**
+   Then it closes in closed form: `sep = L(1-1/S)` under `L <= B/S` maximises at `B(S-1)/S²`, **peak
+   at S = 2 exactly**. ⇒ the widest separation reachable inside the burst is **45.8 ms at dec 2, R3
+   — precisely the configuration K32 already ran and found BRIDGED** — and the bound over *all*
+   stretches is **61.3 ms**. **No decimation this bench can set buys a usable separation.**
+   ⛔ **DO NOT PROPOSE THE OBVIOUS SUCCESSOR EITHER — IT IS ALREADY REFUTED.** An `msleep` between
+   primer and probe would add lead time at *zero* sample cost and so escape the `B/4` cap
+   entirely. ⛔ **But a gap means the field is DOWN**, which K10 measured **restarts the burst past
+   ~120 ms**, and below that it changes the emission's own condition rather than only the lead time
+   — **which is exactly why K12 switched from the gap knob to the primer knob in the first place**
+   (C515). It is not a cleaner instrument; it is a second confound.
+   ⇒ ⭐ **SO THE CONFOUND C539 RAISED STAYS OPEN AND IS HONESTLY UNCLOSEABLE HERE**: *fixed
+   milliseconds* has always meant *fixed `-s N`*, and no knob on this bench separates them widely
+   enough to beat the feature's skirt. **Say that plainly rather than reaching for a fourth variant.**
+
+3b. ⭐⭐⭐ **THE ONE LEVER THAT WOULD REOPEN IT IS OURS, AND IT IS A FIRMWARE CONSTANT** —
+   `LF_TAG_BURST_TARGET_MS (500)` at `lf_tag_em.c:75`. Every bound above is proportional to it: at
+   1000 ms the budget triples to ~600 dec-1 nominal ms, the cap goes to ~150 ms, and **R4 and R5
+   both come into reach at dec 2 with 63 and 83 ms of separation** — clear of the skirt with room.
+   ⚠⚠ **BUT THE BURST IS NOT A NEUTRAL KNOB AND MUST NOT BE TREATED AS ONE: C511/C512 make the
+   burst's START the phase reference this entire line measures lead time FROM.** Lengthening it may
+   move the regions rather than merely reveal more of them — ⭐ **which is itself a sharp test** (if
+   the regions are fixed lead times from burst start they should not move at all), but it is a
+   *different experiment* and needs its own pre-registration, not a quiet re-run of K33.
+   ⛔ **And it needs a cu2 FLASH.** That is permitted (`enterdfu.py`, no bench move, **cu2 only,
+   never cu1**) but it is the largest step this round would take unattended, and AUTOPILOT's warning
+   stands: a flash that goes wrong with nobody present ends the week. ⇒ **Pin the design first;
+   treat the flash as the decision it is.**
+
 ⛔⛔ **AND THE RULES ANY OF THOSE MUST SATISFY, ALL EARNED THIS ROUND:** derive every reference
 from `--inventory` and never from a write-up (**M76**); compute the power **per arm** first
 (**M68**); simulate **both** a false-fire rate and a power figure before the capture (**M70/M75**);
