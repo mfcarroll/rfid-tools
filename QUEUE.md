@@ -29,9 +29,29 @@ for Indala silent, the same samples at 40,000 silent, and Rig B is tagless.
 
 ⭐⭐ **And FIVE of the six arms decode through the READER COMMAND THE MATRIX GRADES ON** — at
 n=24: `keri` **8/24**, `gproxii` **8/24**, `nexwatch` **6/24**, `idteck` **4/24**, against **0 of 36**
-with nothing armed. ⚠ **Read those as non-zero, NOT as an ordering** (C497): the hit
-rate wanders — the same arm gave **88%, 60%, 38% and 75%** in one evening — and the arms were
-measured one after another, so only an INTERLEAVED run compares two of them. See `METHOD.md` M59. Only `indala` (0/26) and `indala224` (0/24) never do. They are **intermittent,
+with nothing armed. ⚠ **Read those as non-zero, NOT as an ordering** (C497): the hit rate
+wanders — the same arm gave **88%, 60%, 38% and 75%** in one evening — and those arms were
+measured one after another. Only an INTERLEAVED run compares two of them (`METHOD.md` M59).
+
+⭐⭐⭐ **THE ONE CROSS-ARM TABLE THAT IS METHODOLOGICALLY SOUND (C498)** — round-robin, one
+capture per arm per round, n=8, so the wander moves every arm together. `./shortread.py
+--interleave --repeat 8`:
+
+| arm | its own reader | a fitted short read |
+|---|---|---|
+| `gproxii` | 0/8 | **8 of 8** (`-s 12288`) |
+| `indala` | 0/8 | **6/8** (`-s 4096`) |
+| `keri` | **3/8** | 0/8 (`-s 4096`) |
+| `nexwatch` | 1/8 | 1/8 |
+| `idteck` | 0/8 | 0/8 |
+| `indala224` | 0/8 | 0/8 |
+
+⛔ **SO THE RULE IS NOT "USE A SHORT READ".** `keri` is BETTER on its own 10,000-sample read
+than on 4,096. Each arm has a window that works, bounded below by needing whole frames and above
+by the ~61 ms fading period — `lf indala reader`'s 30,000 is far outside it, `lf keri reader`'s
+10,000 is inside. ⭐ **`gproxii` is the headline**: 8 of 8 through a fitted read against 0 of 8
+through its own, which is C487 confirmed live and interleaved — that arm is not marginal at all
+once the read fits. Only `indala` (0/26) and `indala224` (0/24) never do. They are **intermittent,
 not silent**, and a cell graded from ONE read lands on SILENT most of the time — which is exactly
 what the graded run and C488's one-capture probe saw.
 
@@ -65,6 +85,26 @@ byte-exact**, then the tail collapses to all-ones. A 224-bit frame is **57.3 ms*
 **60.8 ms** null spacing, so it cannot finish inside one interval, and the survival times (48-54 ms)
 sit just under that spacing. ⛔ The wrong-frame reading was made without looking at the payload —
 see item 8.
+
+## ⭐⭐ WHERE THE NEXT TICK STARTS
+
+1. ⭐⭐ **Measure the per-arm read length that works**, interleaved. C498 shows the window is
+   arm-specific (`keri` prefers 10,000 over 4,096; `gproxii` wants ~12,288; `indala` 4,096) and
+   only three lengths have been tried per arm. `shortread.py --interleave` is the right instrument
+   and its `ARMS` table already carries one length per arm — make it a list and sweep. **This is
+   the single most useful unattended measurement left**, because it turns "these arms are
+   intermittent" into "this arm reads at N samples", which is something the operator can act on.
+2. ⚠ **The `idteck` and `indala224` zeros are the only genuinely open arms.** Everything else has
+   decoded at least once. `idteck` reads 5,000 samples — well inside the fading period — and still
+   scores 0/8 interleaved, so its cause is NOT the geometry and is unexplained.
+3. Item 9's burst hypothesis is refuted (C492) and item 8's is corrected (C493); the remaining open
+   question from C496/C497 is **why arms differ at equal geometry**, with the demodulator, the
+   reader's sample count, the burst gap, frame length, the credential's bit pattern and per-read
+   re-arming all now excluded.
+4. Then `AUTOPILOT.md` §2d (tidying behind the 467 tests) and §2e (upstream prep).
+
+⛔ **Read `METHOD.md` M58 and M59 before measuring anything**: both were earned this round, by me,
+on my own numbers — n too small, and comparing across sessions on a bench whose rate wanders.
 
 ## 1. ~~`seqdump.py` arms 1 of 5 steps~~ — DONE, AND THE DIAGNOSIS WAS WRONG (C475/L443)
 
