@@ -7,6 +7,7 @@
 then **reverted and reflashed away** (C485) — cu2 is back on the committed build. Verify
 FUNCTIONALLY, never by version string (C461): an armed Indala must show **64 entries, `seq
 repeats` 15** (`hw emuseq --count 0`), and `hw emuhold -n 1 --top 8` must succeed. Both checked.
+⚠ **cu1 WAS PUT INTO READER MODE** (`hw mode -r`) to read Rig A's tag for item 4. Its prior mode was **not recorded first**, so if the operator had left it emulating something, that is gone — reader mode is the safe state (an emulating Chameleon jams the pad) but the change is disclosed rather than glossed. ⛔ cu1 was never flashed.
 ⚠ `enterdfu.py` failed to trigger twice in a row before succeeding on the third try, with
 nothing flashed either time — it says so explicitly and distinguishes a trigger failure from a
 flash failure. **Retry it; do not go looking for a broken device.**
