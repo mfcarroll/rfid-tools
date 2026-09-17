@@ -103,15 +103,24 @@ Read them before assuming anything, write down what you find. Chameleon 1 writes
 - `em410x` `pm3·emu` and `fdxb` `cu1·emu` read `⁇` — need `--repeat 10`.
 - `t55.pm3 → rd.cu2` for everything: gone while Rig B is tagless.
 
-## 6. Registry work, no bench
+## 6. ~~Registry work, no bench~~ — BOTH DONE (`rfid-tools`, 467 tests green)
 
-**Repo: `rfid-tools`** — the registry is the harness. `./runtests`.
-
-- `em410x_electra`: refuse the `rd.pm3` column **permanently** — the Proxmark cannot tell Electra
-  from plain em410x and has no flag for it (measured 2026-09-16). Do **not** record `2244668800`
-  as its expectation. Our `cu_read` is genuinely missing and is real work.
-- `indala224` `cu_decode_marker` is `Indala224 PSK1`; `lf indala write --help` says `--224`
-  configures **PSK2**. One of them is wrong — check before trusting either.
+- ✅ **`em410x_electra`**: the `rd.pm3` refusal is now recorded as **permanent**, with the
+  measurement and the reason. The old comment said the column was refused *"until the bench says
+  what the Proxmark prints"* — which is what sent a tick to measure it. There is no answer to
+  get: `lf em 410x reader` prints `EM 410x ID 2244668800` and nothing else, and `-h` has no Electra
+  flag at all. ⛔ The row now says in full why recording `2244668800` would build a false pass
+  in by construction. Our `cu_read` is still genuinely missing and is still real work.
+- ✅ **`indala224` `cu_decode_marker`**: **checked, and neither "one of them" is wrong in the
+  way the question assumed.** The marker `Indala224 PSK1` is CORRECT — a marker's job is to
+  match what the device prints, and `lf indala read --224` does print exactly that
+  (`chameleon_cli_unit.py:6304`). **The device's LABEL is the thing that is wrong**: the same file
+  says `--224` configures PSK2 (6331, 6349), and the emitter agrees — `indala224_modulator`
+  builds with `LF_PSK1_PHASE_DIFFERENTIAL`, which is PSK2. ⇒ A cosmetic **ChameleonUltra** bug.
+  ⛔ **Deliberately NOT fixed unattended**: the print and the marker are coupled, and if they
+  go out of step every `indala224` `rd.cu*` reading silently turns from EXACT into SILENT. It wants
+  one commit touching both repos together, with the operator present. The registry row carries that
+  warning now so nobody "tidies" the marker on its own.
 
 ## 7. When 1–6 are done or blocked
 

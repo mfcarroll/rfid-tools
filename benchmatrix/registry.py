@@ -523,7 +523,22 @@ ALL: dict[str, Protocol] = {p.key: p for p in [
        # with. `--electra` is a FLAG: the Proxmark appends its own fixed Electra blocks to a 5-byte
        # EM410X id, while the Chameleon takes a 13-byte id that carries the Electra half itself. So
        # there is no single byte-exact token that both produce, and `expect = None` refuses the
-       # `rd.pm3` column until the bench says what the Proxmark prints for a Chameleon-written tag.
+       # `rd.pm3` column.
+       #
+       # ⛔⛔ THAT REFUSAL IS PERMANENT, AND THIS COMMENT USED TO SAY "until the bench says
+       # what the Proxmark prints" — WHICH SENT A TICK TO MEASURE IT. Measured 2026-09-16, and
+       # the answer is that the question has no answer: `lf em 410x clone --electra` writes the tag
+       # and prints `Electra 0x7e1eaaaaaaaaaaaa`, but `lf em 410x reader` then prints
+       # `EM 410x ID 2244668800` AND NOTHING ELSE, and `lf em 410x reader -h` has no Electra flag at
+       # all — clk/invert/amp/break/continuous/verbose only. The Proxmark cannot tell Electra
+       # from plain em410x.
+       #
+       # ⛔ SO DO NOT "FIX" THIS BY RECORDING `2244668800`. That token is byte-identical to
+       # plain `em410x`'s, so a registry holding it for both would let an `em410x` emission pass an
+       # `electra` cell and vice versa — a false pass built in by construction, which is worse
+       # than a refused column. On this bench only the Flipper distinguishes the two
+       # (`22446688007E1EAA`, learned 20260915_233837). ⇒ This is a gap-register fact about the
+       # PROXMARK, not a hole in ours.
        expect=None,
        cu_type="EM410X_ELECTRA",
        cu_emulate="lf em 410x econfig -s {slot} --id deadbeef880102030405060708",
@@ -548,6 +563,15 @@ ALL: dict[str, Protocol] = {p.key: p for p in [
        cu_read="lf indala read --224",
        cu_write="lf indala write --raw "
                 "80000001b23523a6c2e31eba3cbee4afb3c6ad1fcf649393928c14e5 --224",
+       # ⛔⛔ "PSK1" HERE IS THE DEVICE'S OWN WORDING AND IT IS MISLABELLED — DO NOT
+       # "CORRECT" IT. `lf indala read --224` literally prints `Indala224 PSK1`
+       # (chameleon_cli_unit.py:6304), while the SAME FILE says `--224` configures **PSK2**
+       # (6331, 6349) and the emitter agrees: `indala224_modulator` calls the shared builder with
+       # `LF_PSK1_PHASE_DIFFERENTIAL`, i.e. differential phase, i.e. PSK2. A marker's whole job is
+       # to match what the device prints, so it must keep this wording until the firmware's print
+       # is fixed — and the two must then change in LOCKSTEP, because a marker that stops
+       # matching turns every `rd.cu*` reading for this protocol from EXACT into SILENT.
+       # ⇒ Queued as a coordinated cross-repo fix rather than done unattended.
        cu_decode_marker=r"Indala224 PSK1",
        cu_expect="80000001b23523a6c2e31eba3cbee4afb3c6ad1fcf649393928c14e5",
        flip_key="Indala224", flip_write=False,
