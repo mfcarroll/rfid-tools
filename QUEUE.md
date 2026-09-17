@@ -680,10 +680,20 @@ and raising no field — **moved the pattern on 3 of 4 delays for `gproxii` and 
 `indala`**, and swung `gproxii`'s rate from **29.2% to 70.8%**. A host-side pause cannot change
 which read is the nth. ⇒ **the client does not explain it.**
 
-⚠⚠ **What did NOT hold, said here rather than buried**: the 16/16 determinism did **not**
-reproduce inside the K6 run, which is K6's own *no verdict* branch for that half. The
-session-spacing explanation for the difference is read off the data and needs its own criterion.
-And **K5** — a replication of K2's surprise — landed in its own middle band (−15.6 points against
+✅✅ **AND THE DETERMINISM IS NOW REPRODUCED IN A THIRD RUN (C510, `975d7a2c`).** K7 asked
+whether the session's START PHASE is what makes it deterministic — criterion committed first,
+fixed vs randomised inter-session spacing, interleaved. **Fixed 88% modal, random 88% modal**, so
+**H_phase is REFUTED by its own band**. But `.X.XX.` came back in **14 of 16** sessions, matching
+K5's 16/16 and **surviving randomised gaps of up to 9 s (~100 beat periods)** ⇒ what K6 left at
+*no verdict* now holds.
+⚠⚠ **AND THE PUZZLE I MANUFACTURED DISSOLVED — M58, AGAIN, ON MY OWN NUMBERS.** K6's D=0 cell
+was **2/4**, and all four of its patterns shared the `.X.X` prefix. At n=4 that never conflicted
+with 7/8 or 16/16. **There was no K5/K6 difference to explain**; I read a small-n cell as a
+discrepancy and spent a whole experiment on a hypothesis about it. Both the refutation and the
+fact that the puzzle was never real are recorded — the second mistake is the expensive one.
+⭐ **The surviving constraint**: ms between READS moves the pattern; seconds between SESSIONS do
+not. ⚠ That is **post-hoc** and needs its own criterion before it is anything more.
+⚠ **K5** — a replication of K2's surprise — landed in its own middle band (−15.6 points against
 the >= 20 it needed) and is recorded **UNREPLICATED**, not reinterpreted.
 
 ## 7. When 1–6 are done or blocked
