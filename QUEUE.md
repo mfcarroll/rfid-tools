@@ -205,6 +205,111 @@ self-consistent with every banked run and the item-6 corrections are confirmed a
 
 ## ⭐⭐ WHERE THE NEXT TICK STARTS
 
+## ⭐⭐⭐⭐⭐ 2026-09-17 03:5x-05:0x — THE INTERLEAVING IS WITHDRAWN AND THE REGIONS ARE REAL. READ THIS FIRST.
+
+util7 **81 → 82** across the round (util5 5 at 04:3x). ⛔ **No bench move, nothing flashed on
+either unit**, cu2 armed and disarmed through the `finally` on **both** capture runs — `disarm: ok`
+twice, and its mode verified as `Tag Reader` **by asking the device** before the first arm — and
+**cu1 untouched**. **Detail: `ChameleonUltra` C524, M69, M70, `burstsync.py` K21/K22,
+`framescale.py` `--k21`/`--k22`, commits `aaa641d0` `d20f15d6` `394834a0` `6146ab5f` `ecd7e557`.**
+
+⭐⭐⭐ **THE HEADLINE, AND IT RETIRES THE PREVIOUS ROUND'S BIGGEST POST-HOC OBSERVATION.** The last
+block below ends with *the two arms' structure INTERLEAVES* and calls it the next criterion's job.
+**That criterion was written, its power computed, and it was run on fresh seeds. The four regions
+replicate at the cells named for them. The interleaving does not.**
+
+| band | result |
+|---|---|
+| **Y3 — do the named regions come back?** | ⭐ **FIRES.** `keri` high at **95,100,105** in both seeds and 140-150; `indala` notched at **120,125,130** and **165,170,175** in both. **The first LOCATION band in this project**, legitimate only because K19/K20 named the cells first and these seeds are fresh |
+| **Y1 — one profile or two?** | ⛔ **NO VERDICT** — but the cross-arm Spearman is **+0.402 and +0.664**, POSITIVE in both runs, against a band needing **<= −0.52** for *interleaving*. **The wrong sign, twice** |
+| **Y2 — the offset** | ⛔ **WITHDRAWN BEFORE THE CAPTURE** for want of power (M70). No offset of any size may be quoted in either direction |
+
+⛔ **`indala`'s 115 ms cell met the notch threshold in NEITHER fresh seed**, so the first notch is
+**120-130**, not 115-130. Reported, not tested.
+
+⛔⛔ **WHAT MAY BE SAID AND WHAT MAY NOT.** *Interleaving* requires the arms to be OPPOSED, and they
+are not — so **the interleaving claim is withdrawn from the gap register**, and its appearance is
+explained by the thing the band named in advance: **K19 scored `keri` with a FORWARD detector
+(median 25-31%, only a hump is detectable) and K20 scored `indala` with an INVERSE one (median 75%,
+only a notch is), and ONE SHARED PROFILE yields an interleaved-looking pair by construction.**
+⚠⚠ **But *one shared profile* is NOT established either.** Only one run clears +0.52, so the
+pre-registered answer is NO VERDICT and that is the answer. ⛔ **Do not upgrade it.** The
+disattenuated values (+0.56, +0.92), the pooled-seed figure (+0.523) and the per-arm reliabilities
+(`indala` +0.780, `keri` +0.662) are all **post-hoc and none is the band's statistic** — the band
+asked for ±0.52 in EACH run and got it in one.
+
+⭐⭐ **AND THE NO VERDICT CAME WITH ITS OWN PROBABILITY ATTACHED, WHICH HAS NOT HAPPENED HERE
+BEFORE.** Y1's power was simulated before the capture: **77% SHARED under one shared profile, 77%
+OPPOSED under anti-alignment, ~2% errors each way, and a real 20 ms offset landing in NO VERDICT
+98% of the time.** ⇒ **this is the 23% branch firing, not a band that was badly built** — and the
+remedy was priced in the same breath: **`--reps 12` takes Y1 to 90%.** That is unit 1 below.
+
+## ⭐⭐⭐ TWO DEFECTS FOUND BEFORE THE BENCH WAS TOUCHED, AND THAT IS THE ROUND'S REAL LESSON
+
+⛔⛔ **M69 — ONE SHUFFLE FOR EVERY ARM WAS A CROSS-ARM CONFOUND.** `burstsync.k12()` built ONE
+shuffled plan and ran **every arm through it**, so both arms saw the identical cell→position
+mapping in every round. M60 established that **position is a variable on this bench**, so whatever
+it contributes entered both arms' profiles **identically and manufactured a positive cross-arm
+correlation out of nothing.** ⚠ **It touches no WITHIN-arm verdict** — K12 through K20 are all
+within-arm and all stand — but it is fatal to a cross-arm one. ⇒ `--per-arm-shuffle` derives and
+records a seed per arm, every cap now carries `_plan`, and the scorer **REFUSES an unshuffled cap
+by name.** ⭐ The only banked both-arm caps (`k15`, `k16`) are refused by that path, which is the
+guard working. ⇒ **Before comparing two arms, enumerate what the harness gives them in common.**
+
+⛔⛔⛔ **M70 — A BAND KILLED BY SIMULATION BEFORE ITS CAPTURE, THE FIRST TIME THAT HAS HAPPENED
+HERE.** Y2 asked whether the profiles are offset: cross-correlate at lags 0, ±5..±25 ms, fire when
+the best non-zero lag beats lag 0 by >= 0.30 in both runs with the sign agreeing. Pre-registered,
+replicated across two seeds, **and broken**:
+
+- **41% FALSE-FIRE** against a null of two INDEPENDENT profiles. The median null gain is **+0.37**,
+  already above its own threshold, because **lag 0 is one correlation and the best of ten lags is
+  an order statistic. A maximum's null is not zero.**
+- At a 0.3% false-fire bar it needs a gain of 1.10, and there it detects a **real 20 ms offset
+  0.3% of the time.** A fixed signed lag removes the argmax and still reaches only **37% power at
+  a 5% false-fire rate.**
+
+⚠⚠ **SIX BANDS (M62, M63, M64, M66, M67, M68) WERE ALL PRE-REGISTERED AND ALL SIX WERE FOUND
+BROKEN BY THE DATA THEY WERE BUILT TO JUDGE — six captures spent discovering that six criteria
+could not carry a verdict. M70 was found by 24,000 simulated draws and cost NO BENCH TIME.**
+
+⇒ ⭐⭐⭐ **THE RULE THIS ROUND ADDS, AND IT SUPERSEDES *ask what single cell decides this*:
+SIMULATE EVERY BAND TWICE BEFORE THE CAPTURE — once under NO effect (the false-fire rate) and once
+under the effect AS DESCRIBED (the power). If either number is unacceptable the band is not ready,
+and finding that out on the bench is paying for it twice.** ⭐ It does not only kill bands: Y1 and
+K22's Z1 both passed the same treatment and are the stronger for carrying their numbers.
+
+## ⭐⭐ THE NEXT HANDS-OFF UNITS, IN ORDER — AND UNIT 2 NEEDS NO DESIGN WORK AT ALL
+
+1. ⭐⭐ **K22 IS WRITTEN, PINNED, BREAK-TESTED AND UNRUN.** `burstsync.py`'s docstring carries it and
+   `./framescale.py --k22` scores it. **The 20-40 ms region is the last one under the burst ceiling
+   that nothing has ever measured** — K14/K15/K16 stopped at a 40 ms primer and K19/K20 started at
+   85. Run it exactly as written:
+   `--k12 --arms indala,keri --primers 20,25,30,35,40,45,50,55,60,65,70,75,80 --reps 8
+   --per-arm-shuffle --seed 131` and again at `--seed 149`, `--out caps/k22_indala_keri_s<N>.json`.
+   ⭐ **~10 min per seed** (14 cells against K21's 26). ⭐ Its reference is the first in this project
+   **justified by independent prior measurement**: `k15`/`k16` measured 40 and 45 ms at **0-17%,
+   eight readings**, so Z1's threshold is an ABSOLUTE 40% and not a median.
+   ⛔⛔ **Z1's power is a cliff and the verdict must carry it: 96% at two cells of 80%, 47% at 60%,
+   16% at 50%.** A REFUTED Z1 means *no feature as strong as the known hump*, **NOT** *the region
+   is flat*. ⛔ And the frame-locked notch — `gproxii`'s 1.22 frames is **20 ms** on these arms —
+   is declared **UNTESTABLE** there in advance: a notch needs a body and the measured body is that
+   floor, so a null at 20 ms must never be quoted as refuting it.
+2. ⭐⭐ **Y1 AT `--reps 12`, WHICH IS THE COSTED REMEDY C524 NAMED.** Same ladder, same arms,
+   `--per-arm-shuffle`, two fresh seeds (**163** and **179**; 113/127 are spent). It takes Y1 from
+   77% to **90%** power and is the one thing that can turn this round's NO VERDICT into an answer.
+   ⚠ ~30 min per seed. ⛔ The band is unchanged and must not be re-tuned — re-running a band at
+   higher n is replication; re-running it with new thresholds is fitting.
+3. ⭐ **The mechanism.** Still open and still the biggest prize. Nothing proposed survives — not the
+   beat, not settling, not the frame, not the modulation. ⛔ Criterion first, **and now simulated
+   twice first** (M70).
+4. `idteck` and `indala224` remain unmeasured on this knob. ⚠ `indala224`'s precision is 0% (C502),
+   so it can only be scored on *decoded*, never on *exact*, and the band must say so.
+
+⛔⛔ **STILL LICENSES NOTHING HERE.** Ungraded — no null sweep, no calibration row — so it **moves
+no cell**. The gap register carries the evidence and now carries the withdrawal too.
+
+---
+
 ⭐⭐⭐ **UNIT 2 AND UNIT 4 OF THE 02:0x LIST ARE BOTH CLOSED** by the 02:4x block above — the
 hump does not travel with the frame (C519/C520), and `nexwatch` is measured. ⛔ **Do not re-open
 them**; the open units are the ones that block names, and the first of those is now cheap.
@@ -368,7 +473,10 @@ so **65 ms is not a unique working point** — it is the one measured to work on
 once.
 
 ⭐⭐ **THE NEXT HANDS-OFF UNITS, in order:**
-1. ⭐⭐⭐ **A criterion for the interleaving.** ⛔ It must NOT be scored on `caps/k19_*` or
+⛔⛔⛔ **UNIT 1 BELOW IS CLOSED — the criterion was written and run (C524) and THE INTERLEAVING IS
+WITHDRAWN. Unit 3 is written and pinned as K22 but UNRUN. See the 03:5x-05:0x block at the top;
+do not re-open unit 1 and do not re-derive unit 3's design.**
+1. ✅ ~~⭐⭐⭐ **A criterion for the interleaving.**~~ **DONE — C524.** ⛔ It must NOT be scored on `caps/k19_*` or
    `caps/k20_*` — those are the caps the shape was seen in. A fresh seed pair on both arms, same
    ladder, the band naming in advance **which cells each arm must be high and low in**.
    ⚠ Compute the power for BOTH arms first (M68): `keri` needs the forward detector and `indala`
