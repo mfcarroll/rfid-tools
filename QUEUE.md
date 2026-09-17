@@ -43,15 +43,38 @@ Extending it to the six is item 3's work, not a defect in the tool.
 ⚠ Rig B has no tag, so the write has nothing to write to — a handler that hangs instead of
 reporting "no tag" is still a bug, but keep that confound in the write-up.
 
-## 3. The six emitter gaps — the headline
+## 3. The six emitter gaps — the headline. THE BUFFER IS EXONERATED; THE FRAME IS NEXT
 
 **Repo: `ChameleonUltra`** for the emitter fix and the finding; **`rfid-tools`** for the
-gap-register row only. Both, written to fit each file — not pasted across (§0b).
+gap-register row only.
 
-`indala` · `keri` · `nexwatch` · `idteck` · `gproxii` · `indala224` emit nothing `rd.pm3` can
-decode, on **both** Chameleons across **two** builds, licensed both times ⇒ it is the emitter code.
-Five are PSK, `gproxii` is ASK. Diagnose per `AUTOPILOT.md` §2a: seqdump first, then the air check
-on the tagless Rig B. A fix that turns one EXACT is real — and **ungraded**; say so every time.
+`indala` · `keri` · `nexwatch` · `idteck` · `gproxii` · `indala224` emit nothing `rd.pm3`
+can decode, on **both** Chameleons across **two** builds, licensed both times.
+
+⭐⭐ **SEQDUMP HAS ANSWERED, 6 OF 6 (C476/C477, `194e7fd4`).** Every one of the six builds a
+**byte-perfect PWM buffer** — `indala` 64/64, `keri` 64/64, `nexwatch` 96/96, `idteck` 64/64,
+`gproxii` 96/96, `indala224` 448/448 — each predicted from the emitter source *before* the
+capture, and `seq repeats` (the bit period) is right on all of them. **The sequence builder is not
+the defect.**
+
+⛔⛔ **AND THE BUFFER DOES NOT SEPARATE THE SIX FROM THE ELEVEN**: `pac`'s buffer is equally
+perfect and the Proxmark decodes it. ⛔ The tidy explanation is already refuted — *the six
+are the arms carrying data in the PWM inversion bit* fails, because `em410x`, `viking`, `fdxb`,
+`gallagher`, `securakey` and `noralsy` all set that bit and all are decoded.
+
+⇒ **NEXT, AND IT NEEDS NO BENCH: is the FRAME the right bytes?** seqdump predicts from the
+same frame the econfig was handed, so a wrong preamble, format or block rotation passes it
+unchanged — it tests the modulator, not the credential. ⭐ **There is a known precedent for
+exactly this defect: C160.** Keri's air frame is the T5577 **block form** `(id << 3) | 7`; emulating
+the reader's `E0000000||id` view instead is the same 64-bit cycle three bits along and gave a stable
+WRONG credential 6 times out of 6. **The same class of error in any of the other five would look
+exactly like what we see.** ⇒ Compare, source to source, what each of our six emitters sends
+against what the Proxmark's own `lf <proto> clone` writes into T5577 blocks
+(`/Users/Shared/code/personal/rfid/proxmark3/client/src/cmdlf*.c`). Pure reading, no hardware.
+
+⭐ The air check on the tagless Rig B remains available for any fix: arm cu2, read with the
+Proxmark, disarm in a `finally`. A fix that turns one of the six EXACT is real evidence — and
+**ungraded**; say so every time.
 
 ## 4. Rig A's tag contents are unknown
 
