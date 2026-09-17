@@ -172,6 +172,37 @@ EXACT. ✅ **Today's SILENT grades are correct**: at each arm's own graded count
 arms barely decode at all.
 
 
+## ✅ 2026-09-16 21:5x — REGRADE-VALIDATION SWEEP (hands-off, util7=75.0)
+
+⭐ **A regrade is not a graded cell** (AUTOPILOT §1/§4) — this moved no cell and touched no device.
+It re-derived every outcome in **all 16 non-aborted banked runs** under today's registry (`d09fdb6`)
+with `./bench report <id> --regrade`, to validate item 6's registry corrections against the banked
+evidence. This is the one measurement loop AUTOPILOT §1 endorses for an operator-absent tick.
+
+⭐⭐ **RESULT: CLEAN. Every move is a deliberate registry correction taking effect on a
+pre-correction run; nothing is a current-registry defect, and no *licensed* EXACT cell flipped to
+WRONG.**
+
+- **11 runs stable** ("no outcome moved"), including the flagship licensed run **`20260916_161528`**
+  (the 11/17-EXACT tagless run) and **every** run measured since the corrections landed.
+- **5 older runs move** (2026-09-15 → early 09-16), all moves `UNGRADED ↔ graded`:
+  - `20260916_110740` **27 moved**, every one `UNGRADED → EXACT/SILENT` — cells the older registry
+    could not license now grade, from markers/calibration added since. Strict improvement.
+  - `204348` (+2), `205207` (−2), `104455_resumed` (+1), `125646` (+1) — same shape.
+- ⭐ **The one divergence I chased and closed: `fdxb …→ rd.cu1` moves OPPOSITE ways in adjacent
+  runs `204348` (→EXACT/WRONG) and `205207` (→UNGRADED).** Not a registry inconsistency. Both runs'
+  cu1 read decoded `00339a080402079f8040`**`797788`**`040201`; today's registry raw is
+  `...8040`**`3b7598`**`...040201` (`registry.py:475/477`). **The fdxb raw expectation was
+  deliberately corrected** since 2026-09-15 (`registry.py:496`, `devices.py:915` "the first registry
+  entry where `expect` was corrected", `learned.py:220`), so tags written with the OLD raw correctly
+  regrade to WRONG/UNGRADED. The correction working as designed — ⛔ do NOT "fix" it back.
+  ⚠ cu1 = Rig A now, so a fresh fdxb cu1 read is an operator item regardless.
+
+⇒ **Nothing to commit but this record.** `./runtests` green (467), git was clean. The registry is
+self-consistent with every banked run and the item-6 corrections are confirmed against the evidence.
+
+---
+
 ## ⭐⭐ WHERE THE NEXT TICK STARTS
 
 ⭐⭐ **THE READ-LENGTH LINE IS CLOSED.** C499-C504 answered it, audited the method that nearly broke
