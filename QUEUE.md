@@ -276,37 +276,42 @@ on this bench, which is the thing to exploit:
    the pad or the coupling — ⛔ **which needs the operator**, so it is a return item and not a
    tick's. ⭐ Name it in the handover so the operator can decide whether to spend a bench move on
    it; it is now a well-posed question rather than a fishing trip.
-3. ⚠⚠ **THE CLIENT-SIDE TEST WAS BUILT AND RUN, AND IT NEEDS EXACTLY ONE MORE CAPTURE (C539-C542).**
-   ⛔⛔ **THE CONFOUND IT CLOSES: every lead-time result varies the primer with `lf read -s N`, and
-   N sets its SAMPLE COUNT and its DURATION together** — so *fixed milliseconds* has always meant
-   *fixed N*, and a purely **client-side** reading is not excluded. **`lf config --dec` separates
-   them** (C539, verified two ways) at a **measured 1.653x** stretch (C540/M79 — NOT 2x, because
-   the USB readback does not scale).
-   ✅ **DONE: the knob, its transfer function, the collision/reachability/narrowing arithmetic
-   (C541), the band, `--dec` in `burstsync.py`, and one full capture (K30, two arms, two seeds).**
-   ⛔⛔ **K30 RETURNED *NO VERDICT — regions at NEITHER* ON BOTH ARMS, AND THE FAULT IS THE
-   THRESHOLD, NOT THE BENCH.** All four gates passed with **P1 clean in every cell**. But the
-   decimated profile is **systematically lower**: `keri` pools **42 → 26%** (61% of it), `idteck`
-   **43 → 31%** (73%), dec-2 cell medians **12%** and **25%** — and the band's absolute **62.5%**
-   threshold came from the **dec-1** level.
-   ⇒ ⭐ **M80: an ABSOLUTE threshold buys independence from the ARM, never from the CONDITION** —
-   and it was foreseeable, because decimation changes the primer's duration and this whole line
-   exists because the rate is a function of that duration.
-   ⇒ ⭐⭐⭐ **THE ONE REMAINING CAPTURE: re-run K30's ladder on FRESH seeds with the threshold and
-   the power derived from the dec-2 level THIS run measured** (medians 12-25%, maxima 75-100%).
-   ⛔ **Do NOT simply lower 62.5% and re-score the banked caps — that is fitting.** The caps are
-   banked as the PILOT; its product is the level, not a verdict.
-   ⚠ **POST-HOC, LABELLED, AND IT CUTS BOTH WAYS**: `keri` has single elevated cells at **35
-   (62/50%)**, **105 (75/25%)** and **110 (50/100%)** — hints on BOTH sides of the question, none
-   making two adjacent cells in both seeds. ⇒ **the answer is genuinely open and one properly
-   powered capture decides it.**
+3. ⭐⭐⭐⭐ **THE CLIENT-SIDE TEST IS BUILT, RUN TWICE, AND NEEDS ONE SMALL FINAL CAPTURE
+   (C539-C543). THIS IS THE FIRST THING THE NEXT TICK SHOULD DO.**
+   ⛔⛔ **THE CONFOUND IT CLOSES: the primer is `lf read -s N`, and N sets its SAMPLE COUNT and
+   its DURATION together** — so *fixed milliseconds* has always meant *fixed N* and a purely
+   **client-side** reading of this whole line is not excluded. **`lf config --dec` separates them**
+   (C539) at a **measured 1.653x** stretch (C540/M79).
+   ✅ **DONE:** the knob and both feasibility checks · the transfer function · the collision,
+   reachability and narrowing arithmetic (C541) · the band · `--dec` in `burstsync.py` · **two full
+   captures**, K30 at reps 8 and K31 at reps 16.
+   ⛔ **BOTH RETURNED *NO VERDICT — regions at NEITHER*, with every gate passing both times.**
+   K30's threshold came from the dec-1 level and the dec-2 profile runs ~30% lower (C542/**M80** —
+   *an absolute threshold buys independence from the ARM, never from the CONDITION*); K31 fixed
+   that with reps 16 and a 50% bar derived from the measured level, **and still did not fire.**
+   ⭐⭐⭐ **AND THE WAY IT MISSES IS THE RESULT: the cells that survive BOTH seeds land exactly in
+   the two zones the arithmetic had already called NON-DISCRIMINATING** — `idteck` at **105 AND
+   110** (straddling the unmoved/moved boundary) and `keri` at **60** (inside the 55-65 collision)
+   and **110**. ⇒ **the discriminating cells are empty and the signal is in the ambiguous ones:
+   the design's power was placed in the wrong cells, not absent from the bench.**
+   ⛔⛔ **AND THE FIX WAS ALREADY WRITTEN AND I DROPPED IT (M81).** C541 said, in the same
+   paragraph that produced the predictions, that they **need a 2.5 ms grid and not a 5 ms one**.
+   The design then became a targeted 17-cell ladder — better on every other axis — **and the grid
+   requirement was silently left behind.** At 2.5 ms the unmoved (100-105) and moved (108.9-114.9)
+   predictions are separated by a cell at 107.5 and become distinguishable; at 5 ms they are
+   adjacent, so a real region in either place reads as the boundary and the band cannot fire.
+   ⇒ ⭐⭐⭐ **THE FINAL CAPTURE, AND IT IS SMALL: the same test at 2.5 ms across the TWO AMBIGUOUS
+   ZONES ONLY — roughly 52.5-65 and 97.5-117.5 — keeping `--reps 16` and the 50% threshold exactly
+   as K31 set them, since the level is now measured twice.** ⛔ **Do NOT re-score K30's or K31's
+   caps at a finer grid: they do not have one.** They are banked as two properly-powered runs that
+   located the signal without resolving it.
 ⛔⛔ **AND THE RULES ANY OF THOSE MUST SATISFY, ALL EARNED THIS ROUND:** derive every reference
 from `--inventory` and never from a write-up (**M76**); compute the power **per arm** first
 (**M68**); simulate **both** a false-fire rate and a power figure before the capture (**M70/M75**);
 **give the no-verdict branch a MEANING in advance** (**M74**, and K29 shows it is cheap); name the
 arm each clause was measured on (**M71**); name the ladder and n **in the same string** as every
 rate (**M73**); compute the ladder's top **per arm** (**M77**); and before withdrawing a band,
-work out **which way its defect pushes** (**M78**); and ask what a threshold assumes about **the condition you are about to vary**, because *absolute* hides that assumption rather than removing it (**M80**).
+work out **which way its defect pushes** (**M78**); and ask what a threshold assumes about **the condition you are about to vary**, because *absolute* hides that assumption rather than removing it (**M80**); and **when a design changes shape, re-read the note that produced its numbers and check each requirement against the NEW shape** (**M81** — the round's most expensive lesson, because it cost two captures and only the bench could catch it).
 
 ---
 
