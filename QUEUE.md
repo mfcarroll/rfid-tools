@@ -33,15 +33,31 @@ killed by **process group** (it stranded the port mid-round). Disarm now runs in
 ⇒ **What is left of this item:** the `arms` table still covers only `pac` and `gprox`.
 Extending it to the six is item 3's work, not a defect in the tool.
 
-## 2. `indala224` write hangs — `CMD 3039`
+## 2. ~~`indala224` write hangs~~ — IT NEVER HUNG (C481/L449, `4a8d9b3c`)
 
-**Repo: `ChameleonUltra`** — firmware. Logged as L442; a fix needs its own entry.
+**Repo: `ChameleonUltra`** — fixed host-side in `software/script/chameleon_cmd.py`. **No flash.**
 
-`lf indala write --raw 80000001b23523a6c2e31eba3cbee4afb3c6ad1fcf649393928c14e5 --224` →
-`TimeoutError: CMD 3039 exec timeout` in ~4 s, reproducible. The registry row is **correct**
-(verified). `cmd_processor_indala224_write_to_t55xx` returns no response. ⭐ Pure USB, no bench.
-⚠ Rig B has no tag, so the write has nothing to write to — a handler that hangs instead of
-reporting "no tag" is still a bug, but keep that confound in the write-up.
+⛔ **`CMD 3039` returns — 0.4 s later than the host was willing to wait.** Measured on cu2
+with a **fresh link per call**: `STATUS_LF_TAG_OK` in **3.42 s and 3.71 s**, against **1.34 s** for
+the 64-bit write beside it. `send_cmd_sync` defaults to **3 s**. L442 recorded it as a handler that
+returns no response; it is a handler that is slow.
+
+⭐ **Structural, not bad luck**: `write_t55xx()` runs one pass per old key plus a final open
+pass (4 with the default `old_keys`), and `t55xx_write_blocks()` sends every block **twice**. So
+the cost is `4 × blocks × 2` — and Indala224 is the **only eight-block writer** in the
+tree: **64 sends against 24**, ratio 2.67, measured 2.6.
+
+✅ Fixed: that call passes `timeout=30`. The CLI command from this item now runs end to end and
+says *CANNOT TELL — nothing readable before or after*, which is **correct on a tagless rig** and
+is **not** a write verdict.
+
+⚠ **Method note worth keeping**: the first attempt issued the command twice on ONE link and
+reported a nonsense 0.37 s, because both calls carry the same cmd id and a late response to the
+first is matched to the second. **One slow command per link, or you measure the previous one.**
+
+⚠ **THE 3 s DEFAULT IS A LATENT TRAP** for any future multi-block writer — from the host,
+a handler that never answers and one that answers late are the same event. No other writer exceeds
+7 blocks today, so nothing else is affected yet.
 
 ## 3. The six emitter gaps — ⭐ ROOT CAUSE FOUND FOR FIVE: WE EMIT NRZ, NOT PSK
 
