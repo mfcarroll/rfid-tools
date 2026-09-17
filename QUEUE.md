@@ -303,6 +303,19 @@ C540's 1.653), so ⛔ no design may lean on it harder than ~10%.
 
 ## ⭐⭐⭐⭐⭐ WHERE THE NEXT TICK STARTS — THE MECHANISM, AND IT FINALLY HAS A DIRECTION
 
+⭐⭐⭐⭐⭐ **2026-09-17 13:3x — THE NEXT TICK'S FIRST UNIT IS `K34a`, AND IT IS PINNED AND PRICED.**
+Read `burstsync.py`'s **K34** section (commit `4bf718ee`) in full before planning it, then item 3b
+below. **The decimation line is CLOSED — do not re-open it or propose a variant** (item 3).
+
+⛔ **K34a NEEDS A cu2 FLASH, AND THAT IS DELIBERATELY LEFT TO A FRESH SESSION.** This tick pinned the
+design rather than executing it, because a flash plus its functional verification plus a two-arm
+two-seed capture is a large unit and AUTOPILOT §6 is explicit that a cramped session re-deriving
+badly costs more than losing an hour. ⭐ **It is not a deferral for its own sake: everything K34
+needs is written down** — the arithmetic, the two stages, the licensing rule between them, the
+retry behaviour of `enterdfu.py`, and the **air-side** check that the constant actually took effect.
+⇒ **A tick starting fresh should flash and run K34a, not re-litigate whether to.**
+
+
 ✅ ~~**Run the three-arm shared-regions band**~~ **DONE — C538. ⛔ Do not re-run it.**
 ✅ ~~**The client-side / decimation test**~~ **CLOSED 2026-09-17 — C545-C548. ⛔ Do not re-run it, and
 do not propose a variant: item 3 below carries why every variant is closed too.**
