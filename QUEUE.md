@@ -207,7 +207,7 @@ self-consistent with every banked run and the item-6 corrections are confirmed a
 
 ## ⭐⭐⭐⭐⭐ 2026-09-17 03:5x-05:0x — THE INTERLEAVING IS WITHDRAWN AND THE REGIONS ARE REAL. READ THIS FIRST.
 
-util7 **81 → 82** across the round (util5 6 at 04:4x). **TWO units closed: K21 (C524) and K22 (C525).** ⛔ **No bench move, nothing flashed on
+util7 **81 → 82** across the round (util5 7 at 05:0x). **THREE units closed: K21 (C524), K22 (C525) and K23 (C526) — and C526 RETRACTS a number C525 published an hour earlier; read that retraction before quoting any level.** ⛔ **No bench move, nothing flashed on
 either unit**, cu2 armed and disarmed through the `finally` on **both** capture runs — `disarm: ok`
 twice, and its mode verified as `Tag Reader` **by asking the device** before the first arm — and
 **cu1 untouched**. **Detail: `ChameleonUltra` C524, M69, M70, `burstsync.py` K21/K22,
@@ -315,20 +315,62 @@ detector after seeing the level is the thing this project exists not to do. It i
 ⚠ `indala`'s seed-149 split-half is **11.5 points**, the closest any run here has come to the
 15-point drift gate. It passes and is recorded rather than glossed.
 
+## ⭐⭐⭐⭐ AND K23 RAN TOO — THE REGION IS BOUNDED AT BOTH ENDS, AND IT RETRACTS C525 (C526)
+
+⭐⭐⭐ **`indala`'s 20-30 ms REGION BEGINS BETWEEN 5 AND 10 ms.** The 1-65 ms ladder, two fresh
+seeds (151, 167), both arms per run, per-arm shuffled. **V1 FIRES** — and **both** continuity
+gates passed before it was read: V2 (the older 50-65 hump) on all four anchor cells in both seeds,
+and **V2b, C525's OWN region, on all three in both.** Then 1 and 5 ms come in at **38/25% and
+25/25%**, and V3 puts the lowest cell at or above 40% at **10 ms in both seeds**.
+⇒ **With C525's top edge between 30 and 35, the region is located at BOTH ends for the first time.**
+⚠ A firing V1 licenses *the profile comes down*, never *it reaches a floor* — at a true 62% the
+detector fires 14% from noise, and that was stated before the capture.
+
+⛔⛔⛔ **AND IT RETRACTS A NUMBER FROM THE BLOCK ABOVE. C525 SAID `indala` IS AT *100% IN BOTH
+SEEDS AT 20 ms*, ABOVE ITS 96/83% AT 65 ms, AND CONCLUDED THAT *65 ms IS NOT THE BEST LEAD TIME*.
+THE RANKING DOES NOT REPRODUCE.** In K23's own sessions the same two cells **INVERT**:
+
+| cell | K22 (seeds 131/149) | K23 (seeds 151/167), one hour later |
+|---|---|---|
+| 20 ms | **100% / 100%** | **75% / 50%** |
+| 25 ms | 88% / 75% | 88% / 62% |
+| 30 ms | 100% / 62% | 62% / 88% |
+| 65 ms | (not in that ladder) | **88% / 100%** |
+
+⇒ ⭐⭐ **THE REGIONS REPRODUCE AND THEIR RELATIVE HEIGHTS DO NOT.** ⛔ **No cell may be ranked
+against another cell across sessions on this bench, and *the best lead time* is not a thing this
+instrument can identify.** 65 ms keeps its standing for the only reason it ever had one — it is the
+value measured to work on three arms at once.
+⚠⚠ **This is C504's *carry the range, not the number* for the FOURTH time, and it was broken one
+hour after being written into a band.** What survives from C525 is the region's **existence** and
+its **location**, both re-confirmed by the V2b gate that was added for precisely this purpose.
+
+⛔ **`keri`: NO VERDICT — its seed-167 run DRIFTED**, split-half **15.9 points** against a
+15-point gate, so nothing about `keri` is read from this ladder and **its own bottom edge is still
+unmeasured.** ⭐ The drift gate firing on a real run, one round after `indala`'s 11.5 was logged as
+the closest call yet, is that control earning its keep and not a nuisance.
+
+⛔⛔ **THE AXIS HAS A FLOOR NO PRIMER REACHES BELOW: ~192 ms of field-up overhead** (`K12_OVERHEAD_MS`).
+A 1 ms primer is 193 ms of elapsed time, so *below 20 ms* means *below 212 ms of elapsed*. ⚠ And the
+no-primer control is **not** the bottom of that axis — it is a fresh burst (arrivals 1.0 against
+0.50), a different condition, and it wandered from 62% to 25% between the two runs.
+
 ## ⭐⭐ THE NEXT HANDS-OFF UNITS, IN ORDER — ITEMS 0 AND 1 ARE K22'S OWN CONSEQUENCES
 
-0. ✅ ~~**K22**~~ **RUN THIS ROUND — C525, see the block directly above. Do not re-run it.**
-   ⛔⛔ **ITS FOLLOW-UP IS NOW THE FIRST THING ON THIS LIST: A LADDER THAT REACHES BELOW 20 ms.**
-   Z3 says both arms are already elevated at the ladder's first cell, so the region's downward
-   extent is unmeasured and **no bottom-edge wing is licensed**. A primer is `lf read -s N` with
-   N = ms x 125, so 10 ms is 1,250 samples and mechanically reachable; **P1 is what says whether a
-   primer that short still holds one burst**, and a P1 failure down there is a result about the
-   instrument's floor, not a nuisance. ⛔ Criterion first, simulated twice first (M70), and the
-   detector must be chosen from `indala`'s measured **ceiling** at 20 ms — which means a NOTCH
-   detector, not a forward one (M68).
+0. ✅ ~~**K22, and the sub-20 ms ladder it forced**~~ **BOTH RUN THIS ROUND — C525 and C526.**
+   ⛔ **Do not re-run either.** `indala` is bounded at both ends; what is left of this line is
+   `keri`, whose seed-167 run drifted, so **`keri`'s own bottom edge is unmeasured and is a
+   straight re-run of K23 on fresh seeds** — same ladder, same band, `--arms keri`, two fresh
+   seeds (**181** and **193**). ⛔ The band is unchanged and must not be re-tuned; a re-run at
+   fresh seeds is replication, a re-run with new thresholds is fitting. ⚠ ~6 min per seed for
+   one arm. ⛔⛔ And going below 1 ms is impossible: the axis floor is the ~192 ms field-up
+   overhead, not the primer, so **the next move down is the overhead itself** — which is a
+   different experiment and needs its own criterion.
 1. ⭐⭐⭐ **THE FRAME-LOCKED NOTCH, ON FRESH SEEDS, PROPERLY PRE-REGISTERED.** K22 declared it
    untestable at 20 ms on an expected level the data contradicts: there IS a body there, so the
-   detector has power. ⛔ **It may not be read off `caps/k22_*`** — that is the data that revealed
+   detector has power. ⚠⚠ **BUT PRICE IT AGAINST C526's RETRACTION FIRST**: the 20 ms cell read
+   100/100% in K22 and 75/50% in K23, so *the* level there is not a number this bench can pin —
+   compute the detector's power across **both** measured levels and say what it can see at each. ⛔ **It may not be read off `caps/k22_*`** — that is the data that revealed
    the level. A fresh seed pair, a notch band pinned before the capture, and the prediction stated
    in frames: `gproxii`'s notch is **1.22 frames**, which is 20 ms on these two arms. ⚠ And say in
    advance what a null means, because `indala` sitting at 100% there makes a notch unlikely and a
