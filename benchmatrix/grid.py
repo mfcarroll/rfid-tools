@@ -467,10 +467,24 @@ def gap_register(result, protocols: list[reg.Protocol]) -> list[str]:
                      "`cmdlfidteck.c:315` **5,000** \u2014 a 6x spread nothing documents. Live A/B, "
                      "one session, alternated, n=26: `lf indala reader` **0 of 26**, then "
                      "`lf read -s 4096` + `lf indala demod` **23 of 26 byte-exact**, same field, "
-                     "same arm. \u2b50 Indala's is the only reader spanning four intervals of the "
-                     "emission's own ~61 ms fading period, and it is the only arm that never "
-                     "decodes on its own path; the others were already short, and a read-length "
-                     "sweep on nexwatch shows no trend. \u21d2 **a SILENT emulate grade can be an "
+                     "same arm. \u2b50\u2b50 **AND THE 6x SPREAD HAS A UNIT: FRAMES OF THE PROTOCOL'S OWN "
+                     "LENGTH, AND THE WINDOW THAT WORKS IS 3-4 OF THEM.** Those same counts "
+                     "converted: indala **14.6** frames \u00b7 keri 4.9 \u00b7 idteck 2.4 \u00b7 "
+                     "nexwatch 4.9 \u00b7 gproxii **1.6**. A per-arm ladder, rungs SHUFFLED, two "
+                     "seeds pooled n=24, tagless null 0 hits: `gproxii` **24 of 24** at "
+                     "`lf read -s 18432` (3 frames) against 9/24 through its own 10,000; "
+                     "`indala` **21/24** at 6,144 against 1/24 at its own 30,000; keri 14/24 at "
+                     "8,192; nexwatch 10/24 at 16,384; idteck 9/24 at 6,144; `indala224` **0 at "
+                     "every length**. \u2b50 **One frame scores 0,0,0,1,0,0 of 24 across the six** "
+                     "and is the rung that most often returns a marker with the WRONG payload. "
+                     "\u26d4 **Two earlier claims in this row are REFUTED by that sweep**: the "
+                     "~61 ms fading period does NOT cap the usable read (gproxii peaks at 147 ms "
+                     "= 2.4 intervals and still scores 18/24 at 197 ms), and the read-length "
+                     "sweep on nexwatch DOES have a trend once it is swept in frames (1 frame "
+                     "1/24, 4 frames 10/24). \u26d4 The reader command's own code path is NOT "
+                     "different from `lf read -s N` + `demod` at the same N \u2014 an ascending "
+                     "sweep said it was by 5x and was measuring POSITION after the arming, not "
+                     "length. \u21d2 **a SILENT emulate grade can be an "
                      "under-sampled intermittent rather than an absent emitter**: five of the six "
                      "arms this harness grades SILENT return their own credential byte-exact "
                      "through the reader command itself \u2014 keri 8/24, gproxii 8/24, nexwatch "
@@ -478,9 +492,11 @@ def gap_register(result, protocols: list[reg.Protocol]) -> list[str]:
                      "\u26a0 **Read those as non-zero, not as an ordering**: the hit rate on this "
                      "bench WANDERS (the same arm gave 88%, 60%, 38% and 75% in one evening) and "
                      "the arms were measured one after another, so the counts are time-averages "
-                     "and only an interleaved run compares two arms",
-         "ChameleonUltra C490/C491/C494, 2026-09-16 \u2014 \u26a0 ungraded manual observations; "
-         "they license `--repeat`, never a re-grade"),
+                     "and only an interleaved run compares two arms. \u2b50 `idteck` is NOT a zero "
+                     "(9/24 at 3 frames); **`indala224` is the only arm that never decodes**",
+         "ChameleonUltra C490/C491/C494/C499, 2026-09-16 \u2014 \u26a0 ungraded manual "
+         "observations; they license a per-arm `--repeat`, never a re-grade, and never a "
+         "change to the registry's own `pm3_read` \u2014 that would re-base every past cell"),
         # ⛔ RETRACTED ROW, KEPT AS A ROW. The register used to carry this as a Proxmark
         # capability and the correction below used to assert it. The hardware says otherwise.
         ("Proxmark", "**cannot distinguish Electra from plain em410x**: `lf em 410x clone "
