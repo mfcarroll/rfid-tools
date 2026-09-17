@@ -126,6 +126,30 @@ window with n=12 behind it.
   so C487's save/load rescue is about save/load and nothing else;
 - ⭐ **`idteck` is not a zero** — 9/24 at 3 frames. It was item 2 of the old next-tick list.
 
+## ⭐⭐ 2026-09-16, 22:10 — AND THE ARMS SPLIT BY *FAILURE MODE*, NOT ONLY BY RATE
+
+**ChameleonUltra C502** (`facb0df3`), ⚠ **post-hoc** over C499's own scores, seed 2, n=12/rung.
+Each read already scores twice — **decoded** (a frame of this protocol at all) and **exact** (it was
+ours) — and the difference is a credential the reader reports confidently and wrongly:
+
+| arm | decoded | wrong | mode |
+|---|---|---|---|
+| `indala` | 51 | **16** | fails OPEN |
+| `nexwatch` | 26 | **10** | fails OPEN |
+| `indala224` | 28 | **28** | fails OPEN, always |
+| `keri` | 20 | 3 | fails OPEN, rarely |
+| `idteck` | 11 | **0** | ⭐ fails CLOSED |
+| `gproxii` | 35 | **0** | ⭐ fails CLOSED |
+
+⭐⭐ **At a ONE-FRAME read `lf indala demod` locks and is wrong 6 times out of 6.**
+⛔ **Not a harness defect — the harness's design being right.** `benchmatrix/outcomes.py` already
+makes WRONG first-class and never merges it into SILENT, and `devices.py` refuses to grade a reader
+with no decode marker for exactly this reason. ✅ **And today's SILENT grades are correct**: at each
+arm's own graded sample count the open-failing arms barely decode at all.
+⛔⛔ **THE SECOND REASON NOT TO RE-POINT `pm3_read`**: at 3-4 frames `indala` decodes 12/12 with
+**2 of those 12 wrong**, so cells would move to **WRONG** as well as to EXACT and the matrix would
+gain real ❌ cells. An argument for it being the operator's call, not against the change.
+
 ## ⭐⭐ WHERE THE NEXT TICK STARTS
 
 1. ~~⭐⭐⭐ **AUDIT EVERY OTHER SWEEP TOOL FOR M60's CONFOUND**~~ — ✅ **DONE, AND C469 SURVIVED IT
@@ -160,12 +184,31 @@ window with n=12 behind it.
    geometry, unequal level, and the demodulator, the sample count, the burst gap, frame length, the
    credential's bit pattern and per-read re-arming are all already excluded.
 
-3. ⭐ **Sharpen the per-arm peak.** The ladder has one rung at 2f, 3f and 4f; the peak is somewhere
-   in 2.5-4.5 frames and only three points bracket it. `./shortread.py <arm> --lengths a,b,c
-   --repeat 12` per arm, shuffled. ⚠ Worth doing only after item 1 — it is the same instrument.
-4. Then `AUTOPILOT.md` §2d (tidying behind the 467 tests) and §2e (upstream prep).
-   ⚠ One found in passing and NOT fixed: `benchmatrix/grid.py:313` has `"\|"`, an invalid escape
-   sequence that Python already warns about. One character, covered by the tests.
+3. ~~**§2d: `benchmatrix/grid.py:313`'s invalid escape**~~ — ✅ fixed (`3d509c7`); the rendered
+   table is byte-identical, only the deprecation goes away.
+
+4. ⭐⭐⭐ **THE RESIDUAL, AND IT IS NOW THE SHARPEST OPEN QUESTION: EQUAL GEOMETRY, UNEQUAL LEVEL.**
+   `indala`, `keri` and `idteck` have the **same 2048-sample frame**, were measured **interleaved
+   and shuffled** in the same sessions, and at 3 frames score **21/24, 9/24 and 9/24**. Every
+   suspect named so far is excluded: the demodulator (C496), the reader's sample count (C499), the
+   burst gap (C492), frame length (they are equal), the credential's bit pattern, and per-read
+   re-arming (C497). ⭐ **C502 hands it a NEW angle that costs nothing**: those three differ in
+   *failure mode* too — `indala` fails **OPEN** (51 decoded, 16 wrong) while `idteck` fails
+   **CLOSED** (11 decoded, 0 wrong). ⇒ **Hypothesis worth writing a criterion for: `indala`'s higher
+   rate is partly its demodulator being more permissive, not its signal being better.** If so,
+   scoring only EXACT understates `idteck` relative to `indala`, and the right comparison is
+   *decoded-and-correct per read* against *decoded at all*. Testable from a purpose-built run.
+
+5. ⚠ **C502 is POST-HOC and says so.** It is a count over C499's own scores (seed 2, n=12/rung),
+   with no criterion written first. ⭐ **A purpose-built run would settle it cheaply** — the
+   instrument already records both scores; it needs n at ~24 per rung on both seeds and a criterion
+   written before the count.
+
+6. ⭐ **Sharpen the per-arm peak.** The ladder has one rung at 2f, 3f and 4f; the peak sits
+   somewhere in 2.5-4.5 frames and only three points bracket it. `./shortread.py <arm> --lengths
+   a,b,c --repeat 12` per arm, shuffled.
+
+7. Then `AUTOPILOT.md` §2d (tidying behind the 467 tests) and §2e (upstream prep).
 
 ⛔ **Read `METHOD.md` M58, M59 and M60 before measuring anything**: all three were earned this
 round, by me, on my own numbers — n too small, comparing across a wandering bench, and sweeping in
