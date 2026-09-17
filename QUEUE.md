@@ -312,9 +312,12 @@ operative consequence is on the `--repeat` queued in §5: back-to-back repeats r
    ⚠ **The science there is still entirely blocked** — no capture can be taken until the operator
    returns.
 
-⛔ **Read `METHOD.md` M58, M59 and M60 before measuring anything.** All three were earned this
-round, on my own numbers: n too small, comparing across a wandering bench, and sweeping in a fixed
-order. M60 cost the most and was caught only by a control that could have failed.
+⛔ **Read `METHOD.md` M58, M59, M60 and M61 before measuring anything.** All four were earned
+this round, on my own numbers: n too small, comparing across a wandering bench, sweeping in a fixed
+order, and quoting a rate over reads that were merely consecutive. M60 cost the most and was caught
+only by a control that could have failed. ⚠⚠ **M61 is the one to read twice, because it fails in
+the DANGEROUS direction**: M58/M59/M60 give you numbers that are noisy or shifted, and M61 gives
+you TIGHT ones — ten agreeing reads and a confident rate, with the confidence as the artifact.
 
 
 ## 1. ~~`seqdump.py` arms 1 of 5 steps~~ — DONE, AND THE DIAGNOSIS WAS WRONG (C475/L443)
