@@ -207,7 +207,7 @@ self-consistent with every banked run and the item-6 corrections are confirmed a
 
 ## ⭐⭐⭐⭐⭐ 2026-09-17 03:5x-05:0x — THE INTERLEAVING IS WITHDRAWN AND THE REGIONS ARE REAL. READ THIS FIRST.
 
-util7 **81 → 82** across the round (util5 7 at 05:0x). **THIRTEEN units closed: K21 (C524), K22 (C525), K23 (C526), the `keri` re-run (C528) the drift gate's own price (C527) the frame-locked notch (C529, closed offline with no capture) a correction to C527's own scope (C530/M73) and Y1's costed remedy spent to a decisive end (C531/M74 — *interleaving* is EXCLUDED) the replacement estimation band withdrawn before it ran (C532/M75), `idteck` measured over the full span and `indala224` closed as not-measurable (C533), M76's fix built as the `--inventory` tool (C534), the burst ceiling located on the air and traced to the PROBE (C535/M77) and **the frame reading refuted at a second unambiguous region on `nexwatch`** (C536).
+util7 **81 → 82** across the round (util5 7 at 05:0x). **FIFTEEN units closed: K21 (C524), K22 (C525), K23 (C526), the `keri` re-run (C528) the drift gate's own price (C527) the frame-locked notch (C529, closed offline with no capture) a correction to C527's own scope (C530/M73) and Y1's costed remedy spent to a decisive end (C531/M74 — *interleaving* is EXCLUDED) the replacement estimation band withdrawn before it ran (C532/M75), `idteck` measured over the full span and `indala224` closed as not-measurable (C533), M76's fix built as the `--inventory` tool (C534), the burst ceiling located on the air and traced to the PROBE (C535/M77) **the frame reading refuted at a second unambiguous region on `nexwatch`** (C536) and the common ladder measured, which settles that the cross-arm band is a THREE-arm band (C537/M78).
 
 ⚠⚠ **AND THE ROUND'S OWN SCORE ON ONE DISEASE, WHICH IS THE MOST USEFUL LINE IN IT: FIVE OVER-REACHES, ALL CAUGHT AND ALL WALKED BACK INSIDE THE ROUND** — **M71** a gate justified on the wrong **ARM** · **C526** a level from one session **PAIR** · **C530** a rate from one **LADDER** · **C532** a point estimate quoted for an **INTERVAL** · **M76** a reference list from the **WRITE-UPS** instead of the data. ⇒ **Every one is a reference or a scope taken from the wrong place.** ⭐ Each was found by a check this round itself added, not by the next round paying for it. ⇒ **the checks are working and the instinct is not: assume every number quoted from one configuration is wrong until its configuration is named beside it, in the SAME STRING and not a nearby header** (M73). ⛔ C526 RETRACTS a number C525 published an hour earlier — read that retraction before quoting any level — and C527 makes every *NO VERDICT, DRIFTED* on this line one-in-four likely to be noise.** ⛔ **No bench move, nothing flashed on
 either unit**, cu2 armed and disarmed through the `finally` on **both** capture runs — `disarm: ok`
@@ -546,6 +546,79 @@ should be per-cell is the operator's call.
 ⭐⭐ **AND THE CONTROL CAUGHT WHAT I DID NOT**: P1 was written for K12 to police a different worry
 entirely, and it landed on the one arm and the one cell where a term was missing from the design's
 arithmetic. ⇒ **keep a control even when it looks redundant.**
+
+## ⭐⭐⭐⭐⭐ AND THE LAST UNIT SETTLED WHICH CROSS-ARM BAND CAN EXIST AT ALL (C537, M78)
+
+⛔⛔ **FIRST, A DESIGN FACT NOBODY HAD CHECKED: THE ARMS HAD NEVER BEEN MEASURED ON ONE LADDER.**
+Only `idteck` (K26) and `nexwatch` (K27) carried the full span in a single run. **`indala` and
+`keri`'s coverage was a UNION of four different ladders** — 85-200 twice, 20-80, 1-65 twice — with
+different seeds, reps, arms present and cell counts feeding the median every band is read against.
+⇒ any cross-arm comparison over those cells compared a **stitched** profile with a **measured** one,
+which is M69's confound in a new place. ⭐ Found by checking the caps mechanically (M76's habit
+turned on the DESIGN rather than on a reference).
+
+⭐⭐ **K28 fixed it: `indala` and `keri` on the same 38-cell 10-195 ms ladder, two fresh seeds, all
+four gates passing** (pooled 63.5/63.8% and 40.5/38.2%, split-half 3.3/3.9 and 5.9/3.9, P1 0.50).
+
+| arm | median | A1 |
+|---|---|---|
+| `keri` | **25% / 25%** | ⭐ **FIRES — `10-25`, `95-105`, `140-150` ms** |
+| `indala` | **75% / 75%** | ⛔ **REFUTED, AND WORTHLESS — *median+25* is 100%, THE CEILING** |
+
+⭐ **That is M68 reproducing exactly where K28's own pre-capture note said it would**, and the
+difference from M68's original is that the no-power outcome was **predicted before the capture**.
+
+⇒ ⭐⭐⭐ **SO THE NEXT BAND IS FULLY SPECIFIED BY ARITHMETIC, AND IT IS NOT A FOUR-ARM BAND:**
+**`keri` + `idteck` + `nexwatch`** (medians 25-38%), **all three on the forward detector, all three
+on the common 10-195 ladder** — and it **keeps `nexwatch`, the only arm whose frame differs and so
+the only frame discriminator** (M65/C520/C536). ⛔ **`indala` is scoped OUT by arithmetic**, which is
+K20's move a second time. ⚠ For `indala` the detectable feature is a **notch**, so any comparison
+involving it compares a low region with a high one — and C531 already established the two PSK arms'
+profiles **correlate positively**, so that comparison is as answered as this instrument can make it.
+
+⛔⛔ **AND C533's WORDING IS CORRECTED — THE ONE SELF-CORRECTION THIS ROUND THAT GIVES SOMETHING
+BACK (M78).** C533 called A2 *unsound*, flatly. **But its defect is an OMISSION from its reference
+list, and an omission can only turn a real match into an ORPHAN: it manufactures *REFUTED* and
+CANNOT manufacture a FIRE.** ⇒ **`idteck`'s and `nexwatch`'s REFUTED A2 verdicts stay withdrawn; a
+FIRING A2 is not compromised at all.** ⭐ And **`keri`'s A2 FIRES — three of four named regions
+found, NO orphans** ⇒ **the first cross-arm location result here that is both pre-registered and
+sound.** ⚠ Its 50-65 region missed the three-cell rule in this pair though the inventory has it HIGH
+in every seed at 60-65 — the two-cell width A1's false-fire budget deliberately refuses.
+⇒ ⭐ **M78: before withdrawing a band, work out which way its defect PUSHES. The verdicts on the
+other side of that direction survive.**
+
+## ⭐⭐⭐⭐⭐ WHERE THE NEXT TICK STARTS — ONE UNIT, FULLY SPECIFIED, NO DESIGN WORK NEEDED
+
+⭐⭐⭐ **RUN THE THREE-ARM SHARED-REGIONS BAND. Everything it needs is decided and committed.**
+
+    ./burstsync.py --k12 --arms keri,idteck,nexwatch \
+      --primers 10,15,20,...,195 --reps 8 --per-arm-shuffle --seed 283 \
+      --out caps/k29_three_s283.json        # and again at --seed 293
+
+⭐ **Why these three and not four**: C537 measured `indala`'s full-span median at **75%**, where the
+forward detector's threshold is the ceiling. `keri` (25%), `idteck` (25%) and `nexwatch` (25-38%)
+all take one forward detector. ⭐ **`nexwatch` is in it because its frame is 4096 against the
+others' 2048 — the only frame discriminator on the bench** (M65/C520/C536).
+⛔ **Top the ladder at 195, not 200** (M77, measured twice). ⛔ **`--per-arm-shuffle` is mandatory**
+(M69). ⚠ Three arms x 38 cells x 8 reps is ~**40 min per seed**.
+
+⛔⛔ **THE BAND ITSELF IS THE ONE THING STILL TO WRITE, AND ITS RULES ARE ALREADY FIXED:**
+1. ⭐ **Derive its reference region list from `./framescale.py --inventory caps/k1*.json
+   caps/k2*.json` and NEVER from a write-up** (M76 — this is the mistake that cost K26's A2).
+2. ⭐ **Compute the power PER ARM before writing it** (M68), and **simulate a false-fire rate AND a
+   power figure** (M70/M75). **Name the ladder and the n in the same string as every rate** (M73).
+3. ⭐ **Name the arm each clause was measured on** (M71), and **work out which way any defect would
+   push before withdrawing anything** (M78).
+4. ⛔ **A run length belongs to the LADDER**: over 38 cells a 2-cell run false-fires 13-26%; use 3
+   (C533).
+5. ⛔ **It may NOT be scored on any banked cap** — the inventory it is built against was derived
+   from them.
+
+⇒ ⭐⭐ **AND WHAT IT WOULD BUY: the lead-time structure is already measured at FIXED MILLISECONDS on
+four arms and two frame lengths (C536). A three-arm band firing on shared locations, with
+`nexwatch` in it, turns that from four separate per-arm results into one cross-arm statement — and
+that is the first thing on this line that would point at a MECHANISM rather than at another
+profile.**
 
 ## ⭐⭐ THE NEXT HANDS-OFF UNITS, IN ORDER — ITEMS 0 AND 1 ARE K22'S OWN CONSEQUENCES
 
