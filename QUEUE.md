@@ -43,36 +43,49 @@ Extending it to the six is item 3's work, not a defect in the tool.
 ⚠ Rig B has no tag, so the write has nothing to write to — a handler that hangs instead of
 reporting "no tag" is still a bug, but keep that confound in the write-up.
 
-## 3. The six emitter gaps — the headline. THE BUFFER IS EXONERATED; THE FRAME IS NEXT
+## 3. The six emitter gaps — ⭐ ROOT CAUSE FOUND FOR FIVE: WE EMIT NRZ, NOT PSK
 
 **Repo: `ChameleonUltra`** for the emitter fix and the finding; **`rfid-tools`** for the
 gap-register row only.
 
-`indala` · `keri` · `nexwatch` · `idteck` · `gproxii` · `indala224` emit nothing `rd.pm3`
-can decode, on **both** Chameleons across **two** builds, licensed both times.
+⭐⭐⭐ **C479/L447 (`16d3a9fb`) — THE PSK ARMS PUT THE PHASE ON THE AIR AS A HELD DC
+LEVEL, NOT AS A PHASE-REVERSED SUBCARRIER.** The Proxmark's raw buffer with `indala` armed shows
+level runs at 256/512/768/1024us — multiples of the bit — and **no 8us alternation**,
+which a 62.5 kHz subcarrier sampled once per carrier cycle must show (L03). On that same buffer
+`data rawdemod --p1` returns **nothing** and `--nr` returns our credential `a0000000e6bd0e92`,
+stable and repeating. ⇒ `lf indala reader` asks for PSK1 and is handed NRZ, so it is silent while
+every bit of the credential is sitting there. **That is how a byte-perfect buffer (C476/C477) and
+a silent reader were both true at once.**
 
-⭐⭐ **SEQDUMP HAS ANSWERED, 6 OF 6 (C476/C477, `194e7fd4`).** Every one of the six builds a
-**byte-perfect PWM buffer** — `indala` 64/64, `keri` 64/64, `nexwatch` 96/96, `idteck` 64/64,
-`gproxii` 96/96, `indala224` 448/448 — each predicted from the emitter source *before* the
-capture, and `seq repeats` (the bit period) is right on all of them. **The sequence builder is not
-the defect.**
+⭐ **The control could have failed**: PSK1's `phase[k] = bit[k] XOR bit[N-1]` predicts the
+recovered polarity — `indala` (last bit 0) came back upright, `keri` (last bit 1) came back
+INVERTED, rotation 0, exact. Disarmed cu2 gives zero frames; KERI's stream does not contain
+Indala's frame.
 
-⛔⛔ **AND THE BUFFER DOES NOT SEPARATE THE SIX FROM THE ELEVEN**: `pac`'s buffer is equally
-perfect and the Proxmark decodes it. ⛔ The tidy explanation is already refuted — *the six
-are the arms carrying data in the PWM inversion bit* fails, because `em410x`, `viking`, `fdxb`,
-`gallagher`, `securakey` and `noralsy` all set that bit and all are decoded.
+⚠ **FIVE OF THE SIX, NOT SIX.** `gproxii` is ASK/biphase on the 125 kHz clock and carries its
+data in levels the hardware demonstrably emits — its silence is a **separate open question**.
 
-⇒ **NEXT, AND IT NEEDS NO BENCH: is the FRAME the right bytes?** seqdump predicts from the
-same frame the econfig was handed, so a wrong preamble, format or block rotation passes it
-unchanged — it tests the modulator, not the credential. ⭐ **There is a known precedent for
-exactly this defect: C160.** Keri's air frame is the T5577 **block form** `(id << 3) | 7`; emulating
-the reader's `E0000000||id` view instead is the same 64-bit cycle three bits along and gave a stable
-WRONG credential 6 times out of 6. **The same class of error in any of the other five would look
-exactly like what we see.** ⇒ Compare, source to source, what each of our six emitters sends
-against what the Proxmark's own `lf <proto> clone` writes into T5577 blocks
-(`/Users/Shared/code/personal/rfid/proxmark3/client/src/cmdlf*.c`). Pure reading, no hardware.
+### ⇒ THE NEXT EXPERIMENT, AND IT IS WELL-DEFINED
 
-⭐ The air check on the tagless Rig B remains available for any fix: arm cu2, read with the
+We know *what* is wrong, not *why*. `emit_entry` asks for `counter_top` 16 at a 1 MHz base clock
+with duty 8 — a 62.5 kHz square — and the air carries a constant level per entry. Two
+candidates, and **nothing on this bench has ever exercised the difference**: the fastest thing any
+passing arm emits is its bit rate (2–8 kHz), so **the modulator's bandwidth above that is
+simply untested**.
+
+| candidate | how to separate it |
+|---|---|
+| the PWM is not toggling within an entry (duty ignored, or the pin is driven from the polarity bit alone) | install a synthetic buffer that alternates at a KNOWN rate and capture it |
+| the analog modulator cannot follow 62.5 kHz | the same sweep: find the rate at which the air stops following |
+
+⛔ **`hw emuhold` CANNOT do it as it stands** — `lf_tag_em.c:1050` refuses 1MHz types
+outright, and it holds levels at `PAC_HOLD_RF_PER_BIT` (256us), so its fastest alternation is ~2
+kHz. ⇒ The experiment is a **small, well-scoped firmware change**: let `lf_tag_em_seq_hold` accept
+the 1MHz types and take the counter_top as a parameter, then sweep the alternation rate from the
+bit rate up through 62.5 kHz and find where `pm3cap` stops seeing it. **Flashing cu2 needs no bench
+move** (`enterdfu.py`), and ⛔ never cu1.
+
+⭐ The air check on the tagless Rig B is available for any fix: arm cu2, read with the
 Proxmark, disarm in a `finally`. A fix that turns one of the six EXACT is real evidence — and
 **ungraded**; say so every time.
 
