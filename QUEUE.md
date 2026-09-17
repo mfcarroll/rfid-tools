@@ -113,20 +113,51 @@ per carrier cycle, so an fc/2 subcarrier sits at exactly **fs/2**, where samples
 appears as a big bit-rate component (the 256/512/768/1024us runs) while the subcarrier stays a
 small ripple. Both emitters alias to the same picture.
 
-### ⇒ NEW LEADING HYPOTHESIS: COHERENCE — AND IT IS NOT MEASURED YET
+### ⭐⭐⭐ ROOT CAUSE, MEASURED: OUR SUBCARRIER IS NOT COHERENT WITH THE READER (C486, `7a5eced1`)
 
-A real PSK tag **divides the reader's carrier**, so its subcarrier is phase-locked to the reader's
-own sampling — which is why this same Proxmark reads real Indala. Ours free-runs from the
-Chameleon's 1 MHz clock, locked to nothing. ⭐ `lf_tag_em.c:258` already states the constraint:
+`hw emuhold -n 1 --top 8` emits a **pure 62.5 kHz square with NO DATA**, so anything that varies
+across a capture is the relationship between two **clocks** and nothing else. The Proxmark samples
+once per carrier cycle, so an fc/2 subcarrier sits at exactly fs/2 and the samples are
+`A·cos(φ)` alternating. Predictions written first: **coherent ⇒ constant amplitude;
+free-running ⇒ beats through nulls.**
+
+**Measured over 320 ms, per 2 ms window: min 2.3, max 20.6 — a 9.0× swing, 9 of 160
+windows under a quarter of peak, a deep null roughly every 80 ms.** Offset of order **10 Hz on
+62.5 kHz (~100-200 ppm)**. ⇒ **Free-running. Flat would have refuted it.**
+
+⭐⭐ **WHY THAT KILLS PSK AND LEAVES EVERYTHING ELSE ALONE.** A frame is 16.4 ms against an
+~80 ms beat, so φ rotates **70-80° across a single frame** — on top of the 180°
+flips that ARE the data — and periodically the signal vanishes. ASK and FSK carry data in
+envelope amplitude and timing, which a rotating subcarrier phase does not touch. **That is exactly
+the passing/failing partition of the emulate column**, and it explains the thing every earlier
+hypothesis had to explain away: the buffer is byte-perfect (C476/C477) and it does not help,
+because the defect is not in what we build — it is in what we build it against.
+
+⛔ **THE FIRMWARE ALREADY SAID SO, AND DREW THE WRONG CONCLUSION FROM IT.** `lf_tag_em.c:258`:
 *"the tag-mode antenna taps on this board are envelope-only, which rules out coherent demodulation
-or phase-lock-based approaches"*.
+or phase-lock-based approaches"* — then reasons this *"does not preclude the differential-phase
+encodings supported here"*. **That last step is what C486 contradicts**: a reader sampling at fs/2
+needs the subcarrier coherent whether the encoding is differential or not.
 
-⚠⚠ **That is a hypothesis with exactly the status C482 had before it was tested — give
-it no more credit than that.** ⇒ Before building anything on it, find the measurement that could
-refute it. Candidates, none costed yet: compare our subcarrier's frequency against the reader's
-carrier over a long capture (a free-running 62.5 kHz will drift against fc/2 and a divided one
-cannot); or ask whether any reader that does NOT sample synchronously (the Flipper) decodes what
-the Proxmark will not — ⛔ which needs the operator, because the Flipper is on Rig A.
+### ⇒ WHAT THIS LEAVES FOR THE OPERATOR — AN ARCHITECTURE QUESTION, NOT A BUG
+
+⛔ **Do not queue another emitter rewrite.** Two have now been refuted by experiment (C482
+duty-rendering, and the level-pattern emitter built on it), and the buffer has been exonerated
+entry-by-entry for all six arms. **Nothing in the sequence we build can fix a clock that is not
+locked to the reader's.**
+
+The real question is whether PSK emulation is reachable on this board at all:
+
+- ⭐ **Can the PWM clock be slaved to the received field?** That is the fix in principle. The
+  note above says the tag-mode taps are envelope-only — ⇒ **check whether that is still true of
+  this hardware revision** before accepting it, because everything rests on it.
+- ⚠ **If it cannot**, then PSK emulation cannot work here, and the honest outcome is a
+  documented hardware limitation plus a gap-register row — not more emitter work. ⭐ That would
+  also retire the six-protocol gap as *understood* rather than *open*, which is worth more than a
+  fix that keeps not arriving.
+- ⭐ **A second reader would sharpen it further**: the Flipper does not sample synchronously
+  with our subcarrier either, but it decoded Indala/KERI/IDTECK from a *Flipper* emulation. ⛔
+  Needs the operator — the Flipper is on Rig A.
 
 ### ⛔⛔ `gproxii` IS NOW THE SHARPEST OPEN QUESTION, AND IT IS NOT THIS
 
