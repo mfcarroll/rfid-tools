@@ -45,6 +45,38 @@ class NoTwoProtocolsMayShareAToken(unittest.TestCase):
         self.assertIn("pass the other's cell", msg, "and say what it would cost")
         self.assertIn("PM3_INDISTINGUISHABLE", msg, "and where the collision belongs instead")
 
+    def test_membership_and_a_recorded_token_are_refused_as_contradictory(self):
+        """⛔ Only one of the two can be true, and the measurement says which.
+
+        The set says *the Proxmark cannot tell this protocol from the one it shares a token
+        with*; an `expect` says *this is the token it prints and a match licenses a pass*.
+        Holding both would make the planner's permanent refusal depend on which rule happened
+        to be checked first.
+
+        ⚠ The collision sweep does NOT cover this. It only fires when the shared token's other
+        owner is in the registry too — true for Electra today, and not guaranteed for a future
+        member whose twin nobody registers. This needs no twin, which is the point.
+        """
+        import dataclasses
+        broken = dict(reg.ALL)
+        broken["em410x_electra"] = dataclasses.replace(
+            broken["em410x_electra"], expect="DEADBEEF")     # ⚠ colliding with nothing
+        with self.assertRaises(reg.RegistryError) as cm:
+            reg.validate(broken)
+        msg = str(cm.exception)
+        self.assertIn("PM3_INDISTINGUISHABLE", msg)
+        self.assertIn("drop the token", msg, "and say which of the two to drop")
+
+    def test_a_member_without_a_pm3_reader_is_refused_as_a_hidden_reason(self):
+        """⚠ Then the refusal is redundant with *no read command* and hides the real reason."""
+        import dataclasses
+        broken = dict(reg.ALL)
+        broken["em410x_electra"] = dataclasses.replace(
+            broken["em410x_electra"], pm3_read=None)
+        with self.assertRaises(reg.RegistryError) as cm:
+            reg.validate(broken)
+        self.assertIn("redundant", str(cm.exception))
+
     def test_a_collision_is_caught_in_the_chameleon_and_flipper_fields_too(self):
         """⚠ Not only `rd.pm3` — the other two readers grade byte-exact in the same way."""
         import dataclasses
