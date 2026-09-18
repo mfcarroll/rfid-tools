@@ -60,29 +60,43 @@ comparison (M73):
 ⇒ **the decline is in the wrong direction for a sampling artefact**, and it agrees with the
 pooled levels (**22.0-35.4%** against C538's **38.5-43.1%**).
 
-## ⭐⭐⭐⭐⭐ WHERE THE NEXT TICK STARTS — THE WITHIN-DAY DECLINE IS NOW THE QUESTION
+## ⛔⛔ THE *WITHIN-DAY DECLINE* MODEL WAS PROPOSED AND REFUTED IN THE SAME TICK (L541)
 
-⭐⭐⭐ **EVERY CAP IN THAT TABLE WAS TAKEN ON 2026-09-17, 05:37 to 17:31 — SO THIS IS A
-DECLINE WITHIN ONE DAY, NOT ACROSS THE ROUND.** That is a much sharper and more alarming thing
-than *the bench is getting old*, and it has never been looked for:
-1. ⭐ **Offline first, and it is cheap**: `repro.py` gives agreement; the pooled LEVEL per cap is
-   the other half. Plot **level against clock time** across every banked dec-1 cap. If the level
-   falls monotonically through the day, that is a **new confound over every band on this line** —
-   ⛔ and note that most earlier bands ran their two seeds BACK TO BACK, so a within-day drift
-   enters both seeds together and inflates their agreement rather than lowering it.
-2. ⭐⭐ **If it is real, it changes how bands must be RUN, and K34a already shows the fix**:
-   its ABBA order counterbalanced the two conditions against time, which is exactly why the
-   0-vs-4 hit difference could be identified as confounded rather than published. ⛔ Earlier
-   bands that ran condition A then condition B do **not** have that protection.
-3. ⚠ **Candidate causes are a BENCH question and mostly need the operator** — thermal drift over
-   a 14-hour session, cu2's battery, the Proxmark warming. ⛔ Name it for the operator; do not
-   reach for a cause from the data above, which was never randomised against time of day.
+The obvious successor — plot pooled LEVEL against clock time, look for a monotonic fall — **was
+run, and it does not fall monotonically. It STEPS DOWN between blocks and then RECOVERS.**
 
-⛔ **AND THE STANDING CONSEQUENCE FOR K34a**: it remains unrun as a verdict, and a re-run must
-**measure the level on the day and re-derive its thresholds from that** (M80/M83), never from
-C538's. ⛔ K34b stays unlicensed. ⭐ The flash route is proven and cheap — both zips are banked,
-a flash takes under a minute, and `hw emudebug` confirms 31 vs 62 — so the re-run is not the
-expensive part; getting its thresholds right is.
+| block | pooled level |
+|---|---|
+| morning 07:07-10:08 (all `--reps 8`) | **36.5-43.1%** |
+| afternoon 14:45-17:31 (all `--reps 16`) | `idteck` **22.0 → 27.6 → 33.1 → 32.2%**, `keri` **32.6 → 33.4 → 32.4 → 35.4%** |
+
+⇒ the negative level-vs-clock correlation (`keri` −0.643, `idteck` −0.571) is an artefact of the
+**4.5-hour hole between the two blocks** — ⛔ **within the afternoon the trend is UP**, which is
+the opposite of drift through a long session.
+
+⛔⛔⛔ **AND THE BANKED CAPS CANNOT SETTLE IT: EVERY MORNING CAP IS `--reps 8` AND EVERY
+AFTERNOON CAP IS `--reps 16`, SO REPS AND TIME-OF-DAY ARE PERFECTLY CONFOUNDED.** No contrast
+anywhere in `caps/` breaks it. ⇒ **more mining of banked data is now known to be a dead end here**,
+which is worth more than the plot was.
+
+## ⭐⭐⭐⭐⭐ WHERE THE NEXT TICK STARTS — ONE CHEAP MEASUREMENT, NOT MORE MINING
+
+⭐⭐⭐ **THE UNIT: repeat ONE banked morning cap's exact configuration, now.** `k29_three`
+at `--reps 8` on the 38-cell 10-195 ladder, one arm is enough (`keri`), fresh seed. **~30 minutes,
+no flash, no bench move.** It breaks the confound in one shot:
+- **comes back at ~41% and ~+0.8 agreement** ⇒ the morning/afternoon step is **time-of-day or
+  session**, and K34a's `--reps 16` was not the cause ⇒ every band must be counterbalanced against
+  time, as K34a's ABBA already was, and ⛔ earlier A-then-B bands do not have that protection.
+- **comes back at ~33% and ~+0.6** ⇒ the step is **not** time-of-day, and the live suspect becomes
+  `--reps 16` itself or something that changed with it ⇒ ⛔ K34a's reps choice must be re-examined
+  before any re-run.
+⚠ **Pre-register which it is BEFORE running it** (M55/M74), and give the middle band a meaning.
+⚠ One cap cannot separate *time of day* from *session boundary*; say so rather than implying it can.
+
+⛔ **STANDING: K34a is unrun as a verdict and K34b is NOT licensed.** A re-run must **measure the
+level on the day and re-derive its thresholds from it** (M80/M83), never from C538's. ⭐ The flash
+route is proven and cheap — both zips banked, a flash under a minute, `hw emudebug` confirms 31 vs
+62 — so the re-run is not the expensive part; getting its thresholds right is.
 
 ⚠ **Descriptive and NOT to be upgraded**: R4 (140-145) was the one region hit by **both** arms at
 burst 1000 and by neither at burst 500. Named so a later band can pre-register on it — it is not
