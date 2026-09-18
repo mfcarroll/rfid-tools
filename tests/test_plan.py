@@ -1,6 +1,7 @@
 """Plan-time refusals, move minimisation, and the physical facts the plan has to respect."""
 
 import unittest
+from unittest import mock
 
 from tests.helpers import reg, tiny_plan
 from benchmatrix import plan as planning
@@ -53,14 +54,52 @@ class WhatCannotBeMeasured(unittest.TestCase):
 
     def test_a_missing_expectation_is_never_reported_as_an_impossible_bench(self):
         """⛔ THE TWO NEED DIFFERENT THINGS DONE ABOUT THEM. "Unlicensable" is a verdict about the
-        bench; "no expectation" is a note that nobody has looked yet. The Proxmark can both write
-        and read `em410x_electra` — what is missing is a record of what it PRINTS."""
-        plan = tiny_plan(keys=("em410x_electra",), sources=("t55.pm3",), readers=("rd.pm3",))
+        bench; "no expectation" is a note that nobody has looked yet, and its message must name
+        the remedy.
+
+        ⛔⛔ THIS TEST USED TO USE `em410x_electra` AND ITS PREMISE WAS REFUTED (2026-09-16).
+        It asserted that the Proxmark "can both write and read" Electra and only the printed
+        token was missing. The bench says otherwise: `lf em 410x reader` cannot distinguish
+        Electra from plain `em410x` at all, so that column is PERMANENTLY refused and is the
+        subject of its own test below. ⇒ the principle is unchanged and is now tested on a
+        SYNTHETIC protocol, because after that measurement `em410x_electra` was the last real
+        one with a missing pm3 expectation and there is no genuine example left to point at.
+        """
+        import dataclasses
+        base = reg.TIER0["em410x"]
+        unmeasured = dataclasses.replace(base, key="synthetic_unmeasured", expect=None)
+        with mock.patch.dict(reg.ALL, {"synthetic_unmeasured": unmeasured}), \
+                mock.patch.object(reg, "ORDER", list(reg.ORDER) + ["synthetic_unmeasured"]):
+            plan = tiny_plan(keys=("synthetic_unmeasured",), sources=("t55.pm3",),
+                             readers=("rd.pm3",))
         self.assertEqual(plan.cells, [])
         rules = {e.rule for e in plan.exclusions}
         self.assertEqual(rules, {"no-expectation"})
-        self.assertIn("bench learn", " ".join(e.why for e in plan.exclusions),
+        why = " ".join(e.why for e in plan.exclusions)
+        self.assertIn("go and measure", why,
+                      "a refusal that is really a to-do must say so")
+        self.assertIn("bench learn", why,
                       "a refusal that is really a to-do must name the remedy")
+
+    def test_a_reader_that_cannot_DISTINGUISH_is_refused_permanently_not_queued(self):
+        """⛔⛔ `em410x_electra` on `rd.pm3` is not *nobody has looked yet* — looking cannot
+        answer it. Measured 2026-09-16: `lf em 410x clone --electra` writes the tag and prints
+        `Electra 0x7e1eaaaaaaaaaaaa`, but `lf em 410x reader` then prints `EM 410x ID
+        2244668800` and nothing else, and `reader -h` has no Electra flag at all.
+
+        ⛔ AND THE TOKEN IS THE DANGER, NOT JUST THE ABSENCE: `2244668800` is byte-identical to
+        plain `em410x`'s, so a registry that recorded it would let an `em410x` emission pass an
+        `electra` cell and vice versa — a false pass built in by construction. So this refusal
+        must NOT carry the to-do wording, or a future tick does exactly that.
+        """
+        plan = tiny_plan(keys=("em410x_electra",), sources=("t55.pm3",), readers=("rd.pm3",))
+        self.assertEqual(plan.cells, [])
+        self.assertEqual({e.rule for e in plan.exclusions}, {"gap:pm3-indistinguishable"})
+        why = " ".join(e.why for e in plan.exclusions)
+        self.assertIn("PERMANENT", why)
+        self.assertNotIn("bench learn", why, "this is not a to-do and must not read as one")
+        self.assertNotIn("go and measure", why.replace("do NOT go and measure", ""),
+                         "it must not send anyone to measure an unanswerable question")
 
     def test_a_protocol_with_no_gold_writer_IS_unlicensable(self):
         """`fdxa`: the Proxmark has no recorded clone signature, so nothing can make a gold tag."""

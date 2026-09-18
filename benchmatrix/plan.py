@@ -233,11 +233,18 @@ def licensing_source(p: reg.Protocol, bench: Bench) -> str | None:
     # ⛔ A GOLD SOURCE NEEDS A GOLD WRITER. `fdxa` has no recorded Proxmark clone signature, so
     # nothing on this bench can make a gold tag for it however capable the Chameleon is.
     #
-    # ⚠ A MISSING EXPECTATION IS NOT THE SAME THING AND MUST NOT BE REPORTED AS ONE. The Proxmark
-    # can both write and read `em410x_electra`; what is missing is a record of what it PRINTS, which
-    # is a thing to go and measure, not a structural impossibility. Folding it in here labelled the
-    # cell "unlicensable" — a verdict about the bench — when the honest answer is "nobody has looked
-    # yet, run `bench learn`". So the expectation is checked by `_refuse`, which says that.
+    # ⚠ A MISSING EXPECTATION IS NOT THE SAME THING AND MUST NOT BE REPORTED AS ONE. Folding it in
+    # here labelled the cell "unlicensable" — a verdict about the bench — when the honest answer is
+    # "nobody has looked yet". So the expectation is checked by `_refuse`, which says that.
+    #
+    # ⛔⛔ AND THERE IS NOW A THIRD CASE THIS COMMENT USED TO CONFLATE WITH THE SECOND. It read
+    # "the Proxmark can both write and read `em410x_electra`; what is missing is a record of what
+    # it PRINTS, which is a thing to go and measure" — and the bench refuted that on 2026-09-16:
+    # `lf em 410x reader` cannot distinguish Electra from plain `em410x` at all, so looking cannot
+    # answer it and the token it would yield is one that builds in a FALSE PASS. That case is
+    # `reg.PM3_INDISTINGUISHABLE`, refused permanently by `_refuse` BEFORE the no-expectation rule.
+    # ⇒ three states, not two: unlicensable (the bench cannot), unmeasured (nobody has looked),
+    # and indistinguishable (looking cannot answer).
     if p.t55_capable and bench.available(T5577) and p.can("pm3_write"):
         return "t55.pm3"
     return "oem" if p.key in bench.has_oem else None
@@ -314,6 +321,21 @@ def _refuse(p: reg.Protocol, source: str, reader: str, bench: Bench,
     if reader == "rd.pm3" and not p.can("pm3_read"):
         return Exclusion(p.key, source, reader, "no-judge",
                          "the Proxmark has no command for %s, so it cannot judge it." % p.key)
+    if reader == "rd.pm3" and p.key in reg.PM3_INDISTINGUISHABLE:
+        # ⛔⛔ THIS MUST COME BEFORE THE `no-expectation` RULE BELOW, WHICH WOULD OTHERWISE SEND
+        # THE OPERATOR TO RECORD A TOKEN THAT BUILDS IN A FALSE PASS. Both cases have
+        # `expect = None`, so the bare absence cannot tell them apart and a set is the only way
+        # the planner can know. A missing expectation is *nobody has looked yet*; this is
+        # *looking cannot answer it*, and publishing the first for the second sent one tick to
+        # measure `em410x_electra` and would have sent the next one to record the result.
+        return Exclusion(p.key, source, reader, "gap:pm3-indistinguishable",
+                         "the Proxmark's reader cannot distinguish %s from another protocol it "
+                         "also reads, so there is no byte-exact token that could ever be recorded "
+                         "for this column — and the token it does print is one another protocol "
+                         "produces too, so recording it would let each pass the other's cell. "
+                         "⛔ PERMANENT, and a fact about the Proxmark for the gap register rather "
+                         "than a limit of ours: do NOT go and measure it. See the registry row."
+                         % p.key)
     if reader == "rd.pm3" and not p.expect:
         # ⛔ NOT "run `bench learn`". That command writes with the Proxmark and reads with the
         # FLIPPER — `rd.flip` is the only reader it can learn for (`learned.apply`). Pointing the
