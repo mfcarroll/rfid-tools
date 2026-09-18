@@ -151,8 +151,20 @@ approach is dead on arithmetic and K34b must keep a threshold band after all. �
 FIRST; it decides item 4, it needs no flash, and it is the difference between designing K34b twice
 and designing it once.**
 
-## ⚠⚠ A PROPOSAL, NOT A DECISION — K36's MOVE MAY REACH THE DECIMATION QUESTION. **READ THE
-OBJECTION FIRST; IT WOULD REOPEN A LINE THIS ROUND DELIBERATELY CLOSED.**
+## ⛔⛔ CLOSED SAME TICK — K36's MOVE DOES **NOT** REACH THE DECIMATION QUESTION (C556)
+
+⛔ **Objection 2 below turned out to be fatal and it was measured, not argued: the stretch is
+`1.685-1.739` with 95% bounds spanning `1.559-1.833`, so a dec-2 cell's elapsed position is
+uncertain by ±1.3 cells at 50 ms nominal and ±2.5 at 100, against a statistic that resolves ONE
+cell.** ⇒ **the alignment cannot be built, and no amount of care in the other four objections
+matters.** ⛔ **Do not reopen this. The decimation line stays closed, and now for a second and
+independent reason.** ✅ The standing instruction was right and the round lost nothing by it.
+
+⚠ The section is kept below for its reasoning — in particular *why a closure's rationale can be a
+property of the instrument rather than of the question*, which was a good instinct and is worth
+having again on a different problem.
+
+## ~~⚠⚠ A PROPOSAL, NOT A DECISION — K36's MOVE MAY REACH THE DECIMATION QUESTION~~ **(SUPERSEDED)**
 
 ⛔⛔ **The standing instruction is explicit: *the decimation line is CLOSED — do not re-open it or
 propose a variant*.** So this is written as a proposal with its own objection attached, and ⛔ **the
