@@ -118,8 +118,31 @@ a stroke.
 C555 measured resolving ONE cell.** ⛔ So the alignment approach is not merely *available* — it is
 **blocked on the stretch's precision**, and that is a prerequisite nobody has costed.
 
-⇒ ⭐⭐ **THE CONCRETE PREREQUISITE, AND IT IS CHEAP AND FLASH-FREE ON THE CURRENT BUILD: tighten the
-stretch.** `dectime.py` already slope-fits it (dec 2 = 1.775, dec 3 = 2.449, dec 4 = 3.117) and
+✅✅ **RUN, AND IT ANSWERED — THE ALIGNMENT APPROACH IS DEAD ON ARITHMETIC (C556).** `dectime.py`
+gained `--interval` and two independent runs an hour apart (nothing armed, no bench move, `lf config
+--reset` in the `finally` both times) give **1.739 (95% CI 1.645-1.833)** and **1.685
+(1.559-1.811)**, off five median points whose fit residuals are **2.7-5.7 ms on a ~196 ms span**.
+⭐ C540's **1.653** and this build's **1.775** both sit inside both intervals ⇒ **those published
+figures never disagreed significantly, and C547's ~7% was right.**
+
+⇒ ⛔⛔ **A dec-2 cell's ELAPSED position is uncertain by ±1.26 cells at 50 ms nominal, ±1.9-2.5 at
+100 and ±2.8-3.8 at 150 — against a statistic C555 measured resolving ONE cell.** Tightening inside
+this method cannot rescue it: the residuals are already a few ms and the SE is set by five points
+against real client jitter, so **even halving it leaves ±1 cell.**
+
+⇒ ⭐⭐ **ITEM 4 IS SETTLED: K34b KEEPS A THRESHOLD BAND** (or needs an instrument nobody has yet),
+and ⛔ **the K36-route decimation proposal above is BLOCKED, not merely objectionable — mark it
+closed rather than leaving it inviting.** ⚠ The point estimate itself moved **1.739 → 1.685 in one
+hour**, a spread like the within-run SE, which is its own argument against trusting a single figure.
+
+⭐⭐ **AND THE METHOD FAULT IS WORTH MORE THAN THE NUMBER (C556):** the first interval was a
+**bootstrap** and returned **−1.545 .. 1.854** — a *negative* stretch — off data whose medians are
+monotone to 3 ms. It was measuring the **outlier rate**, not the precision: a per-cell median over
+10 reads is robust to a pm3 client hiccup and a bootstrap of those same 10 is not. ⇒ **resampling a
+statistic chosen for being ROBUST destroys the robustness that justified choosing it.**
+
+~~⇒ ⭐⭐ **THE CONCRETE PREREQUISITE, AND IT IS CHEAP AND FLASH-FREE ON THE CURRENT BUILD: tighten the
+stretch.**~~ `dectime.py` already slope-fits it (dec 2 = 1.775, dec 3 = 2.449, dec 4 = 3.117) and
 retired dec 3/dec 4 by arithmetic; what it has never been asked for is an **interval**. Run it with
 enough points to put a stated uncertainty on 1.775, on the build in front of it. ⛔ **That figure
 does not transfer to the burst-1000 build** (M79/C547: a new binary is a new condition) — but the
