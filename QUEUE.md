@@ -184,7 +184,7 @@ intended outcome — so the next tick with headroom may well be the operator's o
 
 ⭐ **Bench state at the end of this tick: UNCHANGED.** cu2 on the burst-500 build, mode `Tag
 Reader`, nothing flashed, nothing armed, cu1 never touched, nothing moved. ⭐ util7 **96 → 97**
-across the tick. ChameleonUltra `indala-psk-read` at `14594869` (C557 `000dea4a`, C558 `77bd6411`, C559 `14594869`), **not pushed** (a push to that
+across the tick. ChameleonUltra `indala-psk-read` at `9b8b81eb` (C557 `000dea4a`, C558 `77bd6411`, C559 `14594869`, `--equalise` bounded `9b8b81eb`), **not pushed** (a push to that
 branch was not checked against an open PR and the operator is not reachable to ask).
 
 ## ⭐⭐⭐⭐⭐ 2026-09-17 20:5x — **K34a IS ANSWERED. THE BURST DOES NOT MOVE THE REGIONS. K34b IS LICENSED (C554)**
