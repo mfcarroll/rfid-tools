@@ -19,6 +19,16 @@ re-run needs **no rebuild** — flash, then confirm **31 vs 62 frames by asking 
 ⚠ `enterdfu.py` failed to TRIGGER once in four attempts with nothing flashed; retry, do not
 suspect the device.
 
+## ⛔⛔⛔⛔ 2026-09-17 18:5x — **K34a's RE-RUN IS REFUSED BY ITS OWN ARITHMETIC (C552, M84)**
+
+**The re-run was this tick's pinned unit. It was not run, and that is the result.** M83 required its
+thresholds to come from the level measured on the day; re-derived that way, the control passes only
+**20.8-30.9%** of the time at reps 16 — against the **100.0% at every reps** that C538's grounding
+gives — so K34a was ~4:1 against a verdict before it was ever flashed. ⛔ **More reps makes it
+worse and never recovers** (11-16% out to reps 128): the binding variance is between caps, which
+reps cannot touch. ⇒ **the next unit is a cheap no-flash GATE on peak elevation** — see *WHERE THE
+NEXT TICK STARTS*. ⭐ Nothing was flashed, armed or moved this tick; it was offline throughout.
+
 ## ⛔⛔⛔⛔ K34a: **CONTROL FAILED — NO VERDICT — K34b IS NOT LICENSED** (C549, M83)
 
 Four caps, `keri`+`idteck`, the C538 common 38-cell 10-195 ms ladder, dec 1, `--per-arm-shuffle`,
@@ -105,11 +115,44 @@ regions of 07:07-10:08 — ✅ **already closed in closed form by the burst ceil
 which is arithmetic and not a level comparison**, so nothing still standing is affected.
 ⛔⛔ **An audit, not a retraction. Nothing was withdrawn and nothing may be without re-scoring.**
 
-⭐⭐⭐ **UNIT 2 — AND IT IS NOW THE NEXT TICK'S FIRST UNIT: K34a's re-run.** It is still unrun as a verdict and **K34b is
-NOT licensed**. Its thresholds must be re-derived from the level measured **on the day** (M80/M83),
-never from C538's, and its ABBA order kept. ⭐ The flash route is proven and cheap — both zips
-banked, a flash under a minute, `hw emudebug` confirms 31 vs 62 — so the re-run is not the
-expensive part; getting its thresholds right is.
+⛔⛔⛔ **UNIT 2 IS DONE, AND ITS ANSWER IS THAT THE RE-RUN MUST NOT BE RUN AS PINNED (C552, M84,
+commit `e25c7313`).** The thresholds were re-derived from the level measured on the day, as M80/M83
+required, and the re-derivation refuses the design.
+
+⭐⭐ **THE NUMBER: `P(|H500| >= 3)` is 100.0% at EVERY reps under C538's grounding and 30.9% at
+reps 16 under the day's** (20.8% once the second noise source is modelled). ⇒ **K34a was about 4:1
+against having a verdict before it was flashed.** Its control failure was the expected outcome.
+
+⛔⛔ **AND THE OBVIOUS REMEDY IS BACKWARDS — MORE REPS MAKES IT WORSE**: 40 / 23 / 11 / 16 % at reps
+8 / 16 / 24 / 32, and it **never recovers, plateauing at 11-16% out to reps 128** — eight times what
+K34a already cost. The binding variance is **BETWEEN caps**, and reps within a cap cannot reduce it
+by construction. ⇒ ⭐ **the remedy is more SEEDS and a k-of-n replication rule, never more reps.**
+⚠ Retuning the elevation threshold rescues the control (96.7%) and **not** the band: D1's power is
+still 30.9%, reps 32 buys only 40.2%, and D1's false-fire stays **0.0%** throughout — ⇒ the band is
+**unpowered, not broken**, so it is worth gating rather than redesigning.
+
+⭐⭐⭐⭐ **SO THE NEXT TICK'S FIRST UNIT IS THE GATE, AND IT NEEDS NO FLASH.** Across the range where
+D1's power runs **0.8% → 91.2%**, the pooled level moves only **32.9% → 38.0%** while the largest
+region elevation moves **+40.6 → +75 points**. ⇒ ⛔ **pooled level is nearly blind to the thing that
+decides the band** — the round had been watching the wrong statistic — and **max region elevation
+above the cap's own ladder median** is the one that responds.
+
+> **THE GATE, PRE-REGISTERED HERE AND BEFORE ITS CAPTURE:** one cap pair on the **standing burst-500
+> build**, `keri`+`idteck`, the C538 common 38-cell 10-195 ladder, dec 1, `--per-arm-shuffle`,
+> `--reps 8` (⛔ **8, not 16** — the curve above), two fresh seeds. Score the **max elevation of any
+> region above that cap's own ladder median**. ⭐ **>= +60 points ⇒ the flash and K34a's four caps
+> are licensed that session, thresholds re-derived by `./k34sim.py --from` those two caps.**
+> ⛔ **< +60 ⇒ do not flash and do not capture** — say the bench is not at a level that can answer
+> it, and stop. ⚠ The gate is a *feasibility* measurement, not a band: it fires nothing, licenses no
+> cell, and a pass does not predict K34a's verdict.
+
+⭐ The flash route stays proven and cheap — both zips banked, a flash under a minute, `hw emudebug`
+confirms 31 vs 62 — so **the flash was never the expensive part, and it is now the part that is
+conditional.** ABBA order still applies to K34a itself if the gate ever opens.
+
+⚠⚠ **DO NOT READ C552 AS RETRACTING K35.** C550's exoneration of `--reps` is carried by its
+agreement marker and both its markers agreed; what C552 says is that pooled level is the wrong
+**gate** for this band's power, not that it was the wrong evidence there.
 
 ⚠ **Open and NOT answered**: *time of day* versus *session boundary* (cold start, fresh USB
 enumeration, power cycle) — K35 confounds them by construction. A cheap discriminator would be
