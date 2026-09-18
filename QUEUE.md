@@ -60,59 +60,57 @@ comparison (M73):
 ⇒ **the decline is in the wrong direction for a sampling artefact**, and it agrees with the
 pooled levels (**22.0-35.4%** against C538's **38.5-43.1%**).
 
-## ⛔⛔ THE *WITHIN-DAY DECLINE* MODEL WAS PROPOSED AND REFUTED IN THE SAME TICK (L541)
+## ✅✅ K35 RAN AND FIRED — `--reps` IS EXONERATED, AND TIME IS NOW A KNOWN CONFOUND (C550)
 
-The obvious successor — plot pooled LEVEL against clock time, look for a monotonic fall — **was
-run, and it does not fall monotonically. It STEPS DOWN between blocks and then RECOVERS.**
+C549 left the morning/afternoon level step confounded: every morning cap was `--reps 8` and every
+afternoon cap `--reps 16`, with no contrast in `caps/` to break it. **K35 broke it** by running the
+MORNING configuration at an EVENING hour — `keri`, 38-cell 10-195 ladder, dec 1, `--reps 8`, two
+fresh seeds, burst 500, 17:46-18:2x, **no flash, no bench move**.
 
-| block | pooled level |
-|---|---|
-| morning 07:07-10:08 (all `--reps 8`) | **36.5-43.1%** |
-| afternoon 14:45-17:31 (all `--reps 16`) | `idteck` **22.0 → 27.6 → 33.1 → 32.2%**, `keri` **32.6 → 33.4 → 32.4 → 35.4%** |
+| | pooled | seed agreement |
+|---|---|---|
+| morning reference | 40.6% | +0.827 / +0.784 |
+| afternoon reference | 33.5% | +0.573 / +0.693 |
+| **K35 (evening, reps 8)** | **36.5%** of 608 | **+0.677** |
 
-⇒ the negative level-vs-clock correlation (`keri` −0.643, `idteck` −0.571) is an artefact of the
-**4.5-hour hole between the two blocks** — ⛔ **within the afternoon the trend is UP**, which is
-the opposite of drift through a long session.
+⇒ **E2 FIRES**: `reps 8` did **not** restore the morning condition ⇒ ⛔ **`--reps 16` is NOT the
+driver, and K34a's reps choice is exonerated as the cause of its control failure.**
 
-⛔⛔⛔ **AND THE BANKED CAPS CANNOT SETTLE IT: EVERY MORNING CAP IS `--reps 8` AND EVERY
-AFTERNOON CAP IS `--reps 16`, SO REPS AND TIME-OF-DAY ARE PERFECTLY CONFOUNDED.** No contrast
-anywhere in `caps/` breaks it. ⇒ **more mining of banked data is now known to be a dead end here**,
-which is worth more than the plot was.
+⚠⚠ **IT FIRED MARGINALLY ON THE LEVEL MARKER — quote this with the verdict, never the verdict
+alone.** 36.5% is **0.5 points** under the 37.0 threshold against a **~2.0 point** binomial SE at
+n=608, so the level is **not distinguishable from the midpoint**; the fire is carried by the
+AGREEMENT marker, which does sit cleanly in the afternoon range. ⇒ read it as ***reps is not the
+driver*** (both markers agree) and ⛔ **not** as *the level returned to the afternoon's*.
+⚠ And 36.5% sitting between the blocks is equally consistent with a **continuum** rather than the
+discrete step the band assumed. Nothing tests that yet.
 
-## ⭐⭐⭐⭐⭐ WHERE THE NEXT TICK STARTS — ONE CHEAP MEASUREMENT, NOT MORE MINING
+## ⭐⭐⭐⭐⭐ WHERE THE NEXT TICK STARTS — TIME IS A CONFOUND, AND IT IS AN AUDIT FIRST
 
-⭐⭐⭐⭐ **PINNED AS K35 (`burstsync.py` docstring, commit `50b768b8`) — READ IT BEFORE RUNNING ANYTHING. Its bands, thresholds and the hour it must be run in are already fixed, so a fresh tick should RUN it, not re-litigate it.**
+⭐⭐⭐ **THE STANDING CONSEQUENCE, AND IT IS THE BIGGEST THING THIS ROUND HAS PRODUCED ABOUT
+METHOD: the level follows the CLOCK or the SESSION, so a band whose two conditions ran one after
+the other has time folded into its contrast.** K34a's **ABBA** order already had that protection —
+which is precisely why its 0-vs-4 hit difference could be identified as confounded instead of
+published — and ⛔ **the earlier A-then-B bands do not.**
 
-⛔⛔⛔ **RUN IT IN THE AFTERNOON OR EVENING — NOT IN THE MORNING. A MORNING RUN
-DISCRIMINATES NOTHING.** The morning block IS `(reps 8, morning)`, so repeating `reps 8` inside
-07:00-10:00 reproduces that cell exactly and **both hypotheses predict the morning level there.**
-The contrast only exists outside the window — ideally near the afternoon block's own 14:45-17:31.
-⛔ A tick firing 07:00-10:00 should do other work and leave this one. ⚠ Record the hour in the
-same string as the verdict (M73).
-⚠ **K35's first version said the opposite and had its branches inverted; corrected unrun at
-`b24aeb6e` (L542).** Read the CURRENT section, not a memory of it.
+⭐ **UNIT 1 — OFFLINE, NO BENCH: which banked bands are exposed?** Go through the K-series and
+list, per band, whether its conditions were **interleaved/counterbalanced** or run as **block A then
+block B**. Every A-then-B band with a *between-condition* claim is exposed; a **within-arm** claim
+scored on one cap is not. ⛔ **This is an exposure audit, not a retraction** — name what is at
+risk and what is safe, and do not withdraw anything without re-scoring it.
+⚠ Expect most to be safe: M69/M60 already pushed this line toward per-arm shuffling and
+interleaving, so the exposure is likely narrow. **Finding it narrow is a real result, not a null.**
 
-⭐⭐⭐ **THE UNIT: repeat ONE banked morning cap's exact configuration.** `k29_three`
-at `--reps 8` on the 38-cell 10-195 ladder, `keri` alone, **two fresh seeds** (the pair is what
-gives the agreement figure as well as the level). **~60 minutes, no flash, no bench move.** It breaks the confound in one shot:
-- **comes back at ~41% and ~+0.8 agreement (E1 REPS)** ⇒ `--reps 8` restored the morning level at
-  an afternoon hour, so the hour did not move it ⇒ ⭐ **`--reps 16` is the driver**, and ⛔ K34a's
-  own reps choice must be re-examined before any re-run.
-- **comes back at ~33% and ~+0.6 (E2 CLOCK/SESSION)** ⇒ `--reps 8` did NOT restore it ⇒ reps is
-  not the driver; the clock or the session boundary is ⇒ **every band on this line needs
-  counterbalancing against time**, as K34a's ABBA already had and ⛔ the earlier A-then-B bands
-  did not.
-✅ **Already pre-registered** — E1/E2 and the no-verdict meaning are in K35; do not re-derive them.
-⚠ One cap cannot separate *time of day* from *session boundary*; say so rather than implying it can.
+⭐ **UNIT 2 — then, and only then, K34a's re-run.** It is still unrun as a verdict and **K34b is
+NOT licensed**. Its thresholds must be re-derived from the level measured **on the day** (M80/M83),
+never from C538's, and its ABBA order kept. ⭐ The flash route is proven and cheap — both zips
+banked, a flash under a minute, `hw emudebug` confirms 31 vs 62 — so the re-run is not the
+expensive part; getting its thresholds right is.
 
-⛔ **STANDING: K34a is unrun as a verdict and K34b is NOT licensed.** A re-run must **measure the
-level on the day and re-derive its thresholds from it** (M80/M83), never from C538's. ⭐ The flash
-route is proven and cheap — both zips banked, a flash under a minute, `hw emudebug` confirms 31 vs
-62 — so the re-run is not the expensive part; getting its thresholds right is.
-
-⚠ **Descriptive and NOT to be upgraded**: R4 (140-145) was the one region hit by **both** arms at
-burst 1000 and by neither at burst 500. Named so a later band can pre-register on it — it is not
-evidence and this run gives it no licence.
+⚠ **Open and NOT answered**: *time of day* versus *session boundary* (cold start, fresh USB
+enumeration, power cycle) — K35 confounds them by construction. A cheap discriminator would be
+two cap-pairs at the SAME hour, one straight after a power cycle and one deep into a session.
+⚠ **Descriptive and NOT to be upgraded**: R4 (140-145) was hit by **both** arms at burst 1000 and
+neither at burst 500. Named so a later band can pre-register on it; it carries no licence.
 
 ⛔⛔ **BENCH STATE CHANGED 2026-09-16 — cu2 WAS REFLASHED.**
 `v2.2.0-920-gdf053dd` — **a committed, clean build** of this tree, carrying the `hw emuhold
