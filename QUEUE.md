@@ -19,6 +19,92 @@ re-run needs **no rebuild** — flash, then confirm **31 vs 62 frames by asking 
 ⚠ `enterdfu.py` failed to TRIGGER once in four attempts with nothing flashed; retry, do not
 suspect the device.
 
+## ⭐⭐⭐⭐⭐ 2026-09-17 21:2x — **K34b's PINNED BAND CANNOT RETURN ELAPSED. THE REPLACEMENT IS COSTED, AND IT IS CHEAPER THAN K34a (C557, M86)**
+
+⭐⭐ **OFFLINE, NO FLASH, NO DEVICE, NOTHING ARMED, NO BENCH MOVE** — and it found a fault that
+would have spent the flash and both caps and come back looking like a working experiment.
+`k34bsim.py` (new, committed `000dea4a`) is `k34sim.py`'s sibling and does item 3 of the list below.
+
+⛔⛔ **THE FAULT IS ARITHMETIC, NOT POWER: K34b's TWO WINDOWS ARE NOT COMPARABLE.**
+
+    SAMPLES   nominal 140-145.   width 5.0 ms, position EXACT — no stretch enters, because a
+              sample count is what the ladder asks for.
+    ELAPSED   nominal 140/S..145/S.  width 5/S = 2.7-3.2 ms, and its POSITION is uncertain over
+              76.4-93.0 because C556 measured S at 1.559-1.833.
+
+⇒ **the ELAPSED feature is ~2.9 ms wide inside a 16.6 ms window — we are ignorant of where it sits
+by 5.6x its own width.** Two faults follow, and the first is fatal on its own:
+
+1. ⛔⛔ **On the pinned 5 ms grid the ELAPSED feature occupies 0 OR 1 cells** — it can fall between
+   two ladder points and miss the ladder entirely — **so `>= 2 elevated cells` cannot fire on
+   ELAPSED at all.** The band could only ever return SAMPLES or NO VERDICT. ⭐ **A band that can
+   return only one of its two answers is not an experiment.**
+2. ⛔⛔ **At 2.5 ms it occupies 2 cells only 19.1% of the time, so `k_E = 2` is met — four times in
+   five — by ONE region cell plus ONE baseline cell that happened to clear.** It simulates at
+   **76.4% power against 3.8% false-fire** and is still broken. ⇒ ⭐⭐⭐ **M86: NEITHER A POWER NOR
+   A FALSE-FIRE FIGURE CONTAINS THIS. Both were computed, both looked fine.** What exposes it is
+   the **occupancy** — how many cells the feature can occupy at that grid, over the whole range of
+   the parameter that places it, **not at the point estimate** (at S=1.71 it reads 1 cell, at
+   S=1.80 it reads 2). ⛔ Require `k <= min(occupancy)` to fire at all and `k <= median(occupancy)`
+   for the fire to be the feature's rather than the noise's.
+
+✅✅ **THE DESIGN THAT SURVIVES — PRE-REGISTERED HERE, AND IT IS HALF K34a's COST:**
+
+> `idteck` only, `--dec 2`, **1.0 ms grid inside both windows** over a 5 ms background **70-150**
+> (39 cells), **`k_E = k_S = 3`** (occupancy 2-4, median 3 ⇒ the region supplies `k_E` itself 92.1%
+> of the time), **`--reps 32`**, `--per-arm-shuffle`, **two fresh seeds**.
+> ⇒ **2,496 reads against K34a's 4,864.** The finer grid is paid for by dropping `keri` and the
+> second condition, neither of which K34b needs.
+
+| region height | false-fire E / S | power E-truth / S-truth | no-verdict |
+|---|---|---|---|
+| **0.725** (measured, nominal 110, 58/80 pooled) | **5.5% / 0.0%** | ⭐ **97.7% / 98.6%** | 2.3% / 1.4% |
+| 0.50 (pessimistic) | 5.5% / 0.0% | 71.5% / 80.2% | 28.5% / 19.5% |
+| 0.45 | 5.5% / 0.0% | ⛔ 45.9% / 46.5% | 54.1% / 52.6% |
+| 0.40 | 5.5% / 0.0% | ⛔ 26.4% / 14.2% | 73.6% / 84.6% |
+
+⛔ **THE 5.5% vs 0.0% ASYMMETRY CANNOT BE EQUALISED AWAY** — raising `k_E` to 4 exceeds the median
+occupancy and re-creates fault 1. It is structural: ELAPSED's window is 3.3x wider **because we are
+ignorant of S**, not because the physics is broader. ⇒ **state it, do not hide it.**
+
+⭐⭐⭐ **AND THE GATE FALLS OUT OF THE SAME SIMULATION — M85 APPLIED BEFORE THE FLASH INSTEAD OF
+AFTER. Everything turns on the region's HEIGHT at dec 2 on the new build, and it cliffs between
+0.50 (71%) and 0.40 (26%).** That height is measurable from a **coarse** pair — 5 ms over 70-150,
+reps 16, **336 reads** — and `k34bsim.py --from` reads it directly.
+
+> ⭐ **THE SEQUENCE, IN ORDER, AND NO STEP IS OPTIONAL:** flash cu2 to the banked burst-1000 zip ·
+> verify **from the AIR** (C461: 62 frames asked, `hw emuseq` 64 entries / `seq repeats` 15, P1
+> clean at 0.50) · **re-fit S with `dectime.py --interval` on the new build** (⭐ the ELAPSED window
+> is a FUNCTION of it — M79/C547, a new binary is a new condition) · **coarse gate pair** ·
+> `./k34bsim.py --from <those caps>` · ⭐ **both powers >= 70% ⇒ capture the 1 ms pair** ·
+> ⛔ **< 70% ⇒ do not capture, and that is a statement about the bench that day, not about the
+> burst.** ⛔ **Never the same caps for the gate and the verdict.**
+> ⛔ Disarm cu2 (`hw mode -r`) in a `finally` on every capture, and `lf config --reset` after
+> `dectime.py`.
+
+⛔ **THE NO-VERDICT BRANCHES, GIVEN MEANINGS IN ADVANCE (M74):** *neither window fires* ⇒ the
+feature did not replicate at dec 2 on this build at all — a statement about the run's sensitivity,
+and ⛔ **not** evidence for either alignment. *both fire* ⇒ the ladder carries structure the design
+does not account for; report the profile and stop, do not pick the stronger.
+
+⚠ **IT DOES NOT REOPEN THE DECIMATION LINE** (closed twice, C545-C548 and C556). It is the **same
+quantity** — the stretch's imprecision — biting K34b through the **window** rather than through an
+alignment. ⇒ ⛔ **item 4 below said *K34b keeps a threshold band* as though a band escaped C556's
+arithmetic. It does not escape it; it inherits it somewhere else, and now that place is costed.**
+
+⚠ **GROUNDING, AND ITS LIMITS (M78/M80).** All of it from the six banked dec-2 caps, the only dec-2
+ladders this bench has ever run: baseline **0.188 mean / 0.115 true SD** (binomial-deconvolved, 70
+cells), `cap_sigma` **0.061**, and the one cell that replicated in **every** pair (nominal 110) at
+**0.725**. ⛔ **All at burst 500, and K34b runs at 1000** — the LEVEL must be re-grounded on the
+day; the widths and the grid arithmetic transfer, because they are properties of the stretch and
+the ladder. ⚠ The height is **transferred** from nominal 110 to R4's cells, a different region: if
+R4 is weaker at dec 2, every power figure above is optimistic.
+
+⭐ **Bench state at the end of this tick: UNCHANGED.** cu2 on the burst-500 build, mode `Tag
+Reader`, nothing flashed, nothing armed, cu1 never touched, nothing moved. ⭐ util7 **96 → 97**
+across the tick. ChameleonUltra `indala-psk-read` at `000dea4a`, **not pushed** (a push to that
+branch was not checked against an open PR and the operator is not reachable to ask).
+
 ## ⭐⭐⭐⭐⭐ 2026-09-17 20:5x — **K34a IS ANSWERED. THE BURST DOES NOT MOVE THE REGIONS. K34b IS LICENSED (C554)**
 
 ⭐⭐ **AND IT COST NOTHING — no flash, no device, no new capture.** The four K34a caps that D1
@@ -81,6 +167,13 @@ agreement, +0.722**, which collapses to ~0 under the scramble. `--k36` now print
 verdict. ⛔ **Read the two together; never quote the delta alone.**
 
 ## ⭐⭐⭐⭐⭐ WHERE THE NEXT TICK STARTS — K34b, LICENSED BUT NOT YET RUNNABLE
+
+✅✅ **ITEMS 2, 3 AND 4 ARE ANSWERED BY C557 AT THE TOP OF THIS FILE — READ THAT FIRST AND
+RUN ITS SEQUENCE. THIS LIST IS KEPT FOR ITS REASONING, NOT ITS STATUS.** Item 1 (re-fit the
+stretch on the new build) and item 5 (the flash route) still stand exactly as written, and
+item 1 is now load-bearing in a way this list did not know: ⭐ **the ELAPSED window is a
+FUNCTION of the stretch**, so the ladder cannot be placed until `dectime.py --interval` has
+run on the flashed build.
 
 ⛔⛔ **DO NOT JUST FLASH AND RUN IT.** C554 licenses K34b; it does not make it ready, and every
 item below has already cost this line a verdict once:
