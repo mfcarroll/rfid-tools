@@ -19,6 +19,65 @@ re-run needs **no rebuild** — flash, then confirm **31 vs 62 frames by asking 
 ⚠ `enterdfu.py` failed to TRIGGER once in four attempts with nothing flashed; retry, do not
 suspect the device.
 
+## ⭐⭐⭐⭐⭐ 2026-09-17 20:5x — **K34a IS ANSWERED. THE BURST DOES NOT MOVE THE REGIONS. K34b IS LICENSED (C554)**
+
+⭐⭐ **AND IT COST NOTHING — no flash, no device, no new capture.** The four K34a caps that D1
+called CONTROL FAILED were rescored with **K36**, a level-invariant statistic (design
+`5a84084d`, scorer `d49204d5`, **both committed before any cap was scored**). Instead of
+thresholding cells it asks whether the two BURSTS agree with each other as well as two SEEDS of one
+burst do:
+
+| | within | cross | **delta** |
+|---|---|---|---|
+| `keri` | +0.633 | +0.657 | **+0.024** |
+| `idteck` | +0.709 | +0.740 | **+0.031** |
+| **pooled** | **+0.671** | **+0.698** | ⭐ **+0.028** (bar **−0.15**) |
+
+⇒ ✅ **SAME — the burst's length is a REACH knob.** Both arms clear the bar independently, the
+margin is 0.18, and the simulated separation is total (SAME 100%, SCALED 0%, SHIFT 0%, FLAT 0.2%).
+⭐ Its `within` figures reproduce `repro.py`'s banked numbers exactly — the machinery agreeing with
+itself on data it did not compute.
+
+⭐⭐⭐ **IT RUNS AGAINST ITS OWN FOREKNOWLEDGE, WHICH IS WHAT MAKES IT CARRYABLE.** K36 was designed
+after K34a's **0-vs-4** hit difference was known — the shape of *the regions moved* — and it says
+they did not. By the standing direction rule a SAME here is honestly carried where a NOT-SAME would
+have been merely *consistent with what was already visible*.
+
+⭐⭐ **AND IT DISSOLVES C549's CONFOUND RATHER THAN STEPPING AROUND IT.** The 0-vs-4 was confounded
+with the level: the condition finding fewer regions was **also the noisier one** (+0.573/+0.667
+against +0.693/+0.751). `delta` measures each condition against **its own** replication floor, so
+that divides out by construction. ⇒ **the thing that made K34a uninterpretable is the thing this
+statistic divides out.**
+
+⛔⛔ **WHAT IT DOES NOT SAY — all pre-stated, none discovered afterwards:**
+1. ⛔ **LOCATION, not amplitude.** Rank agreement is level-insensitive on purpose, and `idteck`'s
+   burst-1000 pooled level (22.0%) really is lower. *The regions are where they were* is the claim;
+   *the burst does not change how strongly they read* is **not**.
+2. ⛔ **It does not rescue D1.** D1's verdict stands as CONTROL FAILED; C553's 28.6% power at this
+   level is untouched. K36 **replaces the instrument**, it does not re-read the old one.
+3. ⛔ **It cannot characterise** — SCALED, SHIFT and FLAT all land far below the bar together.
+4. ⚠ Its −0.15 bar is calibrated by simulation on one measured profile, not an empirical null.
+
+## ⭐⭐⭐⭐⭐ WHERE THE NEXT TICK STARTS — K34b, LICENSED BUT NOT YET RUNNABLE
+
+⛔⛔ **DO NOT JUST FLASH AND RUN IT.** C554 licenses K34b; it does not make it ready, and every
+item below has already cost this line a verdict once:
+
+1. ⭐ **Re-fit the stretch with `dectime.py` ON THE NEW BUILD** — M79/C547: it is known only to ~7%
+   and **a new binary is a new condition**. ⛔ Never 1.653, never this build's 1.775.
+2. ⭐⭐ **Re-derive the thresholds from the level measured ON THE DAY** (M80/M83) — ⛔ never from
+   C538's and never from K34a's. `./k34sim.py --from <the day's caps> --fit-sigma`.
+3. ⭐⭐ **Simulate BOTH power and false-fire before the capture** (M70/M75), and ⭐ **give the
+   no-verdict branch a meaning in advance** (M74).
+4. ⚠ **Consider whether K34b should use K36's statistic too.** Its band is another thresholded one,
+   and C552/M84/C553 are three findings in a row about exactly that failure mode on this bench.
+   ⛔ That is a design question to settle BEFORE the flash, not after the caps.
+5. ⚠ The flash route is proven: both zips banked at `/Users/Shared/code/personal/rfid/.tools/builds/`,
+   a flash under a minute, `hw emudebug` confirms 31 vs 62, `enterdfu.py` may need a retry.
+
+⭐ **Bench state at the end of this tick: cu2 on the burst-500 build (31 frames, asked), mode
+`Tag Reader` (asked), nothing flashed all tick, cu1 never touched, nothing moved.**
+
 ## ✅ 2026-09-17 20:4x — TWO STALE ITEMS IN AUTOPILOT §2c CLOSED, ONE BY MEASUREMENT
 
 ⭐ Both were live *work it* items that a future cold tick would have spent a unit rediscovering.
