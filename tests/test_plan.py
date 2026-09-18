@@ -444,38 +444,50 @@ class ARemedyIsOnlyOfferedWhereItCanActuallyBeTaken(unittest.TestCase):
     consistent.
     """
 
-    def _unlicensable(self, key, reader):
+    READERS_SWEPT = ("rd.pm3", "rd.cu1", "rd.cu2", "rd.flip")
+    SOURCES_SWEPT = ("t55.pm3", "emu.cu2", "t55.cu1", "emu.flip", "t55.flip")
+
+    def _exclusions(self, key, reader, source):
         from tests.helpers import tiny_plan as _tp
-        plan = _tp(keys=(key,), sources=("t55.pm3",), readers=(reader,))
-        return [e for e in plan.exclusions if e.rule == "unlicensable"]
+        return _tp(keys=(key,), sources=(source,), readers=(reader,)).exclusions
 
-    def test_the_plan_never_recommends_a_learn_the_learn_command_would_refuse(self):
-        """⭐ The invariant, keyed on ONE phrase the product owns rather than on prose.
+    def _unlicensable(self, key, reader):
+        return [e for e in self._exclusions(key, reader, "t55.pm3")
+                if e.rule == "unlicensable"]
 
-        Every branch that cannot be settled by learning says exactly "`bench learn` cannot
-        settle it". Anything else that mentions `bench learn` is a recommendation, and the
-        learn command must then accept it.
+    def test_no_refusal_anywhere_recommends_a_learn_the_learn_command_would_refuse(self):
+        """⭐⭐ THE INVARIANT, OVER EVERY RULE RATHER THAN ONE — WHICH IS WHAT MAKES IT AN AUDIT.
 
-        ⚠ The recommending subset is EMPTY today — all three unlicensable protocols are in
-        `cannot` branches — so this currently guards a future one rather than a present bug.
-        Said out loud, because a test that silently checks nothing is worse than no test: the
-        `seen` assertion below is what stops it going vacuous unnoticed.
+        This family of bug is one surface contradicting another, and each surface is
+        internally consistent, so nothing but a cross-surface check finds it. The first version
+        of this test swept `unlicensable` alone and guarded an EMPTY subset: every unlicensable
+        protocol sits in a `cannot settle it` branch. Widened to every rule and every
+        source/reader pair it guards **170 real refusals** that do recommend `bench learn`.
+
+        ⇒ if a refusal says `bench learn`, `cli._why_not_learnable` must accept that
+        protocol/reader. The phrase "cannot settle it" is the product's own opt-out and the
+        sibling test below guards that it is used wherever it is due.
+
+        ⭐ Swept when written: 0 contradictions across all four readers and five sources — so
+        the four surfaces that published this instruction now agree.
         """
         from benchmatrix import cli
-        seen = recommended = 0
+        recommended = 0
         for key in reg.ALL:
-            for reader in ("rd.pm3", "rd.cu1", "rd.flip"):
-                for e in self._unlicensable(key, reader):
-                    seen += 1
-                    if "bench learn" not in e.why or "cannot settle it" in e.why:
-                        continue
-                    recommended += 1
-                    self.assertIsNone(
-                        cli._why_not_learnable(reg.ALL[key], reader),
-                        "%s/%s: the plan says `bench learn` would settle it and the learn "
-                        "command refuses it — two surfaces disagreeing" % (key, reader))
-        self.assertGreater(seen, 0, "the sweep reached no unlicensable cell, so it proved "
-                                    "nothing — the plan or the fixture has changed shape")
+            for reader in self.READERS_SWEPT:
+                for source in self.SOURCES_SWEPT:
+                    for e in self._exclusions(key, reader, source):
+                        if "bench learn" not in e.why or "cannot settle it" in e.why:
+                            continue
+                        recommended += 1
+                        self.assertIsNone(
+                            cli._why_not_learnable(reg.ALL[key], reader),
+                            "%s/%s from %s (%s): the refusal says `bench learn` would settle "
+                            "it and the learn command refuses it — two surfaces disagreeing"
+                            % (key, reader, source, e.rule))
+        self.assertGreater(recommended, 100,
+                           "the sweep found almost nothing to check, so it is no longer an "
+                           "audit — the plan or the fixture has changed shape")
 
     def test_every_cannot_settle_branch_says_so_in_the_same_words(self):
         """⛔ The invariant above is only as good as the phrase it keys on being used."""
