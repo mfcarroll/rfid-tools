@@ -137,14 +137,41 @@ region elevation moves **+40.6 → +75 points**. ⇒ ⛔ **pooled level is nearl
 decides the band** — the round had been watching the wrong statistic — and **max region elevation
 above the cap's own ladder median** is the one that responds.
 
-> **THE GATE, PRE-REGISTERED HERE AND BEFORE ITS CAPTURE:** one cap pair on the **standing burst-500
-> build**, `keri`+`idteck`, the C538 common 38-cell 10-195 ladder, dec 1, `--per-arm-shuffle`,
-> `--reps 8` (⛔ **8, not 16** — the curve above), two fresh seeds. Score the **max elevation of any
-> region above that cap's own ladder median**. ⭐ **>= +60 points ⇒ the flash and K34a's four caps
-> are licensed that session, thresholds re-derived by `./k34sim.py --from` those two caps.**
-> ⛔ **< +60 ⇒ do not flash and do not capture** — say the bench is not at a level that can answer
-> it, and stop. ⚠ The gate is a *feasibility* measurement, not a band: it fires nothing, licenses no
-> cell, and a pass does not predict K34a's verdict.
+> **THE GATE, PRE-REGISTERED AND NOW IMPLEMENTED AS `./framescale.py --gate`:** one cap pair on the
+> **standing burst-500 build** (cu2 answers **31 frames**, asked 2026-09-17 18:5x — no flash needed),
+> `keri`+`idteck`, the C538 common 38-cell 10-195 ladder, dec 1, `--per-arm-shuffle`, `--reps 8`
+> (⛔ **8, not 16** — the curve above), two fresh seeds. The statistic is the **max, over both arms
+> and all five K29 regions, of (the region's best cell − that arm's own ladder median)**, required in
+> **BOTH** caps — ⛔ both, not pooled and not the better one, because one cap reaching it is exactly
+> the single-seed evidence K29's two-seed rule exists to refuse.
+> ⭐ **>= +68 points ⇒ the flash and K34a's four caps are licensed that session**, thresholds
+> re-derived by `./k34sim.py --from` those two caps (M80/M83) and the ABBA order kept.
+> ⛔ **< +68 ⇒ do not flash and do not capture** — the bench is not at a level that can answer K34a.
+> ⚠ That is a statement about the bench today, **not** a result about the burst.
+> ⚠ The gate is a *feasibility* measurement, not a band: it fires nothing, licenses no cell, and a
+> pass does not predict K34a's verdict.
+
+⛔⛔ **THE THRESHOLD WAS +60 FOR ABOUT AN HOUR AND +60 WAS WRONG — CORRECTED BEFORE ANY GATE CAP
+EXISTED, FROM BANKED CAPS AND SIMULATION ONLY (M55, and it is M84's own lesson landing on me).**
+C552 derived +60 from the **pooled** profile's contrast; the scorer reads a **per-cap** maximum at
+**reps 8**, and a per-cap max is inflated by exactly the sampling noise that pooling removes. ⇒ the
+number was calibrated on a different statistic from the one it gates. Re-simulated on the right one:
+
+| contrast gain | D1 power @reps 16 | P(gate >= +56) | >= +62 | **>= +68** | >= +75 |
+|---|---|---|---|---|---|
+| 1.00 — **the day's own level, D1 useless** | 0.8% | 57% | 48% | ⭐ **6%** | 3% |
+| 1.50 | 39.5% | 98% | 94% | 60% | 41% |
+| 2.00 | 77.2% | 100% | 100% | ⭐ **92%** | 69% |
+
+⛔ **+60 would have passed a condition whose D1 power is 0.8% about HALF the time** — it would have
+licensed the flash on exactly the bench K34a already failed on. **+68 gives 6% false-pass and 92%
+pass where K34a would actually work.** ⚠ The statistic is coarse at reps 8 (rates quantise to 1/8,
+it saturates at +75) so do not read fine differences in it; reps 16 sharpens it to 4%/100% at +62
+and was **not** taken, because 6%/92% is adequate and the gate's whole point is being cheap.
+
+✅ **VALIDATED RETROSPECTIVELY: the gate REFUSES K34a's own control pair** (+68.8 and **+46.9**,
+weakest +46.9 against +68) ⇒ had it existed, it would have stopped K34a before the flash and the
+four caps.
 
 ⭐ The flash route stays proven and cheap — both zips banked, a flash under a minute, `hw emudebug`
 confirms 31 vs 62 — so **the flash was never the expensive part, and it is now the part that is
