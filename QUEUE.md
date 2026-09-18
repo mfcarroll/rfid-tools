@@ -38,6 +38,15 @@ stopped the previous tick. The clock condition (Sun 2026-09-20 00:00) is still ~
 `mins7=3050` independently confirms. ⇒ **the round is still stopped, on the same condition, and
 this fire did no work beyond recording that.**
 
+⭐ **PER-FIRE CAP LOG — ADD A LINE HERE, NOT A SECTION.** §3 requires the *reading* every tick; it
+does not require the *reasoning* every tick, and the reasoning is already below and unchanged. A
+fire that stands down on this condition costs one row.
+
+| fire (PDT, `date`) | reading | verdict |
+|---|---|---|
+| 2026-09-17 21:08 | `util5=15.0 mins5=170 util7=98.0 mins7=3050` | stood down |
+| 2026-09-17 21:25 | `util5=15.0 mins5=154 util7=98.0 mins7=3034` | stood down — `util7` unchanged; nothing flashed, nothing armed, no bench move, tree clean at `de8f6d4` |
+
 ⚠⚠ **THE SCHEDULED-TASK FILE AND `AUTOPILOT.md` §3 CARRY DIFFERENT CAP THRESHOLDS, AND AT 98.0 THEY
 GIVE OPPOSITE ANSWERS.** This is not a rounding quibble — it decides whether a fire works or stands
 down, and it will keep deciding it at every fire until the operator reconciles it:
