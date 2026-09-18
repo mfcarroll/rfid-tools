@@ -1,13 +1,25 @@
 # Work queue — newest decisions at the top of each item
 
-⭐⭐⭐⭐⭐ **READ IN THIS ORDER**: the bench state below, then **THE ROUND'S HEADLINE** and
-**WHERE THE NEXT TICK STARTS** (both around line 206) — everything after them is the round's
-detail and its method rules, newest first. ⛔ The blocks further down are HISTORY: several of
-their claims were **retracted or scoped inside the same round**, and each carries its own
-pointer. **Do not quote a level or a rate from them without reading its pointer.**
+⭐⭐⭐⭐⭐ **READ IN THIS ORDER**: the bench state below, then the newest `##` section, then
+**WHERE THE NEXT TICK STARTS** — everything after them is the round's detail and its method
+rules, newest first. ⛔ **Find those by their TITLES, never by a line number** — this line used
+to say *both around line 206* and was wrong by 190 lines within a day, which is the same stale
+-pointer disease the sections below keep finding elsewhere.
 
-✅✅ **BENCH STATE 2026-09-17 17:3x — K34a RAN AND THE BENCH IS BACK AS IT WAS. NOTHING IS
-OUTSTANDING ON THE HARDWARE.** cu2 was flashed to a burst-1000 build, used for two of the four
+⛔ The blocks further down are HISTORY: several of their claims were **retracted or scoped inside
+the same round**, and each carries its own pointer. **Do not quote a level or a rate from them without reading its pointer.**
+
+✅✅ **BENCH STATE 2026-09-17 21:5x — UNCHANGED, AND NOTHING IS OUTSTANDING ON THE HARDWARE.**
+⭐ cu2 is on the **burst-500** build (31 frames, asked), mode **`Tag Reader`** (asked). ⛔ **Nothing
+flashed, nothing armed and no bench move since 17:3x** — the 20:5x and 21:xx ticks were offline
+throughout. **cu1 has never been touched.** ChameleonUltra `indala-psk-read` is clean at
+**`9b8b81eb`**, `rfid-tools` on `main`, `./runtests` **488** green.
+⚠ **The next hardware step is K34b's flash, and it is deliberately NOT started** — see the K34b
+section for the reason and the full pre-registered sequence.
+
+**— the 17:3x block, kept because it is what the restore was verified against —**
+
+✅ **K34a RAN AND THE BENCH IS BACK AS IT WAS.** cu2 was flashed to a burst-1000 build, used for two of the four
 caps, and **flashed back**; `hw emudebug` reports **31 frames per burst**, verified after the
 restore. ⭐ **cu1 was never touched.** The ChameleonUltra tree is clean at **`762cbf13`**, which
 reverts the experimental constant — ⛔ the burst-1000 constant is **not** a proposal and must
