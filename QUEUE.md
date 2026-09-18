@@ -97,6 +97,37 @@ item below has already cost this line a verdict once:
 5. ⚠ The flash route is proven: both zips banked at `/Users/Shared/code/personal/rfid/.tools/builds/`,
    a flash under a minute, `hw emudebug` confirms 31 vs 62, `enterdfu.py` may need a retry.
 
+⭐⭐⭐ **AND A DESIGN FACT WORKED OUT THIS TICK THAT CHANGES ITEM 4 — K34b AND THE DECIMATION
+PROPOSAL ABOVE ARE THE SAME QUESTION.** K34b asks whether `idteck`'s region sits at the *unmoved*
+140-145 or the *moved* 84.7-87.7 under dec 2; that is *does the feature keep its ELAPSED position or
+its SAMPLE position*, which is C539's question with a longer burst under it. ⇒ **the K36-style
+answer is the same alignment comparison**, and K34b has the advantage the banked caps do not: **its
+ladder can be CHOSEN**, which removes the interpolation objection and the foreknowledge objection at
+a stroke.
+
+⛔⛔ **BUT THE SAME ARITHMETIC KILLS THE EASY VERSION, AND IT MUST BE SETTLED BEFORE THE FLASH
+(M81): THE STRETCH IS NOT PRECISE ENOUGH TO ALIGN ANYTHING.** At `1.775 ± 7%` (M79/C547):
+
+| dec-2 nominal | elapsed-equivalent | uncertainty | in dec-1 cells (5 ms grid) |
+|---|---|---|---|
+| 50 ms | 88.8 ms | ±6.2 | **±1.2** |
+| 100 ms | 177.5 ms | ±12.4 | **±2.5** |
+| 150 ms | 266.2 ms | ±18.6 | **±3.7** |
+
+⇒ **an alignment built on the current stretch is uncertain by one to four cells, against a statistic
+C555 measured resolving ONE cell.** ⛔ So the alignment approach is not merely *available* — it is
+**blocked on the stretch's precision**, and that is a prerequisite nobody has costed.
+
+⇒ ⭐⭐ **THE CONCRETE PREREQUISITE, AND IT IS CHEAP AND FLASH-FREE ON THE CURRENT BUILD: tighten the
+stretch.** `dectime.py` already slope-fits it (dec 2 = 1.775, dec 3 = 2.449, dec 4 = 3.117) and
+retired dec 3/dec 4 by arithmetic; what it has never been asked for is an **interval**. Run it with
+enough points to put a stated uncertainty on 1.775, on the build in front of it. ⛔ **That figure
+does not transfer to the burst-1000 build** (M79/C547: a new binary is a new condition) — but the
+*method and its achievable precision* do, and if the best it can do is ±7% then the alignment
+approach is dead on arithmetic and K34b must keep a threshold band after all. ⇒ **run the interval
+FIRST; it decides item 4, it needs no flash, and it is the difference between designing K34b twice
+and designing it once.**
+
 ## ⚠⚠ A PROPOSAL, NOT A DECISION — K36's MOVE MAY REACH THE DECIMATION QUESTION. **READ THE
 OBJECTION FIRST; IT WOULD REOPEN A LINE THIS ROUND DELIBERATELY CLOSED.**
 
