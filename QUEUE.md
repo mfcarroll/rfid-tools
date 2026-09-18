@@ -31,6 +31,59 @@ re-run needs **no rebuild** — flash, then confirm **31 vs 62 frames by asking 
 ⚠ `enterdfu.py` failed to TRIGGER once in four attempts with nothing flashed; retry, do not
 suspect the device.
 
+## ⛔⛔ 2026-09-17 21:08 PDT — **THE STOP HOLDS AT THE NEXT FIRE, AND THE TWO BRIEFS DISAGREE ON ITS NUMBER**
+
+⛔ **`util5=15.0 mins5=170 util7=98.0 mins7=3050`** — logged per §3. Unchanged from the reading that
+stopped the previous tick. The clock condition (Sun 2026-09-20 00:00) is still ~50.8 h away, which
+`mins7=3050` independently confirms. ⇒ **the round is still stopped, on the same condition, and
+this fire did no work beyond recording that.**
+
+⚠⚠ **THE SCHEDULED-TASK FILE AND `AUTOPILOT.md` §3 CARRY DIFFERENT CAP THRESHOLDS, AND AT 98.0 THEY
+GIVE OPPOSITE ANSWERS.** This is not a rounding quibble — it decides whether a fire works or stands
+down, and it will keep deciding it at every fire until the operator reconciles it:
+
+| source | threshold | verdict at `util7=98.0` |
+|---|---|---|
+| `AUTOPILOT.md` §3 table | `util7 >= 98` | **terminal — stop** |
+| the routine's own tick prompt, STEP 3 | `util7 > 99` | keep working |
+
+✅ **Resolved in favour of §3, the stricter one, and here is the reasoning rather than a coin toss:**
+
+1. ⭐ **§3 gives its threshold a stated purpose** — *"the last 2% is reserved so the routine and its
+   wakeups cannot themselves fail for want of capacity."* The prompt's `> 99` states a number and
+   no rationale. A reserve with a reason behind it outranks a bare figure when the two collide and
+   nobody can be asked.
+2. ⭐⭐ **The previous tick already DECLARED this stop and committed it** (`fa85bab`). §3 is explicit
+   that terminal means *"do not wait for more capacity and do not check again"* — **there is no
+   second phase.** A later fire that reopens a declared terminal stop on a looser threshold is the
+   re-arming failure §3 is written to prevent, just arriving through the prompt instead of through
+   the 7-day reset.
+3. ⚠ **The asymmetry favours stopping.** Standing down wrongly costs some ticks in a window that
+   resets Sunday, before the operator returns ~22 Sep. Working wrongly spends the reserve that
+   keeps the routine's own wakeups alive — and §3 already says reaching the ceiling *"is the
+   intended outcome, not a fault."* There is nothing on the list that is urgent enough to buy with
+   the reserve: item 1 (K34b) is explicitly *"do not start without room to finish it"*, item 2 is
+   deliberately the operator's, and item 4 needs hands.
+
+⭐ **FOR THE OPERATOR — this needs one edit, not a judgement call each fire.** Either raise §3's
+table to `> 99` or lower the routine's STEP 3 to `>= 98`, in whichever direction you actually meant.
+⛔ Until then every fire burns a little capacity re-deriving the above, which is the exact cost the
+reserve exists to avoid.
+
+⚠ **Minor, noted in passing, no action taken: this file's section timestamps run ~1 h ahead of the
+system clock.** The section below is headed *22:1x* and its commit `fa85bab` is stamped
+`21:07:41 -0700`; this fire's `date` says `Thu Sep 17 21:08:59 PDT 2026`. ⇒ **the "newest at the
+top" ordering cannot be checked against `git log` while the two disagree**, and a future tick
+comparing a header to a commit time will think it has found an hour-long gap that never existed.
+The headings, not the commits, are the ones that drifted.
+
+### ⭐ WHERE THE NEXT FIRE STARTS
+
+⛔ **It does not start.** Read `util7`, compare it to §3, and if it is still `>= 98` say so in one
+line and stand down — **the work list below is unchanged and still correct**, and nothing above
+supersedes it. The round resumes only on the operator's word, not on a window reset: the clock
+condition at Sun 2026-09-20 00:00 is precisely what keeps the reset from restarting it.
+
 ## ⛔⛔⛔ 2026-09-17 22:1x — **ROUND STOPPED: `util7` REACHED 98. TERMINAL, NOT A PAUSE (§3)**
 
 ⛔ **`util7=98.0` at 22:1x** (96 at tick start, 97 for most of the tick). AUTOPILOT §3: *the week's
