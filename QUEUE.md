@@ -84,7 +84,7 @@ driver*** (both markers agree) and ⛔ **not** as *the level returned to the aft
 ⚠ And 36.5% sitting between the blocks is equally consistent with a **continuum** rather than the
 discrete step the band assumed. Nothing tests that yet.
 
-## ⭐⭐⭐⭐⭐ WHERE THE NEXT TICK STARTS — TIME IS A CONFOUND, AND IT IS AN AUDIT FIRST
+## ⭐⭐⭐⭐⭐ WHERE THE NEXT TICK STARTS — THE AUDIT IS DONE; K34a's RE-RUN IS THE UNIT
 
 ⭐⭐⭐ **THE STANDING CONSEQUENCE, AND IT IS THE BIGGEST THING THIS ROUND HAS PRODUCED ABOUT
 METHOD: the level follows the CLOCK or the SESSION, so a band whose two conditions ran one after
@@ -92,15 +92,20 @@ the other has time folded into its contrast.** K34a's **ABBA** order already had
 which is precisely why its 0-vs-4 hit difference could be identified as confounded instead of
 published — and ⛔ **the earlier A-then-B bands do not.**
 
-⭐ **UNIT 1 — OFFLINE, NO BENCH: which banked bands are exposed?** Go through the K-series and
-list, per band, whether its conditions were **interleaved/counterbalanced** or run as **block A then
-block B**. Every A-then-B band with a *between-condition* claim is exposed; a **within-arm** claim
-scored on one cap is not. ⛔ **This is an exposure audit, not a retraction** — name what is at
-risk and what is safe, and do not withdraw anything without re-scoring it.
-⚠ Expect most to be safe: M69/M60 already pushed this line toward per-arm shuffling and
-interleaving, so the exposure is likely narrow. **Finding it narrow is a real result, not a null.**
+✅✅ **UNIT 1 IS DONE — THE EXPOSURE IS NARROW AND THE HEADLINE IS SAFE (C551).**
+⭐⭐ **Structural protection covers almost everything**: every lead-time claim is scored on
+LADDER CELLS, and `k12()` reshuffles the cell list **within every round** (M60), so a cell's
+position in time is randomised against its value by construction. Every band but K34a has all its
+caps inside **4-35 minutes**.
+⭐⭐⭐ **C538/B1 — the round's headline — is PROTECTED: its three arms sit in the SAME CAP**,
+so the clock enters all three identically. ⛔ The mirror of M69 (a shared PLAN across arms was
+fatal; a shared TIME across arms is harmless).
+⚠ **One exposed family: dec-1 vs dec-2** (K30/K31/K32) read caps of 10:42-12:37 against dec-1
+regions of 07:07-10:08 — ✅ **already closed in closed form by the burst ceiling (C545-C548),
+which is arithmetic and not a level comparison**, so nothing still standing is affected.
+⛔⛔ **An audit, not a retraction. Nothing was withdrawn and nothing may be without re-scoring.**
 
-⭐ **UNIT 2 — then, and only then, K34a's re-run.** It is still unrun as a verdict and **K34b is
+⭐⭐⭐ **UNIT 2 — AND IT IS NOW THE NEXT TICK'S FIRST UNIT: K34a's re-run.** It is still unrun as a verdict and **K34b is
 NOT licensed**. Its thresholds must be re-derived from the level measured **on the day** (M80/M83),
 never from C538's, and its ABBA order kept. ⭐ The flash route is proven and cheap — both zips
 banked, a flash under a minute, `hw emudebug` confirms 31 vs 62 — so the re-run is not the
