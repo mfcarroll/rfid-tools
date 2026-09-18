@@ -101,6 +101,38 @@ class WhatCannotBeMeasured(unittest.TestCase):
         self.assertNotIn("go and measure", why.replace("do NOT go and measure", ""),
                          "it must not send anyone to measure an unanswerable question")
 
+    def test_bench_scope_does_not_tell_anyone_to_learn_an_indistinguishable_protocol(self):
+        """⛔ THE SAME INSTRUCTION LIVED ON A SECOND SURFACE FOR A DAY AFTER THE PLANNER LOST IT.
+
+        The refusal above was fixed on 2026-09-17, but `bench scope`'s *expectations known*
+        column falls back to "— none; `bench learn` them" whenever a protocol has no recorded
+        token — and `expect=None` is THREE states, not one: unmeasured (learn it),
+        unlicensable (the bench cannot), and indistinguishable (looking cannot answer). For
+        Electra the fallback published exactly the to-do the planner had just stopped
+        publishing, and following it builds in the false pass the registry row forbids.
+
+        ⇒ this guards both directions: the indistinguishable protocol must NOT be sent to
+        `bench learn`, and a genuinely unmeasured one still must be.
+        """
+        import argparse
+        import io
+        import contextlib
+        from benchmatrix import cli
+
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out):
+            cli.cmd_scope(argparse.Namespace(protocol=None))
+        rows = {ln.split()[0]: ln for ln in out.getvalue().splitlines()
+                if ln.startswith("  ") and len(ln.split()) > 2}
+
+        electra = rows["em410x_electra"]
+        self.assertNotIn("bench learn", electra,
+                         "Electra's token cannot be learned — recording it is the false pass")
+        self.assertIn("INDISTINGUISHABLE", electra, "and the reason has to be on the row")
+
+        self.assertIn("bench learn", rows["instafob"],
+                      "a genuinely unmeasured protocol must still be sent to measure it")
+
     def test_a_protocol_with_no_gold_writer_IS_unlicensable(self):
         """`fdxa`: the Proxmark has no recorded clone signature, so nothing can make a gold tag."""
         plan = tiny_plan(keys=("fdxa",), sources=("t55.cu1",), readers=("rd.pm3",))

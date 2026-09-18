@@ -273,6 +273,15 @@ def cmd_scope(a) -> int:
             known.append("cu")
         if p.flip_expect:
             known.append("flip")
+        # ⛔⛔ THE FALLBACK TEXT IS NOT ONE MESSAGE, BECAUSE `expect=None` IS NOT ONE STATE.
+        # `bench learn` them is right for a protocol nobody has measured and DANGEROUS for one
+        # the Proxmark cannot distinguish: Electra's `rd.pm3` prints plain `em410x`'s token
+        # byte-for-byte, so recording it would let each protocol's emission pass the other's
+        # cell — a false pass built in by construction. The planner was taught this on
+        # 2026-09-17 (`gap:pm3-indistinguishable`); this printer was the SECOND SURFACE still
+        # publishing the instruction the planner had just stopped publishing.
+        if p.key in reg.PM3_INDISTINGUISHABLE:
+            known.append("⛔ pm3 INDISTINGUISHABLE — never learn it")
         print("  %-15s %-3s %-3s %-4s %-5s %-4d %-13s %s"
               % (p.key,
                  "✓" if p.can("emulate") else "·",
