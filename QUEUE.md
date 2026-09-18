@@ -43,27 +43,50 @@ and C497 already measured that this level wanders. ⇒ a power figure is a prope
 fired a clean, pre-registered, WRONG verdict — **here the floor turned the same class of error
 into an honest no-verdict. The guard did its job and cost one line.**
 
-## ⭐⭐⭐⭐⭐ WHERE THE NEXT TICK STARTS — AND IT IS OFFLINE, NOT ON THE BENCH
+## ✅ THE OFFLINE AUDIT IS DONE — AND IT ANSWERED (L540, `repro.py`)
 
-⛔ **DO NOT SIMPLY RE-RUN K34a.** It would cost four hours of bench and could fail the same way
-for the same reason, and M82/M83 both say to measure the assumption first.
+⛔ **K34a's control failure was NOT a fluke.** `./repro.py` scores seed-to-seed rank agreement
+for every banked cap pair. ⭐ Reading only the **38-cell dec-1** rows, which is the one sound
+comparison (M73):
 
-⭐⭐⭐ **UNIT 1 — THE REPRODUCIBILITY AUDIT, AND IT NEEDS NO HARDWARE AT ALL.** Today's
-burst-500 pair agreed at **+0.573/+0.667** where C538's agreed at **+0.784/+0.733**. ⚠ **Is the
-bench getting noisier, or was today's pair an outlier?** Every banked cap pair in
-`caps/` can answer it offline: compute the same seed-to-seed rank agreement for **every** same-arm
-same-ladder pair, in date order, and look for a trend.
-- **If reproducibility has DECLINED across the round**, that is a finding that **reaches back over
-  every band on this line**, not just K34a — report it before running anything new, because it
-  changes what a NO VERDICT has meant.
-- **If today's pair is an OUTLIER**, K34a is simply worth re-running — and then ⛔ **its
-  thresholds must be re-derived from the level measured on the day (M80/M83)**, never from C538's.
-⭐ This is the ideal unattended unit: no bench move, no flash, no capacity spent on captures, and
-it decides whether the next capture is worth taking.
+| when | pairs | agreement |
+|---|---|---|
+| morning | k26, k27, k28, k29 | **+0.679 to +0.863**, mostly ~**0.82** |
+| afternoon | K34a burst 500 | **+0.573**, **+0.667** |
+| afternoon | K34a burst 1000 | **+0.693**, **+0.751** |
+
+⚠⚠ **AND THE DIRECTION IS THE INFORMATIVE PART: K34a used `--reps 16` against the morning's
+`8`**, which cuts per-cell sampling noise and should have **RAISED** agreement. It fell.
+⇒ **the decline is in the wrong direction for a sampling artefact**, and it agrees with the
+pooled levels (**22.0-35.4%** against C538's **38.5-43.1%**).
+
+## ⭐⭐⭐⭐⭐ WHERE THE NEXT TICK STARTS — THE WITHIN-DAY DECLINE IS NOW THE QUESTION
+
+⭐⭐⭐ **EVERY CAP IN THAT TABLE WAS TAKEN ON 2026-09-17, 05:37 to 17:31 — SO THIS IS A
+DECLINE WITHIN ONE DAY, NOT ACROSS THE ROUND.** That is a much sharper and more alarming thing
+than *the bench is getting old*, and it has never been looked for:
+1. ⭐ **Offline first, and it is cheap**: `repro.py` gives agreement; the pooled LEVEL per cap is
+   the other half. Plot **level against clock time** across every banked dec-1 cap. If the level
+   falls monotonically through the day, that is a **new confound over every band on this line** —
+   ⛔ and note that most earlier bands ran their two seeds BACK TO BACK, so a within-day drift
+   enters both seeds together and inflates their agreement rather than lowering it.
+2. ⭐⭐ **If it is real, it changes how bands must be RUN, and K34a already shows the fix**:
+   its ABBA order counterbalanced the two conditions against time, which is exactly why the
+   0-vs-4 hit difference could be identified as confounded rather than published. ⛔ Earlier
+   bands that ran condition A then condition B do **not** have that protection.
+3. ⚠ **Candidate causes are a BENCH question and mostly need the operator** — thermal drift over
+   a 14-hour session, cu2's battery, the Proxmark warming. ⛔ Name it for the operator; do not
+   reach for a cause from the data above, which was never randomised against time of day.
+
+⛔ **AND THE STANDING CONSEQUENCE FOR K34a**: it remains unrun as a verdict, and a re-run must
+**measure the level on the day and re-derive its thresholds from that** (M80/M83), never from
+C538's. ⛔ K34b stays unlicensed. ⭐ The flash route is proven and cheap — both zips are banked,
+a flash takes under a minute, and `hw emudebug` confirms 31 vs 62 — so the re-run is not the
+expensive part; getting its thresholds right is.
 
 ⚠ **Descriptive and NOT to be upgraded**: R4 (140-145) was the one region hit by **both** arms at
-burst 1000 and by neither at burst 500. Named so a later band can pre-register on it — ⛔ it is
-not evidence and this run gives it no licence.
+burst 1000 and by neither at burst 500. Named so a later band can pre-register on it — it is not
+evidence and this run gives it no licence.
 
 ⛔⛔ **BENCH STATE CHANGED 2026-09-16 — cu2 WAS REFLASHED.**
 `v2.2.0-920-gdf053dd` — **a committed, clean build** of this tree, carrying the `hw emuhold
