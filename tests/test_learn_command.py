@@ -621,3 +621,43 @@ class AConfirmedSilenceIsARecordAndIsScopedToItsSource(_ScriptedLearningBench):
         self._learn("-p", "fdxb")
         out, _ = self._learn("-p", "fdxb", "--relearn")
         self.assertIn("fdxb", out.split("learning")[1][:80])
+
+
+class TheOnePathIntoTheRegistryRefusesAnUnanswerableQuestion(unittest.TestCase):
+    """⛔⛔ THE THIRD SURFACE, AND THE ONLY ONE THAT ACTUALLY WRITES THE FALSE VALUE DOWN.
+
+    `em410x_electra`'s `rd.pm3` expectation is refused permanently as
+    `gap:pm3-indistinguishable`: the Proxmark prints `EM 410x ID 2244668800` for it, which is
+    byte-identical to plain `em410x`'s token, so recording it would let an `em410x` emission
+    pass an `electra` cell and back. The planner was taught this, and then `bench scope` — but
+    **`bench learn` was not**, and it is the command that would have done the damage.
+
+    ⛔ Every check in `_why_not_learnable` passed for it: the Proxmark has a clone command, a
+    read command and a decode marker. An unmeasured protocol and an indistinguishable one both
+    arrive with `expect = None`, so the bare absence cannot tell them apart — which is why the
+    refusal has to be named and has to come FIRST, exactly as `plan._refuse` orders it.
+
+    ⚠ And the refusal is scoped to the reader that cannot answer. The Flipper alone
+    distinguishes Electra (`22446688007E1EAA`), so `rd.flip` must stay learnable — a blanket
+    refusal would throw away the one judge that works.
+    """
+
+    def test_rd_pm3_is_refused_permanently_and_relearn_does_not_override_it(self):
+        why = cli._why_not_learnable(reg.ALL["em410x_electra"], "rd.pm3")
+        self.assertIsNotNone(why, "the command that records the value must refuse it")
+        self.assertIn("PERMANENT", why)
+        self.assertIn("false pass", why, "and say what recording it would cost")
+        self.assertIn("--relearn", why, "because --relearn is the obvious way to try anyway")
+
+    def test_the_flipper_can_still_be_asked_because_it_alone_distinguishes_electra(self):
+        self.assertIsNone(cli._why_not_learnable(reg.ALL["em410x_electra"], "rd.flip"))
+
+    def test_a_protocol_with_a_real_token_is_untouched(self):
+        self.assertIsNone(cli._why_not_learnable(reg.ALL["em410x"], "rd.pm3"))
+
+    def test_a_bare_learn_sweeps_electra_so_the_refusal_is_not_hypothetical(self):
+        """⛔ The default is every tier-0 arm, so nobody has to name Electra to reach it."""
+        keys = {p.key for p in reg.resolve(None)}
+        self.assertIn("em410x_electra", keys,
+                      "if this ever stops being true the refusal above is still right, "
+                      "but the hazard it closed was that a bare `bench learn` reached it")
