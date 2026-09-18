@@ -19,6 +19,51 @@ re-run needs **no rebuild** — flash, then confirm **31 vs 62 frames by asking 
 ⚠ `enterdfu.py` failed to TRIGGER once in four attempts with nothing flashed; retry, do not
 suspect the device.
 
+## ⛔⛔⛔⛔ 2026-09-17 20:2x — **THE GATE RAN AND PASSED; THE RUN IS STILL REFUSED (C553, M85)**
+
+**The gate was captured as pre-registered — two caps, no flash, `disarm: ok` twice, cu2 verified
+`Tag Reader` by asking the device — and it PASSED at the top of its range (+75.0 and +75.0 against
++68).** ⭐⭐ **It also confirmed C552 on the bench instead of in simulation: the pooled level is
+indistinguishable from K34a's own day (29.9-34.2% vs 27.6-33.4%) while the peak elevation moved
++46.9/+68.8 → +75.0/+75.0.** ⭐ **And K34a's own failure mode is FIXED — `P(|H500| >= 3)` is 78.4%
+against 20.8%.**
+
+⛔⛔ **BUT THE RE-DERIVATION THE PASS LICENSED CAME BACK NEGATIVE, SO NOTHING WAS FLASHED AND THE
+FOUR CAPS WERE NOT SPENT.** Grounded in the gate's own caps: **D1 power 28.6%** against the
+pre-registered 93.6%, **NO VERDICT the most likely outcome at 40.1%**, reps 24 no help, and **D3 now
+fires 65-78% under SCALED / SHIFTED / FLAT** (against 7.2% / 1.8% / 100% at C538's level) so a D3
+would say almost nothing. ⭐ D1's false-fire is still **0.0%**: ⇒ **unpowered, not broken.**
+
+⛔ **That overrides the pre-registration, and the reason is inside it**: the licence read *PASS ⇒
+run, thresholds re-derived from these caps*, and a licence conditional on a re-derivation is void
+when the re-derivation fails. Running a band known to be 28.6% powered is what M70/M75 forbid.
+
+⭐⭐⭐ **M85 — AND IT IS MY ERROR, NOT THE BENCH'S: I GATED ON THE PREVIOUS FAILURE MODE INSTEAD OF
+ON THE QUANTITY THAT DECIDES THE VERDICT.** Peak elevation was a **proxy** for D1's power, and D1's
+power is computable **directly from the gate's own two caps** by `./k34sim.py --from` — so the proxy
+was never needed, and it added a way to be wrong (it was +60 for an hour and +60 was wrong).
+
+⭐⭐⭐⭐ **⇒ THE CORRECTED GATE, AND IT IS WHAT THE NEXT TICK USES. Peak elevation leaves the design.**
+
+> **Capture the cheap pair** (standing burst-500 build, no flash — `keri`+`idteck`, 38-cell 10-195
+> ladder, dec 1, `--per-arm-shuffle`, `--reps 8`, two fresh seeds), then run
+> `./k34sim.py <draws> --from <those two caps> --fit-sigma --reps 16`.
+> ⭐ **D1's power >= 70% ⇒ flash and run K34a's four caps that session, ABBA order kept.**
+> ⛔ **< 70% ⇒ do not flash and do not capture.** ⚠ A statement about the bench that day, **not** a
+> result about the burst.
+
+✅ **The two caps already taken are NOT wasted — `gate1_s389` and `gate2_s397` are exactly what the
+corrected gate reads**, and they say **28.6%**. ⇒ ⛔ **on the bench as it stands tonight, K34a is
+refused. Do not re-capture the pair tonight hoping for a different number.**
+
+⚠⚠ **AND THE DESIGN QUESTION THE NEXT TICK INHERITS, WHICH IS THE REAL OBSTACLE NOW THAT THE
+CONTROL IS HEALTHY:** D1 asks for `keep >= 0.75 x |H500|`. It was built where `|H500|` was **8-9 and
+stable**; today it is **3-5**, so *keep 75%* means keeping **3 of 4 exactly** and one region failing
+to replicate ends the fire. ⇒ **a threshold written as a FRACTION of a measured quantity got
+stricter when the measurement shrank, and nobody changed the band.** ⛔ **Do not redesign it and run
+it in the same session** — that is fitting. Re-cost it first, pre-register the new form, and simulate
+its false-fire before any capture.
+
 ## ⛔⛔⛔⛔ 2026-09-17 18:5x — **K34a's RE-RUN IS REFUSED BY ITS OWN ARITHMETIC (C552, M84)**
 
 **The re-run was this tick's pinned unit. It was not run, and that is the result.** M83 required its
@@ -130,6 +175,10 @@ by construction. ⇒ ⭐ **the remedy is more SEEDS and a k-of-n replication rul
 ⚠ Retuning the elevation threshold rescues the control (96.7%) and **not** the band: D1's power is
 still 30.9%, reps 32 buys only 40.2%, and D1's false-fire stays **0.0%** throughout — ⇒ the band is
 **unpowered, not broken**, so it is worth gating rather than redesigning.
+
+⛔ **SUPERSEDED — THIS GATE RAN, PASSED, AND WAS THE WRONG SHAPE. READ C553/M85 AT THE TOP; the
+corrected gate is D1's power itself and peak elevation has left the design. The block below is kept
+for the reasoning that produced the statistic, not for its status.**
 
 ⭐⭐⭐⭐ **SO THE NEXT TICK'S FIRST UNIT IS THE GATE, AND IT NEEDS NO FLASH.** Across the range where
 D1's power runs **0.8% → 91.2%**, the pooled level moves only **32.9% → 38.0%** while the largest
