@@ -72,6 +72,30 @@ subset, because every unlicensable protocol sits in a *cannot settle it* branch:
 that checks nothing is the exact failure mode it was written against**, and it said so in its own
 docstring before being widened.
 
+✅✅ **AND THE CONSEQUENCE WAS CHECKED RATHER THAN ASSUMED: `learned.json` holds 14 records,
+NONE of them `rd.pm3`, and its single Electra record is the Flipper's CORRECT distinguishing value
+`22446688007E1EAA` (session 20260915_233837).** ⇒ **the defect was real and reachable but never
+fired.** ⚠ Zero `rd.pm3` records also means every `rd.pm3` expectation in the registry is a
+hand-written constant, which is what `test_learn_command.py`'s own docstring says and is a separate
+standing weakness — no provenance, nothing to replay against.
+
+⭐⭐⭐ **THEN THE DANGER WAS GENERALISED INTO `reg.validate()`, WHICH IS THE PART THAT OUTLIVES
+ELECTRA.** Grading is a byte-exact match, so **two protocols holding the same token for one reader
+cannot attribute a decode and each would pass the other's cell.** Nothing refused that in general,
+and ⛔ **it needs no bad measurement to arrive — only a plausible one written down.** Two invariants
+now fire for **every command**, not just under the test runner:
+
+1. ⭐ **No two protocols may share a byte-exact `expect` / `cu_expect` / `flip_expect`.** Swept:
+   **19 · 18 · 4 values, 0 shared.** ⚠ **The world is allowed to share a token; the registry is
+   not** — `lf em 410x reader` really does print `2244668800` for both, and the sanctioned way to
+   say so is `expect = None` plus `PM3_INDISTINGUISHABLE`. ⇒ **a collision is not *the bench is
+   ambiguous*, it is *someone recorded the ambiguity as an answer*.**
+2. ⭐ **Membership of `PM3_INDISTINGUISHABLE` and a recorded `expect` are contradictory** and are
+   refused as such, because holding both makes the planner's permanent refusal depend on **which
+   rule happened to be checked first**. ⛔ **Invariant 1 does not cover this** — it fires only when
+   the shared token's other owner is *also* registered, true for Electra today and not guaranteed
+   for a future member. This one needs no twin.
+
 ✅ **Also corrected while here:** `SCOPE.md` called `em410x_electra` and `indala224` *the cheapest
 item in this whole document* and tiered them **0b — FREE**. ⛔ Both were measured since and neither
 is cheap — Electra is unanswerable here, `indala224` needs a tag — so a cold tick reading SCOPE.md
