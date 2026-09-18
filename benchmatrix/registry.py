@@ -731,6 +731,28 @@ def validate(protocols: dict[str, Protocol] | None = None) -> None:
     # ⭐ Swept when written: 19 `expect`, 18 `cu_expect` and 4 `flip_expect` values, 0 shared.
     # This costs nothing and would have caught the Electra mistake had anyone recorded it —
     # which `bench learn` would have done, unchecked, until 2026-09-17.
+    # ⛔⛔ MEMBERSHIP OF `PM3_INDISTINGUISHABLE` AND A RECORDED `expect` ARE CONTRADICTORY
+    # STATEMENTS, AND ONLY ONE OF THEM CAN BE TRUE. The set says *the Proxmark cannot tell this
+    # protocol from the one it shares a token with*; an `expect` says *this is the token it
+    # prints and a match licenses a pass*. Holding both would make the planner's permanent
+    # refusal depend on which rule happened to be checked first.
+    #
+    # ⚠ THE COLLISION SWEEP BELOW DOES NOT COVER THIS. It only fires when the shared token's
+    # OTHER owner is in the registry too — true for Electra today, and not guaranteed for a
+    # future member whose twin we do not register. This check needs no twin.
+    for key in sorted(PM3_INDISTINGUISHABLE):
+        p = protocols.get(key)
+        if p is None:
+            continue
+        if p.expect:
+            problems.append(
+                "%s is in PM3_INDISTINGUISHABLE and also holds a pm3 expectation (%r) — the set "
+                "says the Proxmark cannot tell it apart and the token says a match licenses a "
+                "pass. Drop one; the measurement says drop the token" % (key, p.expect))
+        if not p.pm3_read:
+            problems.append(
+                "%s is in PM3_INDISTINGUISHABLE but has no pm3 reader, so the refusal is "
+                "redundant and hides the real reason — say which it is" % key)
     for field, label in (("expect", "rd.pm3"), ("cu_expect", "rd.cu*"),
                          ("flip_expect", "rd.flip")):
         by_token: dict[str, list[str]] = {}
