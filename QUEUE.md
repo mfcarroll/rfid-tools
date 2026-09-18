@@ -6,20 +6,64 @@ detail and its method rules, newest first. ⛔ The blocks further down are HISTO
 their claims were **retracted or scoped inside the same round**, and each carries its own
 pointer. **Do not quote a level or a rate from them without reading its pointer.**
 
-⛔⛔⛔ **BENCH STATE 2026-09-17 13:4x — cu2 IS BEING FLASHED TO A BURST-1000 BUILD FOR K34a.
-READ THIS BEFORE TOUCHING THE BENCH.** ⭐ **cu1 WAS NOT TOUCHED and is never flashed.**
+✅✅ **BENCH STATE 2026-09-17 17:3x — K34a RAN AND THE BENCH IS BACK AS IT WAS. NOTHING IS
+OUTSTANDING ON THE HARDWARE.** cu2 was flashed to a burst-1000 build, used for two of the four
+caps, and **flashed back**; `hw emudebug` reports **31 frames per burst**, verified after the
+restore. ⭐ **cu1 was never touched.** The ChameleonUltra tree is clean at **`762cbf13`**, which
+reverts the experimental constant — ⛔ the burst-1000 constant is **not** a proposal and must
+never reach a branch as a change.
 
-| | |
-|---|---|
-| **what** | `LF_TAG_BURST_TARGET_MS` 500 → **1000** (`lf_tag_em.c:75`), ChameleonUltra commit **`e81062da`** — ⛔ **EXPERIMENTAL, marked in its own message as TO BE REVERTED** |
-| **why** | K34a — does a longer burst MOVE the lead-time regions or only reveal more of them? Pre-registered at `41c3aabc`; read `burstsync.py`'s **K34a PRE-REGISTERED** section |
-| **both DFU zips are kept OUTSIDE the tree** so no rebuild is needed to go either way | `/Users/Shared/code/personal/rfid/.tools/builds/k34a-b500-dfu-app.zip` and `k34a-b1000-dfu-app.zip` (plus `fallback-df053dd-b500-dfu-app.zip`, the build cu2 ran before this tick) |
-| **how to flash either** | `./enterdfu.py --port /dev/tty.usbmodemF429364E46961 --program <zip>` — ⚠ it fails to TRIGGER two or three times before succeeding, with nothing flashed; retry rather than suspecting the device |
-| ⭐⭐ **how to tell which build is on it — ASK THE DEVICE, never a version string (C461)** | arm any LF slot, then `hw emudebug`: **`frames per burst` reads 31 at burst 500 and 62 at burst 1000.** Measured 31 on all three arms before this flash |
+⭐ Both DFU zips are kept at `/Users/Shared/code/personal/rfid/.tools/builds/`
+(`k34a-b500-dfu-app.zip`, `k34a-b1000-dfu-app.zip`, plus `fallback-df053dd-b500-dfu-app.zip`), so a
+re-run needs **no rebuild** — flash, then confirm **31 vs 62 frames by asking the device** (C461).
+⚠ `enterdfu.py` failed to TRIGGER once in four attempts with nothing flashed; retry, do not
+suspect the device.
 
-⭐ **TO PUT THE BENCH BACK**: flash `k34a-b500-dfu-app.zip`, confirm `frames per burst` is **31**
-again, and revert `e81062da` in the ChameleonUltra tree. ⛔ **Neither build is a proposal** — the
-burst-1000 constant must not reach any branch as a change.
+## ⛔⛔⛔⛔ K34a: **CONTROL FAILED — NO VERDICT — K34b IS NOT LICENSED** (C549, M83)
+
+Four caps, `keri`+`idteck`, the C538 common 38-cell 10-195 ms ladder, dec 1, `--per-arm-shuffle`,
+`--reps 16`, seeds 353/359/367/373, **ABBA (1000,500,500,1000)**. **All eight gates passed.**
+Score it with `./framescale.py --k34 caps/k34a_*.json`.
+
+**The burst-500 control hit 0 of 10 regions against a pre-registered floor of 3.** ⇒ the run
+cannot say whether the regions moved, because the condition they had to move FROM showed none.
+
+⚠⚠ **AND THE RAW SHAPE READS BACKWARDS, WHICH IS WHY THE FLOOR EXISTS: burst 1000 hit FOUR
+regions (`keri` R2,R3,R4 and `idteck` R4) where burst 500 hit none.** ⛔⛔ **DO NOT READ THAT AS
+A BURST EFFECT.** Seed-to-seed profile agreement was **also** lower at burst 500 today (`keri`
+**+0.573**, `idteck` **+0.667**) than at burst 1000 (**+0.693**, **+0.751**), and lower than
+C538's own burst-500 pair (**+0.784**, **+0.733**) — the two differences run the same way and
+this run cannot separate them.
+
+⭐⭐ **M83 — the lesson is about the SIMULATION, not the bench.** `k34sim.py` put
+control-failure at **0.0%** over 10,000 draws, correctly *given C538's per-cell rates*. Today's
+pooled levels are **22.0-35.4%** against C538's **38.5-43.1%**, one day apart on an unmoved bench,
+and C497 already measured that this level wanders. ⇒ a power figure is a property of the band
+**at the level it was grounded in**. ⭐ Against M82 — where an unmeasured assumption would have
+fired a clean, pre-registered, WRONG verdict — **here the floor turned the same class of error
+into an honest no-verdict. The guard did its job and cost one line.**
+
+## ⭐⭐⭐⭐⭐ WHERE THE NEXT TICK STARTS — AND IT IS OFFLINE, NOT ON THE BENCH
+
+⛔ **DO NOT SIMPLY RE-RUN K34a.** It would cost four hours of bench and could fail the same way
+for the same reason, and M82/M83 both say to measure the assumption first.
+
+⭐⭐⭐ **UNIT 1 — THE REPRODUCIBILITY AUDIT, AND IT NEEDS NO HARDWARE AT ALL.** Today's
+burst-500 pair agreed at **+0.573/+0.667** where C538's agreed at **+0.784/+0.733**. ⚠ **Is the
+bench getting noisier, or was today's pair an outlier?** Every banked cap pair in
+`caps/` can answer it offline: compute the same seed-to-seed rank agreement for **every** same-arm
+same-ladder pair, in date order, and look for a trend.
+- **If reproducibility has DECLINED across the round**, that is a finding that **reaches back over
+  every band on this line**, not just K34a — report it before running anything new, because it
+  changes what a NO VERDICT has meant.
+- **If today's pair is an OUTLIER**, K34a is simply worth re-running — and then ⛔ **its
+  thresholds must be re-derived from the level measured on the day (M80/M83)**, never from C538's.
+⭐ This is the ideal unattended unit: no bench move, no flash, no capacity spent on captures, and
+it decides whether the next capture is worth taking.
+
+⚠ **Descriptive and NOT to be upgraded**: R4 (140-145) was the one region hit by **both** arms at
+burst 1000 and by neither at burst 500. Named so a later band can pre-register on it — ⛔ it is
+not evidence and this run gives it no licence.
 
 ⛔⛔ **BENCH STATE CHANGED 2026-09-16 — cu2 WAS REFLASHED.**
 `v2.2.0-920-gdf053dd` — **a committed, clean build** of this tree, carrying the `hw emuhold
