@@ -717,6 +717,34 @@ def validate(protocols: dict[str, Protocol] | None = None) -> None:
         # deliberate statement about the firmware rather than an entry nobody got round to.
         if p.tier == 0 and not p.cu_read and p.key not in NO_CU_SCAN:
             problems.append("%s: no cu_read, and it is not in NO_CU_SCAN — say which it is" % key)
+    # ⛔⛔⛔ NO TWO PROTOCOLS MAY HOLD THE SAME BYTE-EXACT TOKEN FOR ONE READER, BECAUSE
+    # GRADING IS A BYTE-EXACT MATCH AND A SHARED TOKEN CANNOT ATTRIBUTE A DECODE. Each
+    # protocol's emission would pass the other's cell — a false pass built in by construction,
+    # and it needs no bad measurement to arrive, only a plausible one written down.
+    #
+    # ⚠ THE WORLD IS ALLOWED TO SHARE A TOKEN; THE REGISTRY IS NOT. `lf em 410x reader` really
+    # does print the same `2244668800` for `em410x` and for `em410x_electra` (measured
+    # 2026-09-16) — and the sanctioned way to say so is `expect = None` plus membership of
+    # `PM3_INDISTINGUISHABLE`, which is a permanent fact about the PROXMARK. ⇒ a collision here
+    # is not "the bench is ambiguous", it is "someone recorded the ambiguity as an answer".
+    #
+    # ⭐ Swept when written: 19 `expect`, 18 `cu_expect` and 4 `flip_expect` values, 0 shared.
+    # This costs nothing and would have caught the Electra mistake had anyone recorded it —
+    # which `bench learn` would have done, unchecked, until 2026-09-17.
+    for field, label in (("expect", "rd.pm3"), ("cu_expect", "rd.cu*"),
+                         ("flip_expect", "rd.flip")):
+        by_token: dict[str, list[str]] = {}
+        for key, p in protocols.items():
+            token = getattr(p, field)
+            if token:
+                by_token.setdefault(token, []).append(key)
+        for token, keys in by_token.items():
+            if len(keys) > 1:
+                problems.append(
+                    "%s share one %s expectation (%r), so a decode could not be attributed and "
+                    "each would pass the other's cell. A genuine collision is expressed as "
+                    "`expect = None` plus PM3_INDISTINGUISHABLE, never as a shared token"
+                    % (" and ".join(sorted(keys)), label, token))
     missing = set(TIER0_ORDER) - set(protocols)
     if protocols is ALL and missing:
         problems.append("tier 0 is incomplete, missing: %s" % ", ".join(sorted(missing)))
