@@ -97,6 +97,50 @@ item below has already cost this line a verdict once:
 5. ⚠ The flash route is proven: both zips banked at `/Users/Shared/code/personal/rfid/.tools/builds/`,
    a flash under a minute, `hw emudebug` confirms 31 vs 62, `enterdfu.py` may need a retry.
 
+## ⚠⚠ A PROPOSAL, NOT A DECISION — K36's MOVE MAY REACH THE DECIMATION QUESTION. **READ THE
+OBJECTION FIRST; IT WOULD REOPEN A LINE THIS ROUND DELIBERATELY CLOSED.**
+
+⛔⛔ **The standing instruction is explicit: *the decimation line is CLOSED — do not re-open it or
+propose a variant*.** So this is written as a proposal with its own objection attached, and ⛔ **the
+next tick must not simply run it.** It is recorded because leaving it unrecorded is worse.
+
+⭐ **The idea, and it costs ZERO bench time** — six dec-2 caps are already banked
+(`k30_dec2_s{307,311}`, `k31_dec2_s{313,317}`, `k32_dec2_s{331,337}`). C539's question is *is the
+lead time fixed in ELAPSED time or in SAMPLES?*, which is a **location** question comparing two
+conditions — K36's exact shape. Under ELAPSED a dec-2 cell at nominal `x` matches dec-1 at
+`x x 1.775`; under SAMPLES it matches dec-1 at `x`. ⇒ score the dec-2 profile against the dec-1
+profile under **both alignments**, each normalised by the within-condition agreement, and ask which
+fits better.
+
+⭐⭐ **WHY THE EXISTING CLOSURE MAY NOT COVER IT.** C545-C548 closed decimation on the **burst
+ceiling** — `sep = L(1-1/S)` under `L <= B/S` peaks at **45.8 ms at dec 2**, never enough to
+separate the two predictions **for an individual cell** against the feature's skirt. ⚠ **That is an
+argument about separating CELLS, and this statistic does not separate cells** — it fits all 15-17
+at once, and over a 10-120 nominal span the two alignments put the reference at **18-213 ms** and
+**10-120 ms**, which are very different ranges even though any single cell's two predictions are
+not. ⇒ **the closure's rationale is a property of the old instrument, and C552/M84/C553 are three
+findings in a row about exactly that instrument being underpowered here.**
+
+⛔⛔ **THE OBJECTIONS, WHICH ARE NOT SMALL AND MUST BE ANSWERED BEFORE ANYONE RUNS IT:**
+1. ⛔ **The dec-2 ladders are NOT the 38-cell common ladder** — 17 cells 10-120 (K30/K31) and 15
+   cells 52.5-117.5 (K32) — so the comparison needs **interpolation** of the dec-1 reference, and
+   C555 measured this statistic resolving **one 5 ms cell**. An interpolated reference is a new
+   instrument and its own controls would have to be built and simulated first (M70/M75).
+2. ⛔ **The stretch is 1.775 known to ~7% (M79/C547)**, and the alignment depends on it directly —
+   a 7% error over a 120 ms span is ~8 ms, which is more than one cell.
+3. ⛔ **The top of the ELAPSED-matched range (213 ms) falls off the dec-1 ladder's 195 ms top**, so
+   the two alignments are scored over slightly different support and that asymmetry must be
+   handled rather than ignored.
+4. ⚠ **Foreknowledge is heavy**: K30/K31/K32 were all read, and C544 named `idteck` 140-145 vs
+   84.7-87.7. Any verdict needs the direction rule applied explicitly, as K36 did.
+5. ⛔ **It reopens a closed line**, and C545-C548 also said the confound is *honestly uncloseable
+   here*. Overturning that is a bigger claim than one re-analysis should make quietly.
+
+⇒ ⭐ **RECOMMENDATION: do not run it on a tick's own authority. Cost the objections above first —
+they are all offline — and if they survive, put it to the operator as a reopening, not as a routine
+re-score.** ⛔ And if it is ever run, it is a RE-ANALYSIS of banked caps: it cannot license a
+capture, and it moves no cell.
+
 ⭐ **Bench state at the end of this tick: cu2 on the burst-500 build (31 frames, asked), mode
 `Tag Reader` (asked), nothing flashed all tick, cu1 never touched, nothing moved.**
 
