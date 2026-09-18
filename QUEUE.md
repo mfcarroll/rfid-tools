@@ -58,6 +58,28 @@ statistic divides out.**
 3. ⛔ **It cannot characterise** — SCALED, SHIFT and FLAT all land far below the bar together.
 4. ⚠ Its −0.15 bar is calibrated by simulation on one measured profile, not an empirical null.
 
+✅✅ **AND IT IS VALIDATED ON REAL DATA IN BOTH DIRECTIONS (C555) — a simulated separation is an
+argument about a model; these are the banked caps.**
+
+⭐⭐ **THREE NEGATIVE CONTROLS — same burst, different SESSION, TIME OF DAY and `--reps`** — read
+**+0.038**, **+0.002**, **−0.035** against the verdict's **+0.028**. ⇒ **the whole real-data null
+sits inside ±0.04**, and does so while `within` itself ranges **+0.573 to +0.784** — across exactly
+the level wander C497/C549/C550 spent the round chasing. **The self-normalising property is
+confirmed on the bench, against the biggest known nuisance on this line.**
+
+⭐⭐⭐ **A POSITIVE CONTROL BUILT FROM THE REAL PROFILES — displace the burst-1000 condition along
+the ladder**, which is the right control for a LOCATION claim since a shift moves only where the
+profile sits: **one cell (5 ms) already fires NOT-SAME at −0.231**, then **−0.606 / −0.893 /
+−1.071** at 2 / 3 / 4 cells. ⇒ ⭐ **C554's SAME means *the same place to within about one ladder
+cell*, not *roughly the same place*.**
+
+⛔⛔ **AND ONE REAL WEAKNESS THE SAME EXERCISE FOUND — CARRY IT: a SCRAMBLED condition (structure
+destroyed, the FLAT truth) still reads SAME 6.5% of the time** (200 draws, mean −0.298) against the
+idealised simulation's 0.2%. ⇒ **`delta` alone is NOT evidence the far condition HAS structure.**
+⭐ What excludes FLAT is a different number in the same output — **the long burst's own seed
+agreement, +0.722**, which collapses to ~0 under the scramble. `--k36` now prints it beside the
+verdict. ⛔ **Read the two together; never quote the delta alone.**
+
 ## ⭐⭐⭐⭐⭐ WHERE THE NEXT TICK STARTS — K34b, LICENSED BUT NOT YET RUNNABLE
 
 ⛔⛔ **DO NOT JUST FLASH AND RUN IT.** C554 licenses K34b; it does not make it ready, and every
