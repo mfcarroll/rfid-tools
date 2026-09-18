@@ -31,6 +31,49 @@ re-run needs **no rebuild** — flash, then confirm **31 vs 62 frames by asking 
 ⚠ `enterdfu.py` failed to TRIGGER once in four attempts with nothing flashed; retry, do not
 suspect the device.
 
+## ⛔⛔⛔ 2026-09-17 22:1x — **ROUND STOPPED: `util7` REACHED 98. TERMINAL, NOT A PAUSE (§3)**
+
+⛔ **`util7=98.0` at 22:1x** (96 at tick start, 97 for most of the tick). AUTOPILOT §3: *the week's
+allowance is spent*, the last 2% is reserved so the routine and its wakeups cannot themselves fail
+for want of capacity. ⛔ **Do not wait for capacity and do not check again.** ⚠ The other terminal
+condition — the clock passing **Sun 2026-09-20 00:00** — has NOT been reached, and it is what keeps
+the cap from re-arming when the 7-day window resets. **Both still bind.**
+
+⭐ **Everything below was committed as it was finished; nothing is left uncommitted in any of the
+three repos.** `rfid-tools` on `main`, `./runtests` **488** green · ChameleonUltra
+`indala-psk-read` at `e14f355e`, `gate` and `checkdocs` clean · Momentum-Firmware
+`t5577-deep-read` at `c384392f0`, its `./runtests` **143** green. ⛔ **Nothing pushed** — a push to
+any of those branches was not checked against an open PR and the operator is not reachable to ask.
+
+### ⭐⭐ THE WORK LIST, FORWARD — in the order a tick with headroom should take it
+
+1. ⭐⭐⭐ **K34b's FLASH AND CAPTURE.** Fully designed, costed, gated, and implementation-checked
+   this tick — **the only thing it lacks is headroom.** Its section above carries the pre-registered
+   ladder **verbatim**, the three-number gate, both no-verdict meanings, the flash sequence in
+   order, and the arithmetic for why the pinned 5 ms design could never have returned ELAPSED.
+   ⛔ **Do not re-derive any of it, and do not start the sequence without room to finish it** — a
+   cut after the flash leaves cu2 on a non-standard build for the rest of the absence.
+2. ⚠ **The `bench state` licensing question** — measured, blast radius zero today, and ⛔ **left for
+   the operator on purpose**: it is a licensing decision, which is the one class this project exists
+   to be careful about. Its section has the numbers and both candidate remedies.
+3. ⭐ **The T5577 project's own queue**, entered through **its own `AUTOPILOT.md` then its
+   `QUEUE.md`** (⛔ not through this file's §1/§3/§4 — §5 has been corrected). **Its pinned next unit
+   is now the PROBE**: `analyse_fold_reach.sh` compiles ~35 functions out of the shipped firmware
+   source, so covering the last six `analyse_*.py` needs a compiler and no bench. ✅ The trap that
+   would have fired on that path — a test asserting the probe's *absence* — was removed this tick.
+   ⚠ **Two of those six have no test at all**: `analyse_corpus_reads`, `analyse_ladder_settles`.
+4. ⛔ **§2a / §2b / §2c are the operator's**: the emitter architecture is priced and awaiting their
+   cost/benefit; the two `⁇` cells and `fdxb emu.pm3 → rd.cu2` need hands.
+
+### ⚠ WHAT THIS TICK DID NOT DO, SAID PLAINLY
+
+⛔ **No bench work of any kind.** Nothing flashed, nothing armed, no device opened, no capture
+taken, cu1 never touched, Rig A's tag never touched, nothing moved. ⇒ **not one graded cell moved,
+and none could have** — `git diff` over the whole tick touches no `expect`, no decode marker, no
+`flip_key` and not one line of `outcomes.py`, and the largest banked session regrades at this head
+with *"No outcome moved."* ⭐ Every result above is a host test, an arithmetic check, an offline
+simulation or a re-analysis of banked captures. **None of them is a bench verdict.**
+
 ## ✅ 2026-09-17 22:0x — **§2e's PLAN CHECKS OUT, AND §5's HANDOFF PREMISE DID NOT**
 
 ⭐ Both offline, both the same job: **the brief's own pointers, checked against the tree instead of
