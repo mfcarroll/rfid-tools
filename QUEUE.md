@@ -58,10 +58,27 @@ by 5.6x its own width.** Two faults follow, and the first is fatal on its own:
 
 | region height | false-fire E / S | power E-truth / S-truth | no-verdict |
 |---|---|---|---|
-| **0.725** (measured, nominal 110, 58/80 pooled) | **5.5% / 0.0%** | ⭐ **97.7% / 98.6%** | 2.3% / 1.4% |
-| 0.50 (pessimistic) | 5.5% / 0.0% | 71.5% / 80.2% | 28.5% / 19.5% |
-| 0.45 | 5.5% / 0.0% | ⛔ 45.9% / 46.5% | 54.1% / 52.6% |
-| 0.40 | 5.5% / 0.0% | ⛔ 26.4% / 14.2% | 73.6% / 84.6% |
+| **0.725** (measured, nominal 110, 58/80 pooled) | **2.4% / 0.0%** | ⭐ **95.6% / 99.5%** | 4.4% / 0.5% |
+| 0.65 | 2.4% / 0.0% | 91.5% / 99.5% | 8.5% / 0.5% |
+| 0.60 | 2.4% / 0.0% | 83.9% / 98.8% | 16.1% / 1.2% |
+| **0.55** ⭐ **the gate's bar** | 2.4% / 0.0% | **70.5% / 94.6%** | 29.5% / 5.4% |
+| 0.50 | 2.4% / 0.0% | ⛔ 53.0% / 77.9% | 47.0% / 21.9% |
+| 0.45 | 2.4% / 0.0% | ⛔ 33.8% / 45.3% | 66.2% / 54.5% |
+
+⛔⛔ **THESE REPLACE THE FIRST SET THIS TICK PUBLISHED, AND THE CORRECTION MATTERS (C558).** The
+tool computes its ladder two ways — `ladder()` builds the cells, `occupancy()` counts what the
+feature can fill — and **asked whether they agreed, they did not: 662 disagreements of 1,203.**
+`ladder()` was anchoring its fine grid on the **window's edge**, emitting cells at 76.4, 81.4,
+86.4 — nominal values no ladder would be asked for. ✅ Fixed, re-cross-checked at 0; the ladder is
+**35 cells not 39**, the ELAPSED window **17 not 20**, the cost **2,240 reads not 2,496**.
+⛔ **The two faults and the design above survive unchanged** — the anchor moves which cells exist,
+not the occupancy distribution. **What moved is the cliff, in the uncomfortable direction:** a
+narrower window means less false-fire (2.4% not 5.5%) but also less of the noise help that was
+flattering the pessimistic cases, so **power at height 0.50 fell 71.5% → 53.0%, from over the bar
+to well under it.** ⇒ ⭐ **the gate's bar is the region's height `>= 0.55`, not 0.50.**
+⭐⭐⭐ **AND NOTHING IN A RE-RUN WOULD HAVE FOUND IT** — the figures were internally consistent
+with the ladder actually simulated. ⇒ **when a tool computes one quantity by two routes, make them
+argue** (M86's addition; M45 with the instrument being software).
 
 ⛔ **THE 5.5% vs 0.0% ASYMMETRY CANNOT BE EQUALISED AWAY** — raising `k_E` to 4 exceeds the median
 occupancy and re-creates fault 1. It is structural: ELAPSED's window is 3.3x wider **because we are
@@ -80,7 +97,8 @@ reps 16, **336 reads** — and `k34bsim.py --from` reads it directly.
 > ⛔ **< 70% ⇒ do not capture, and that is a statement about the bench that day, not about the
 > burst.** ⛔ **Never the same caps for the gate and the verdict.**
 > ⛔ Disarm cu2 (`hw mode -r`) in a `finally` on every capture, and `lf config --reset` after
-> `dectime.py`.
+> `dectime.py`. ⭐ **The gate's bar is the region's height `>= 0.55`** — the banked burst-500 value
+> is 0.725, so it is the BUILD in question, not the bench.
 
 ⛔ **THE NO-VERDICT BRANCHES, GIVEN MEANINGS IN ADVANCE (M74):** *neither window fires* ⇒ the
 feature did not replicate at dec 2 on this build at all — a statement about the run's sensitivity,
@@ -102,7 +120,7 @@ R4 is weaker at dec 2, every power figure above is optimistic.
 
 ⭐ **Bench state at the end of this tick: UNCHANGED.** cu2 on the burst-500 build, mode `Tag
 Reader`, nothing flashed, nothing armed, cu1 never touched, nothing moved. ⭐ util7 **96 → 97**
-across the tick. ChameleonUltra `indala-psk-read` at `000dea4a`, **not pushed** (a push to that
+across the tick. ChameleonUltra `indala-psk-read` at `77bd6411` (C557 `000dea4a`, C558 `77bd6411`), **not pushed** (a push to that
 branch was not checked against an open PR and the operator is not reachable to ask).
 
 ## ⭐⭐⭐⭐⭐ 2026-09-17 20:5x — **K34a IS ANSWERED. THE BURST DOES NOT MOVE THE REGIONS. K34b IS LICENSED (C554)**
