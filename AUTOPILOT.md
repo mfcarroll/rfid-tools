@@ -389,10 +389,30 @@ is that running out is fine and the remainder is theirs for next week.
 ## 5. When the work list is exhausted or blocked
 
 Say so plainly, then hand off to the **T5577 Flipper deep-read** project under
-`Momentum-Firmware/T5577_block0_analysis_data/` — it has its own tracking (`README.md`,
-`T5577_DATABLOCK_RESULTS.md`, `T5577_DIRECT_READ_CORPUS.md`, the `PREDICTION_*.md` files) but no
-offline process. Carry §1, §3 and §4 of this file across unchanged; they are not specific to this
-project.
+`Momentum-Firmware/T5577_block0_analysis_data/`.
+
+⛔⛔ **CORRECTED 2026-09-17 — THIS SECTION'S PREMISE WAS STALE AND IT WOULD HAVE COST A TICK.** It
+said that project *"has its own tracking … but **no offline process**"* and told you to carry §1,
+§3 and §4 across. **It now has its own**, and has been actively worked since the 2026-09-16
+handoff:
+
+| there | what it is |
+|---|---|
+| `AUTOPILOT.md` (153 lines) | ⭐ **its own standing brief** — read it first, do NOT carry this file's §1/§3/§4 across |
+| `QUEUE.md` (269 lines) | ⭐ **its own live list**, in order, newest at the top, and the only thing that carries between its cold sessions |
+| `./runtests` | ⭐ **143 tests in 6.0 s**, offline — plus 2 slow controls behind `T5577_SLOW=1` |
+| `usage_check.sh` | its own copy of the cap meter |
+| `run_gates.sh`, ~130 `verify_*.sh`, ~25 `analyse_*.py` | its own gate and analysis estate |
+
+⇒ ⭐ **The handoff is now: read that directory's `AUTOPILOT.md`, then its `QUEUE.md`, and work
+ITS list under ITS rules.** ⛔ Do not import this file's sections over the top of a project that
+has written its own — that is how two briefs come to disagree with nobody noticing.
+⚠ Its `QUEUE.md` still opens with *"Nothing in this file has been worked yet"* from the handover
+and then contradicts itself further down (item 1 is ✅ STARTED, with `./runtests` built
+`ba05cc6a3`). **Believe the item, not the header** — and it is a worthwhile first tidy there.
+
+⚠ Its tracking also includes `README.md`, `T5577_DATABLOCK_RESULTS.md` (1,678 lines),
+`T5577_DIRECT_READ_CORPUS.md` and the five `PREDICTION_*.md` files.
 
 ---
 

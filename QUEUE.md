@@ -31,6 +31,43 @@ re-run needs **no rebuild** — flash, then confirm **31 vs 62 frames by asking 
 ⚠ `enterdfu.py` failed to TRIGGER once in four attempts with nothing flashed; retry, do not
 suspect the device.
 
+## ✅ 2026-09-17 22:0x — **§2e's PLAN CHECKS OUT, AND §5's HANDOFF PREMISE DID NOT**
+
+⭐ Both offline, both the same job: **the brief's own pointers, checked against the tree instead of
+believed.** This tick found four stale surfaces in the harness; these are two more in the notes.
+
+1. ✅ **§2e — the upstream plan's numbers all hold**, re-derived from `data_cmd.h` rather than from
+   the note: **3033-3062 = 30 ids**, **5014-5031 = 18**, **both contiguous with no gaps, 48 total**;
+   `LF_EMU_DEBUG` 3037 · `LF_RADIO_DEBUG` 3038 · `LF_READER_CAPTURE` 3060 are exactly the three
+   instrumentation ids named; **shippable subset 41.** ⛔ **The one defect is the pointer a
+   maintainer would actually open** — `NEXT.md` said the gate is `Makefile:431` and the
+   `-DLF_RESEARCH_CMDS_ENABLED=1` is at **432** (431 is its comment). ✅ Rewritten to quote the
+   line's **text**, not its number. ⇒ **an off-by-one on the single pointer attached to a 48-id
+   patch is the cheapest possible way to look careless.**
+   ⚠ **And my first scan of `data_cmd.h` returned ZERO ids** — the regex expected `= 5014` where
+   the file writes `#define NAME (5014)`. I nearly reported the ranges as gone. **Suspect the
+   instrument first.**
+
+2. ⛔⛔ **§5's HANDOFF PREMISE WAS STALE AND IS NOW CORRECTED IN `AUTOPILOT.md` ITSELF.** It said
+   the T5577 deep-read project *"has its own tracking … but **no offline process**"* and told the
+   next tick to carry §1/§3/§4 across. **It has its own now**, and has been worked since the
+   2026-09-16 handoff: its **own `AUTOPILOT.md`** (153 lines), its **own `QUEUE.md`** (269), its own
+   **`./runtests` — 143 tests in 6.0 s**, its own `usage_check.sh`, a `run_gates.sh` and roughly
+   130 `verify_*.sh` beside ~25 `analyse_*.py`. ⇒ ⭐ **the handoff is now *read that directory's
+   brief, then its queue, and work ITS list under ITS rules*** — ⛔ **do not import this file's
+   sections over a project that has written its own, which is how two briefs come to disagree with
+   nobody noticing.**
+   ⚠ **Carry this when you go there:** its `QUEUE.md` still opens with *"Nothing in this file has
+   been worked yet"* and then contradicts itself further down (item 1 is ✅ STARTED, `./runtests`
+   built at `ba05cc6a3`). **Believe the item, not the header**, and tidying that header is a
+   worthwhile first unit there.
+
+⇒ ⭐⭐ **WHERE THAT LEAVES THE LIST.** §2a is the operator's cost/benefit; §2b and §2c are
+operator-return; §2d and §2e are done to the point where the next step needs hardware or a human;
+**K34b is fully designed, costed, gated and implementation-checked and is parked on the FLASH for
+want of headroom** (see its section). ⇒ **the genuinely available offline work now is the T5577
+project's own queue**, entered through its own brief.
+
 ## ⚠⚠⚠ 2026-09-17 21:5x — **A LATENT DEFECT IN `bench state` WITH A BLAST RADIUS OF ZERO TODAY — MEASURED, RECORDED, AND DELIBERATELY NOT ACTED ON**
 
 ⭐ A **regrade sweep of all 20 banked sessions** (no bench, no device — AUTOPILOT's own
