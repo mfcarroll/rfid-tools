@@ -19,6 +19,68 @@ re-run needs **no rebuild** — flash, then confirm **31 vs 62 frames by asking 
 ⚠ `enterdfu.py` failed to TRIGGER once in four attempts with nothing flashed; retry, do not
 suspect the device.
 
+## ⭐⭐⭐⭐ 2026-09-17 21:4x — **ONE INSTRUCTION, FOUR SURFACES, FOUND IN THE REVERSE ORDER OF HOW MUCH THEY MATTERED**
+
+⭐ Offline, in this repo, tests green throughout. **`./runtests` 475 → 483.** Nothing flashed,
+nothing armed, no bench move.
+
+⛔⛔ **Electra's `rd.pm3` refusal was fixed yesterday in the PLANNER. The instruction it removed —
+*go and record the token* — was still being published by three other surfaces, and the one that
+would have done the damage was the LAST to be looked at:**
+
+| # | surface | what it said | why it mattered |
+|---|---|---|---|
+| 1 | `plan._refuse` | fixed 2026-09-17 | the published refusal |
+| 2 | `bench scope`'s *expectations known* column | **"— none; `bench learn` them"** | ⚠ advice only |
+| 3 | ⛔⛔ **`bench learn` itself** | **nothing — it accepted the request** | ⛔⛔ **it writes the value down** |
+| 4 | `plan`'s `unlicensable` remedy | **"`bench learn` … would settle it"** on all four reasons | ⚠ false for three |
+
+⛔⛔⛔ **SURFACE 3 IS THE ONE TO REMEMBER. `_why_not_learnable` has four checks and Electra passed
+every one** — the Proxmark has a clone command, a read command and a decode marker — so it returned
+`None`, and **a bare `bench learn` with no arguments sweeps all 18 tier-0 arms**, Electra included.
+It would have wiped and written the tag, read it, and recorded `2244668800` as Electra's `rd.pm3`
+expectation: **byte-identical to plain `em410x`'s, which is the false pass the registry row, the
+planner and `bench scope` all forbid.** ⇒ ⭐ **nobody had to name Electra to reach it, and the two
+surfaces that refused it were the two that could not write anything.**
+✅ Refused now, ordered FIRST for the same reason `plan._refuse` orders its own — **an unmeasured
+protocol and an indistinguishable one both arrive with `expect = None`, so every generic check
+passes for both and the bare absence cannot tell them apart.** ⭐ And scoped to the reader that
+cannot answer: **`rd.flip` stays learnable**, because the Flipper alone distinguishes Electra and a
+blanket refusal would throw away the one judge that works.
+
+⛔ **SURFACE 4 GENERALISES THE DEFECT BEYOND ELECTRA: a remedy appended to reasons it cannot
+remedy.** For `fdxa` the planner recommended **the very command that refuses the request** (no
+clone signature ⇒ `bench learn` has no gold tag to write); for `instafob` it recommended **writing
+a T5577 as the remedy for a T5577 being unable to hold it.** ⇒ ⭐ **a remedy offered for a reason it
+cannot remedy is worse than no remedy — it sends the next session to spend a bench move proving the
+note wrong, with the tool's authority behind it.** ✅ Each branch now names a remedy that fits, and
+every branch that cannot be settled by learning says so in **one phrase the product owns** so a
+test can key on it instead of sniffing prose.
+
+⭐⭐⭐ **THE CARRYABLE LESSON, AND IT IS A TEST SHAPE RATHER THAN A FACT: EACH SURFACE WAS
+INTERNALLY CONSISTENT, SO NOTHING BUT A CROSS-SURFACE INVARIANT COULD FIND THIS.**
+
+> **If a refusal's text recommends an action, the code that performs that action must accept it.**
+> `tests/test_plan.py` now sweeps **every rule × 4 readers × 5 sources** and holds it over the
+> **170 refusals that do recommend `bench learn`** — asserting the count so it cannot quietly go
+> vacuous. ⭐ **Swept: 0 contradictions. There is no fifth surface.**
+
+⚠⚠ **AND IT CAUGHT ITSELF TWICE, WHICH IS THE ONLY REASON TO TRUST IT.** (1) Its first version
+failed on the first wording of its own commit — the `instafob` branch said *cannot either* instead
+of the agreed phrase. (2) Its first version swept `unlicensable` alone and guarded an **empty**
+subset, because every unlicensable protocol sits in a *cannot settle it* branch: **an invariant
+that checks nothing is the exact failure mode it was written against**, and it said so in its own
+docstring before being widened.
+
+✅ **Also corrected while here:** `SCOPE.md` called `em410x_electra` and `indala224` *the cheapest
+item in this whole document* and tiered them **0b — FREE**. ⛔ Both were measured since and neither
+is cheap — Electra is unanswerable here, `indala224` needs a tag — so a cold tick reading SCOPE.md
+would have spent a unit rediscovering it. Struck through in place with pointers, not deleted.
+⭐ And `SCOPE.md`'s counts were re-checked against `./bench scope`: **22 protocols, emulate 18 ·
+scan 21 · write-to-T55xx 21, still agreeing** — ⚠ against the REGISTRY, which is source-derived;
+that is not a bench verification of any single ✔. `bench learn --help` also said *16 tier-0 arms*
+where the registry has **18**.
+
 ## ⭐⭐⭐⭐⭐ 2026-09-17 21:2x — **K34b's PINNED BAND CANNOT RETURN ELAPSED. THE REPLACEMENT IS COSTED, AND IT IS CHEAPER THAN K34a (C557, M86)**
 
 ⭐⭐ **OFFLINE, NO FLASH, NO DEVICE, NOTHING ARMED, NO BENCH MOVE** — and it found a fault that
