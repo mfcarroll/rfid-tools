@@ -1,6 +1,9 @@
 # LF protocol scope — what we should actually be testing
 
-**Status: drafted from source on 2026-09-15. NOT yet verified on the bench.** The counts below were
+**Status: drafted from source on 2026-09-15. NOT yet verified on the bench.** ⭐ **Counts
+re-checked against `./bench scope` on 2026-09-17 and they still agree** (22 protocols, emulate 18 ·
+scan 21 · write-to-T55xx 21) — ⚠ that checks the document against the REGISTRY, which is still
+source-derived; it is not a bench verification of a single ✔. The counts below were
 re-derived independently in `benchmatrix/registry.py` and agree: `./bench scope` reports
 **emulate 18 · scan 21 · write-to-T55xx 21** from the registry, against this document's 18 and 22
 (the 22 being the union of scan and write, since `em410x_electra` has no scan and `instafob` has no
@@ -34,8 +37,27 @@ questions, three different answers:
 `fdxb` · `viking` · `jablotron` · `pac` · `keri` · `gallagher` · `nexwatch` · `securakey` ·
 `gproxii` · `noralsy`
 
-⭐ **Two of these are built and untested: `em410x_electra` and `indala224`.** They are not new work
-at all — they are grid rows nobody has ever run. That is the cheapest item in this whole document.
+~~⭐ **Two of these are built and untested: `em410x_electra` and `indala224`.** They are not new work
+at all — they are grid rows nobody has ever run. That is the cheapest item in this whole
+document.~~
+
+⛔⛔ **BOTH WERE RUN, AND NEITHER IS A CHEAP ROW ANY MORE — MEASURED 2026-09-16/17. Do not spend a
+unit rediscovering this.**
+
+- ⛔ **`em410x_electra` is not cheap, it is UNANSWERABLE on this bench.** `lf em 410x reader`
+  prints `EM 410x ID 2244668800` **and nothing else**, `reader -h` has no Electra flag at all, and
+  the token it prints is **byte-identical to plain `em410x`'s** — so recording it would let an
+  `em410x` emission pass an `electra` cell and back, a false pass built in by construction. The
+  planner now refuses `rd.pm3` for it **permanently** as `gap:pm3-indistinguishable`
+  (`registry.PM3_INDISTINGUISHABLE`), and `bench scope` no longer offers to learn it either.
+  ⭐ **On this bench only the Flipper distinguishes Electra**, which is a gap-register row about
+  the *Proxmark*, not a hole in ours. ⇒ **three states, not two: unlicensable · unmeasured ·
+  indistinguishable.**
+- ⚠ **`indala224` still lacks `cu1·wr` and it needs a real tag**, so it is operator-return, not
+  free. ⛔ Its writer was reported as *timing out* and that is **retracted**: `CMD 3039` returns
+  `STATUS_LF_TAG_OK` in ~3.5 s against the 64-bit writer's ~1.5 s, because it is the tree's only
+  **eight-block** writer (`passes x blocks x 2 sends` = 64 against 24) and the host's old 3 s
+  default cut it off. What survives is a note for upstream, not a bug.
 
 ### B. Read / clone but NOT emulated — 4
 
@@ -85,7 +107,7 @@ pm3 general commands (`config`, `read`, `search`, `sim*`, `sniff`, `tune`, `cmdr
 | Tier | Contents | Count | Why |
 |---|---|---|---|
 | **0 — regression** | the 16 tested arms | 16 | must never break; every one has two independent judges |
-| **0b — FREE** | `em410x_electra`, `indala224` | 2 | **already emulated, never tested.** Grid rows, not features |
+| ~~**0b — FREE**~~ ⛔ **NOT FREE** | `em410x_electra`, `indala224` | 2 | ⛔ **measured 2026-09-16/17 and neither is a cheap row** — Electra's `rd.pm3` is *indistinguishable* and permanently refused; `indala224`'s `cu1·wr` needs a tag. See section A |
 | **1 — read-side rows** | fdxa, paradox, pyramid, instafob | 4 | reader/clone paths exist; test those cells now, emitters later |
 | **2 — new emitters** | fdxa, paradox, pyramid | 3 | frame builders exist from the T55xx write path |
 | **3 — new protocols** | EM4100/16, EM4100/32, HidGeneric, HidExGeneric | 4 | genuinely absent |
