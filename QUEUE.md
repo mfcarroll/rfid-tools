@@ -81,16 +81,20 @@ which is worth more than the plot was.
 
 ## ⭐⭐⭐⭐⭐ WHERE THE NEXT TICK STARTS — ONE CHEAP MEASUREMENT, NOT MORE MINING
 
-⭐⭐⭐ **THE UNIT: repeat ONE banked morning cap's exact configuration, now.** `k29_three`
-at `--reps 8` on the 38-cell 10-195 ladder, one arm is enough (`keri`), fresh seed. **~30 minutes,
-no flash, no bench move.** It breaks the confound in one shot:
+⭐⭐⭐⭐ **PINNED AS K35 (`burstsync.py` docstring, commit `50b768b8`) — READ IT BEFORE RUNNING ANYTHING. Its bands, thresholds and the hour it must be run in are already fixed, so a fresh tick should RUN it, not re-litigate it.**
+
+⚠⚠ **PREFER A MORNING TICK (~07:00-10:00).** K35's E1 branch is decisive at any hour, but its E2 branch is only decisive inside the morning window — outside it, E2 is consistent with either cause and ⛔ may not be reported as one. A tick firing outside that window should still run it (E1 is decisive) but must record the hour beside the verdict (M73).
+
+⭐⭐⭐ **THE UNIT: repeat ONE banked morning cap's exact configuration.** `k29_three`
+at `--reps 8` on the 38-cell 10-195 ladder, `keri` alone, **two fresh seeds** (the pair is what
+gives the agreement figure as well as the level). **~60 minutes, no flash, no bench move.** It breaks the confound in one shot:
 - **comes back at ~41% and ~+0.8 agreement** ⇒ the morning/afternoon step is **time-of-day or
   session**, and K34a's `--reps 16` was not the cause ⇒ every band must be counterbalanced against
   time, as K34a's ABBA already was, and ⛔ earlier A-then-B bands do not have that protection.
 - **comes back at ~33% and ~+0.6** ⇒ the step is **not** time-of-day, and the live suspect becomes
   `--reps 16` itself or something that changed with it ⇒ ⛔ K34a's reps choice must be re-examined
   before any re-run.
-⚠ **Pre-register which it is BEFORE running it** (M55/M74), and give the middle band a meaning.
+✅ **Already pre-registered** — E1/E2 and the no-verdict meaning are in K35; do not re-derive them.
 ⚠ One cap cannot separate *time of day* from *session boundary*; say so rather than implying it can.
 
 ⛔ **STANDING: K34a is unrun as a verdict and K34b is NOT licensed.** A re-run must **measure the
