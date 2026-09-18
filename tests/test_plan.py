@@ -423,3 +423,80 @@ class TheBenchCanBeAGivenRatherThanAChoice(unittest.TestCase):
         p = self._at("PM3+T55+CU1", "PM3+CU1")
         self.assertEqual({b.station.name for b in p.blocks}, {"PM3+T55+CU1", "PM3+CU1"})
         self.assertEqual(p.audit(), [])
+
+
+class ARemedyIsOnlyOfferedWhereItCanActuallyBeTaken(unittest.TestCase):
+    """⛔⛔ THE `unlicensable` NOTE APPENDED ONE REMEDY TO FOUR DIFFERENT REASONS.
+
+    It read "`bench learn` on the Proxmark side would settle it" whatever the reason was, and
+    that is false for three of the four. For `fdxa` it named **the very command that refuses
+    the request** — `cli._why_not_learnable` returns *no clone command, so there is no gold tag
+    to learn from* — and for `instafob` it recommended writing a T5577 as the remedy for a
+    T5577 being unable to hold it.
+
+    ⇒ **A remedy offered for a reason it cannot remedy is worse than no remedy**: it sends the
+    next session to spend a bench move proving the note wrong, and the note carries the
+    authority of the tool.
+
+    ⭐ The test that matters is the CROSS-SURFACE one, because this whole family of bug is one
+    surface contradicting another: if the plan's note says `bench learn`, then `bench learn`
+    must accept it. Nothing but an invariant catches that, since each surface is internally
+    consistent.
+    """
+
+    def _unlicensable(self, key, reader):
+        from tests.helpers import tiny_plan as _tp
+        plan = _tp(keys=(key,), sources=("t55.pm3",), readers=(reader,))
+        return [e for e in plan.exclusions if e.rule == "unlicensable"]
+
+    def test_the_plan_never_recommends_a_learn_the_learn_command_would_refuse(self):
+        """⭐ The invariant, keyed on ONE phrase the product owns rather than on prose.
+
+        Every branch that cannot be settled by learning says exactly "`bench learn` cannot
+        settle it". Anything else that mentions `bench learn` is a recommendation, and the
+        learn command must then accept it.
+
+        ⚠ The recommending subset is EMPTY today — all three unlicensable protocols are in
+        `cannot` branches — so this currently guards a future one rather than a present bug.
+        Said out loud, because a test that silently checks nothing is worse than no test: the
+        `seen` assertion below is what stops it going vacuous unnoticed.
+        """
+        from benchmatrix import cli
+        seen = recommended = 0
+        for key in reg.ALL:
+            for reader in ("rd.pm3", "rd.cu1", "rd.flip"):
+                for e in self._unlicensable(key, reader):
+                    seen += 1
+                    if "bench learn" not in e.why or "cannot settle it" in e.why:
+                        continue
+                    recommended += 1
+                    self.assertIsNone(
+                        cli._why_not_learnable(reg.ALL[key], reader),
+                        "%s/%s: the plan says `bench learn` would settle it and the learn "
+                        "command refuses it — two surfaces disagreeing" % (key, reader))
+        self.assertGreater(seen, 0, "the sweep reached no unlicensable cell, so it proved "
+                                    "nothing — the plan or the fixture has changed shape")
+
+    def test_every_cannot_settle_branch_says_so_in_the_same_words(self):
+        """⛔ The invariant above is only as good as the phrase it keys on being used."""
+        from benchmatrix import cli
+        for key in reg.ALL:
+            for reader in ("rd.pm3", "rd.cu1", "rd.flip"):
+                for e in self._unlicensable(key, reader):
+                    if cli._why_not_learnable(reg.ALL[key], reader) is None:
+                        continue
+                    self.assertIn("cannot settle it", e.why,
+                                  "%s/%s cannot be learned, so the note must say so in the "
+                                  "phrase the invariant keys on" % (key, reader))
+
+    def test_each_unlicensable_reason_names_a_remedy_that_fits_it(self):
+        fdxa = self._unlicensable("fdxa", "rd.pm3")
+        self.assertTrue(fdxa, "fdxa has no clone signature, so it is unlicensable")
+        self.assertIn("cannot settle it", fdxa[0].why)
+        self.assertIn("clone signature", fdxa[0].why, "and say what would")
+
+        insta = self._unlicensable("instafob", "rd.pm3")
+        self.assertTrue(insta, "a T5577 cannot hold instafob")
+        self.assertIn("genuine card", insta[0].why)
+        self.assertIn("cannot settle it", insta[0].why,
+                      "writing a T5577 cannot remedy a T5577 being unable to hold it")
