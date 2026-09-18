@@ -83,17 +83,25 @@ which is worth more than the plot was.
 
 ⭐⭐⭐⭐ **PINNED AS K35 (`burstsync.py` docstring, commit `50b768b8`) — READ IT BEFORE RUNNING ANYTHING. Its bands, thresholds and the hour it must be run in are already fixed, so a fresh tick should RUN it, not re-litigate it.**
 
-⚠⚠ **PREFER A MORNING TICK (~07:00-10:00).** K35's E1 branch is decisive at any hour, but its E2 branch is only decisive inside the morning window — outside it, E2 is consistent with either cause and ⛔ may not be reported as one. A tick firing outside that window should still run it (E1 is decisive) but must record the hour beside the verdict (M73).
+⛔⛔⛔ **RUN IT IN THE AFTERNOON OR EVENING — NOT IN THE MORNING. A MORNING RUN
+DISCRIMINATES NOTHING.** The morning block IS `(reps 8, morning)`, so repeating `reps 8` inside
+07:00-10:00 reproduces that cell exactly and **both hypotheses predict the morning level there.**
+The contrast only exists outside the window — ideally near the afternoon block's own 14:45-17:31.
+⛔ A tick firing 07:00-10:00 should do other work and leave this one. ⚠ Record the hour in the
+same string as the verdict (M73).
+⚠ **K35's first version said the opposite and had its branches inverted; corrected unrun at
+`b24aeb6e` (L542).** Read the CURRENT section, not a memory of it.
 
 ⭐⭐⭐ **THE UNIT: repeat ONE banked morning cap's exact configuration.** `k29_three`
 at `--reps 8` on the 38-cell 10-195 ladder, `keri` alone, **two fresh seeds** (the pair is what
 gives the agreement figure as well as the level). **~60 minutes, no flash, no bench move.** It breaks the confound in one shot:
-- **comes back at ~41% and ~+0.8 agreement** ⇒ the morning/afternoon step is **time-of-day or
-  session**, and K34a's `--reps 16` was not the cause ⇒ every band must be counterbalanced against
-  time, as K34a's ABBA already was, and ⛔ earlier A-then-B bands do not have that protection.
-- **comes back at ~33% and ~+0.6** ⇒ the step is **not** time-of-day, and the live suspect becomes
-  `--reps 16` itself or something that changed with it ⇒ ⛔ K34a's reps choice must be re-examined
-  before any re-run.
+- **comes back at ~41% and ~+0.8 agreement (E1 REPS)** ⇒ `--reps 8` restored the morning level at
+  an afternoon hour, so the hour did not move it ⇒ ⭐ **`--reps 16` is the driver**, and ⛔ K34a's
+  own reps choice must be re-examined before any re-run.
+- **comes back at ~33% and ~+0.6 (E2 CLOCK/SESSION)** ⇒ `--reps 8` did NOT restore it ⇒ reps is
+  not the driver; the clock or the session boundary is ⇒ **every band on this line needs
+  counterbalancing against time**, as K34a's ABBA already had and ⛔ the earlier A-then-B bands
+  did not.
 ✅ **Already pre-registered** — E1/E2 and the no-verdict meaning are in K35; do not re-derive them.
 ⚠ One cap cannot separate *time of day* from *session boundary*; say so rather than implying it can.
 
