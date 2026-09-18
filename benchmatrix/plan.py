@@ -447,19 +447,43 @@ def _cells(protocols, sources, readers, bench,
                 # ⚠ SAY WHICH OF THE THREE IT IS. "Unlicensable" covers a protocol a T5577 cannot
                 # hold, one the Proxmark cannot write, and one where the two writers share no
                 # byte-exact token — and they need different things done about them.
+                # ⛔⛔ AND SAY WHAT WOULD ACTUALLY SETTLE IT, PER BRANCH. This appended
+                # "`bench learn` on the Proxmark side would settle it" to ALL FOUR reasons, and
+                # it is false for three of them — for `fdxa` it named the very command that
+                # refuses the request (`cli._why_not_learnable`: no clone command, so there is
+                # no gold tag to learn from), and for `instafob` it recommended writing a
+                # T5577 as the remedy for a T5577 being unable to hold it. ⇒ A REMEDY OFFERED
+                # FOR A REASON IT CANNOT REMEDY IS WORSE THAN NO REMEDY: it sends the next
+                # session to spend a bench move proving the note wrong. `tests/test_plan.py`
+                # now holds the cross-surface invariant — if this text says `bench learn`, the
+                # learn command must accept it.
                 if not p.t55_capable:
                     why = "a T5577 cannot hold %s" % p.key
+                    fix = ("⛔ `bench learn` cannot settle it — it writes to a T5577 and a "
+                           "T5577 cannot hold this. Nothing on this bench can; it needs a "
+                           "genuine card")
                 elif not p.can("pm3_write"):
                     why = "the Proxmark has no recorded clone signature for %s" % p.key
+                    fix = ("⛔ `bench learn` cannot settle it — it writes with the Proxmark's "
+                           "own clone command and there is none. What settles it is a "
+                           "registered clone signature, or a genuine card")
+                elif not p.expect and p.key in reg.PM3_INDISTINGUISHABLE:
+                    why = ("the Proxmark and the Chameleon write different credentials for %s, so "
+                           "there is no byte-exact token a gold row could match" % p.key)
+                    fix = ("⛔ `bench learn` cannot settle it, PERMANENTLY — recording what "
+                           "the reader prints would build in a false pass "
+                           "(`registry.PM3_INDISTINGUISHABLE`)")
                 elif not p.expect:
                     why = ("the Proxmark and the Chameleon write different credentials for %s, so "
                            "there is no byte-exact token a gold row could match" % p.key)
+                    fix = "`bench learn` on the Proxmark side would settle it"
                 else:
                     why = "no gold source is available for %s" % p.key
+                    fix = "`bench learn` on the Proxmark side would settle it"
                 exclusions.append(Exclusion(
                     p.key, "-", reader, "unlicensable",
-                    "%s, and no genuine card is owned — so nothing can license %s for it. "
-                    "`bench learn` on the Proxmark side would settle it." % (why, reader)))
+                    "%s, and no genuine card is owned — so nothing can license %s for it. %s."
+                    % (why, reader, fix)))
                 continue
             if not consider(p, lic, reader, True):
                 for src in requested:
