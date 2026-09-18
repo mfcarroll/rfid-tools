@@ -97,8 +97,28 @@ reps 16, **336 reads** — and `k34bsim.py --from` reads it directly.
 > ⛔ **< 70% ⇒ do not capture, and that is a statement about the bench that day, not about the
 > burst.** ⛔ **Never the same caps for the gate and the verdict.**
 > ⛔ Disarm cu2 (`hw mode -r`) in a `finally` on every capture, and `lf config --reset` after
-> `dectime.py`. ⭐ **The gate's bar is the region's height `>= 0.55`** — the banked burst-500 value
-> is 0.725, so it is the BUILD in question, not the bench.
+> `dectime.py`.
+> ⭐⭐⭐ **THE GATE'S BAR IS THREE NUMBERS, NOT ONE (C559): E-power >= 70% AND S-power >= 70% AND
+> E-FALSE-FIRE <= 5%.** The *region height >= 0.55* above is what the first two come to at the
+> six-cap grounding; ⛔ **the third is not implied by them and it bites.**
+
+⛔⛔ **AND THE GATE'S OWN CODE PATH WAS BROKEN UNTIL IT WAS EXERCISED — IT WOULD HAVE CRASHED
+AFTER THE FLASH, MID-SEQUENCE, WITH cu2 ON A NON-STANDARD BUILD AND NOBODY PRESENT (C559).**
+`_cap_sigma()` paired its caps as `(0, 2, 4)` — the six banked dec-2 caps' three same-condition
+pairs — so the **two** caps the gate passes raised `IndexError`. ✅ Fixed to pair over whatever is
+given, and ⛔ **it now refuses on a single cap rather than returning 0**: a silent 0 deletes the
+noise source M84 exists to model and **inflates every power figure**, which is the one direction a
+go/no-go must never be wrong in (M78). ⭐ **Found by running `--from` before the flash instead of
+during it — M81 for the third time this tick, and the third time it paid.**
+
+⭐⭐⭐ **AND THE SUBSTANTIVE HALF, WHICH IS WHY THE BAR GREW A THIRD NUMBER: THE MARGIN IS A
+PROPERTY OF THE GROUNDING, AND THE GROUNDING WANDERS.** Ground the same design in only the `k32`
+pair instead of all six caps and the baseline moves **0.188 → 0.282**, its SD **0.115 → 0.150**,
+`cap_sigma` **0.061 → 0.092** — and **E's false-fire goes 2.4% → 16.7% while its power stays a
+healthy 88.3%.** ⇒ **a power floor alone passes a day on which a fire is worth little.** ⚠ This is
+**M70's original lesson arriving by a new route** (Y2: pre-registered, replicated, 41% false-firing
+with nobody having computed it) — ⭐ **a band can be re-invented carrying the same hole a hundred
+claims later, so compute the false-fire every single time.**
 
 ✅✅ **AND M81's CHECK IS DONE — THE DESIGN SURVIVES INTO THE IMPLEMENTATION, VERIFIED OFFLINE
 RATHER THAN DISCOVERED AFTER THE FLASH.** M81 is the round's most expensive lesson and this is
@@ -151,9 +171,20 @@ day; the widths and the grid arithmetic transfer, because they are properties of
 the ladder. ⚠ The height is **transferred** from nominal 110 to R4's cells, a different region: if
 R4 is weaker at dec 2, every power figure above is optimistic.
 
+⛔⛔ **THE FLASH WAS NOT STARTED, AND THAT IS A JUDGEMENT WORTH INHERITING RATHER THAN RE-MAKING.**
+At `util7` **97** against §3's ceiling of **98**, the sequence above — flash · air verify ·
+`dectime --interval` · gate pair · `--from` · the 2,240-read verdict pair — is **hours** of bench
+time and certain to be cut in the middle. ⛔ **A sequence cut after the flash leaves cu2 on a
+non-standard build for the rest of the absence**, which is recoverable (the fallback zip is banked)
+but is a changed bench the operator did not ask for. ⇒ ⭐ **the flash needs a tick with real
+headroom, not the tail of one. Everything that can be done without it has now been done: the
+design, its power, its false-fire, its gate, its ladder string, its ladder top, and its gate's code
+path.** ⚠ Note §3 expects this round to reach the ceiling well before Sunday and says that is the
+intended outcome — so the next tick with headroom may well be the operator's own.
+
 ⭐ **Bench state at the end of this tick: UNCHANGED.** cu2 on the burst-500 build, mode `Tag
 Reader`, nothing flashed, nothing armed, cu1 never touched, nothing moved. ⭐ util7 **96 → 97**
-across the tick. ChameleonUltra `indala-psk-read` at `77bd6411` (C557 `000dea4a`, C558 `77bd6411`), **not pushed** (a push to that
+across the tick. ChameleonUltra `indala-psk-read` at `14594869` (C557 `000dea4a`, C558 `77bd6411`, C559 `14594869`), **not pushed** (a push to that
 branch was not checked against an open PR and the operator is not reachable to ask).
 
 ## ⭐⭐⭐⭐⭐ 2026-09-17 20:5x — **K34a IS ANSWERED. THE BURST DOES NOT MOVE THE REGIONS. K34b IS LICENSED (C554)**
