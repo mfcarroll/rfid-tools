@@ -273,11 +273,29 @@ Proxmark, not a limit of ours: `rd.pm3` cannot distinguish the two protocols at 
 `rd.pm3` column should be refused by name, permanently, rather than left as "go and measure it".
 ⚠ `cu_read` is still genuinely absent (`–`), which is ours and is real work.
 
-`indala224` has no `cu1·wr`. **cu2 was measured on 2026-09-16 and its writer TIMES OUT** —
-`CMD 3039 INDALA224_WRITE_TO_T55XX`, reproducible in ~4 s with the correct command and arguments
-(`lf indala write --raw <56 hex> --224`; the registry row is correct, verified). A firmware command
-that hangs rather than returning an error is a bug whatever the tag state. ⭐ **Reproducible over
-USB with no bench move — work it.**
+⛔⛔ **RETRACTED 2026-09-17 — `CMD 3039` NEVER HUNG, AND THIS ITEM WAS ALREADY CLOSED BY C481
+BEFORE IT WAS WRITTEN HERE. DO NOT SPEND A TICK ON IT.**
+
+~~`indala224` has no `cu1·wr`. **cu2 was measured on 2026-09-16 and its writer TIMES OUT** —
+`CMD 3039 INDALA224_WRITE_TO_T55XX`, reproducible in ~4 s. A firmware command that hangs rather
+than returning an error is a bug whatever the tag state. ⭐ **Reproducible over USB with no bench
+move — work it.**~~
+
+⭐ **It returns `STATUS_LF_TAG_OK`; the host's `send_cmd_sync` default was 3 s and the call takes
+~3.5 s** (C481 / L449, and the client already passes `timeout=30`). ✅ **Re-measured on cu2
+2026-09-17 20:3x, fresh link, no bench move: `3.43 s` and `3.54 s`, against `1.51 s` for the 64-bit
+writer next door** — C481 measured 3.42/3.71 against 1.34, so it reproduces.
+
+⭐ **The cost is structural, not a defect**: `write_t55xx()` makes one pass per old key plus a final
+open pass, and `t55xx_write_blocks()` sends every block **twice** for reliability, so it is
+`passes x blocks x 2` — **64 sends for this writer against 24 for the 64-bit one**. `indala224` is
+the only **eight-block** writer in the tree (config plus all seven data blocks of page 0), so it is
+the only one that crosses 3 s.
+
+⚠⚠ **WHAT IS STILL REAL, AND IT IS THE ONLY THING TO CARRY FORWARD: the 3 s default is a latent
+trap for any FUTURE multi-block writer, because from the host a slow writer and a hung one are
+indistinguishable.** That is a note for upstream (§2e), not a bug to reproduce. ⛔ `cu1·wr` for
+`indala224` remains genuinely absent and needs a tag, so it stays an operator-return item.
 
 ⭐ **`fdxb emu.pm3 → rd.cu2` is SILENT** (new, run 20260916_161528) while `t55.pm3 → rd.cu2` is
 EXACT. Either the Proxmark's own `lf fdxb sim` is wrong or our reader cannot take an emulated fdxb.
