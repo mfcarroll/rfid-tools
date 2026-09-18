@@ -164,6 +164,19 @@ SUBCARRIER_RULE = frozenset({"indala", "indala224", "gallagher", "securakey", "n
 #: `*_SCAN` for them. Listed so that a missing `cu_read` is a recorded fact and not an omission.
 NO_CU_SCAN = frozenset({"em410x_electra"})
 
+#: ⛔⛔ Protocols the PROXMARK'S READER CANNOT DISTINGUISH from another protocol it also reads,
+#: so `rd.pm3` has no byte-exact token that could ever be recorded for them. Their `expect` is
+#: `None` like an unmeasured protocol's, and ⛔ **that is the whole reason this set exists**: the
+#: planner's `no-expectation` refusal tells the operator to go and measure the token and record
+#: it, which for these is not merely useless but DANGEROUS — see `em410x_electra`'s entry, where
+#: the token the Proxmark prints is byte-identical to plain `em410x`'s and recording it would let
+#: each protocol's emission pass the other's cell.
+#:
+#: ⇒ **A membership here is a permanent fact about the PROXMARK and belongs in the gap register**,
+#: not a hole in ours and not a thing to go and measure. Measured 2026-09-16; the evidence is on
+#: the `em410x_electra` row.
+PM3_INDISTINGUISHABLE = frozenset({"em410x_electra"})
+
 
 def _p(**kw) -> Protocol:
     kw.setdefault("subcarrier", kw["key"] in SUBCARRIER_RULE)

@@ -568,11 +568,17 @@ class WhatIsNotMeasuredIsSaidBeforeTheRunNotAfter(unittest.TestCase):
         return said, plan
 
     def test_a_wholly_refused_protocol_is_named_up_front(self):
+        """⚠ The RULE NAME here changed 2026-09-17 and the test's point did not. Electra's
+        `rd.pm3` refusal was `no-expectation` — *nobody has looked yet* — until the bench showed
+        the Proxmark cannot distinguish Electra from plain `em410x` at all, making it the
+        permanent `gap:pm3-indistinguishable`. What this test guards is that a wholly refused
+        protocol is announced before the bench work AND carries its reason, whatever that reason
+        is."""
         said, _ = self._run()
         head = "\n".join(said[:6])
         self.assertIn("em410x_electra", head)
         self.assertIn("not measured at all", head)
-        self.assertIn("no-expectation", head, "and why")
+        self.assertIn("gap:pm3-indistinguishable", head, "and why")
 
     def test_it_comes_before_any_measurement(self):
         said, _ = self._run()
