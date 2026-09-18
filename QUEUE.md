@@ -19,6 +19,65 @@ re-run needs **no rebuild** — flash, then confirm **31 vs 62 frames by asking 
 ⚠ `enterdfu.py` failed to TRIGGER once in four attempts with nothing flashed; retry, do not
 suspect the device.
 
+## ⚠⚠⚠ 2026-09-17 21:5x — **A LATENT DEFECT IN `bench state` WITH A BLAST RADIUS OF ZERO TODAY — MEASURED, RECORDED, AND DELIBERATELY NOT ACTED ON**
+
+⭐ A **regrade sweep of all 20 banked sessions** (no bench, no device — AUTOPILOT's own
+"real measurement, no hardware" loop). ⛔ **A regrade is not a bench verdict and moves no cell.**
+
+✅✅ **FIRST, THE CHECK THIS TICK OWED ITSELF, AND IT PASSES BY CONSTRUCTION RATHER THAN BY
+ASSERTION: nothing this tick did can move a cell.** `git diff a0e169d..HEAD` touches **no**
+`expect=`, **no** `_decode_marker=`, **no** `flip_key=` and **not one line of `outcomes.py`** — and
+the largest banked session regrades at this head with **"No outcome moved."** ⇒ the harness changes
+are refusal-path and validation only.
+
+⛔⛔ **THE DEFECT, WHICH IS REAL: `state.gather` READS EACH CELL'S OUTCOME AS FILED AND SKIPS
+`UNGRADED` WITH `continue` — *"the run could not judge it; it is not an answer"*.** That was true on
+the day and is exactly what `--regrade` refutes: the transcripts **can** now be judged, because the
+registry gained what was missing. ⇒ **a cell a later registry correction made judgeable is invisible
+to the state view for ever**, and the state view is what AUTOPILOT quotes when it says what our
+emulation does.
+
+⭐ **THE SWEEP, WITH BOTH DIRECTIONS, BECAUSE ONE OF THEM INFLATES:**
+
+| direction | readings | what it is |
+|---|---|---|
+| `UNGRADED` → `EXACT` | **27** | corrections since made the session's own gold row readable |
+| `UNGRADED` → `SILENT` | **6** | same, and they are the known emitter gaps |
+| `UNGRADED` → `WRONG` | 1 | same |
+| ⚠ **`EXACT` → `UNGRADED`** | **2** | ⛔ **`fdxb t55.pm3→rd.cu1` and `t55.cu1→rd.cu1`** — the corrected fdxb marker/expectation **retracts two published passes** |
+
+⇒ **34 readings over 6 sessions, 30 distinct cells** — and ⭐ **the 2-reading direction is the
+dangerous one**, because reading as-filed would keep asserting a pass the registry has since
+withdrawn. **An under-report hides work already paid for; an over-report publishes a result that is
+no longer true.**
+
+✅✅ **AND THE BLAST RADIUS TODAY IS ZERO — CHECKED CELL BY CELL, NOT ASSUMED:**
+1. **29 of the 34 are about `cu1`**, whose firmware has changed since, so `gather`'s own rule
+   (*a reading whose devices are no longer running what they were is dropped*) already discards
+   them — including **both** `fdxb` over-reports.
+2. Of the 5 that survive the firmware rule, **4 do not move** under a regrade at all.
+3. The one that does — **`viking t55.pm3 → rd.cu2`, EXACT was UNGRADED** — sits in
+   `20260916_085441_**ABORTED**`, which `gather` skips by name, **and the cell is already EXACT in
+   state from the later non-aborted `20260916_161528`.**
+
+⇒ ⛔⛔ **SO IT IS PROTECTED ONLY INCIDENTALLY, BY TWO GUARDS AIMED AT SOMETHING ELSE.** It bites the
+moment either changes: a cu1 restored to its old build, or a fresh run that banks `UNGRADED` cells
+which a later correction makes judgeable. ⚠ **Nothing warns when that happens**, and the sweep that
+found it is four shell lines.
+
+⛔⛔ **AND IT IS DELIBERATELY NOT FIXED HERE — THIS IS A LICENSING QUESTION AND THEREFORE THE
+OPERATOR'S.** The fix looks obvious (make `gather` regrade, or republish the `.json` in place) and
+the argument for it is sound — the licence comes from **that session's own** gold row and null
+sweeps, so nothing is carried across sessions; only its *interpretation* was missing. ⛔ **But
+AUTOPILOT §1 names *a licence carried across a multi-day block* as precisely the defect the project
+exists to prevent, and this project was created because cells were published without a calibration
+row.** A tick that quietly re-licensed 30 cells to make a number look better would be that failure
+wearing a better argument. ⇒ ⭐ **put it to the operator as a decision, with the numbers above; do
+not implement it on a tick's authority.**
+
+⚠ **The `.json` is what `state` reads and `--regrade -o` writes only `.md`**, so republishing does
+**not** reach the state view. Whoever takes this up should know that before choosing a remedy.
+
 ## ⭐⭐⭐⭐ 2026-09-17 21:4x — **ONE INSTRUCTION, FOUR SURFACES, FOUND IN THE REVERSE ORDER OF HOW MUCH THEY MATTERED**
 
 ⭐ Offline, in this repo, tests green throughout. **`./runtests` 475 → 483.** Nothing flashed,
