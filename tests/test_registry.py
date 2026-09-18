@@ -8,6 +8,56 @@ from benchmatrix.devices import FLIP_SUCCESS
 from benchmatrix.outcomes import Outcome, observe
 
 
+class NoTwoProtocolsMayShareAToken(unittest.TestCase):
+    """⛔⛔ A SHARED BYTE-EXACT TOKEN IS A FALSE PASS BUILT IN BY CONSTRUCTION.
+
+    Grading is a byte-exact match, so if two protocols hold the same expectation for one
+    reader a decode cannot be attributed and **each protocol's emission passes the other's
+    cell**. It needs no bad measurement to arrive — only a plausible one written down.
+
+    ⚠ The world is allowed to share a token; the registry is not. `lf em 410x reader` really
+    does print `2244668800` for both `em410x` and `em410x_electra` (measured 2026-09-16), and
+    the sanctioned way to say so is `expect = None` plus `PM3_INDISTINGUISHABLE` — a permanent
+    fact about the Proxmark. ⇒ a collision in the registry is not *the bench is ambiguous*, it
+    is *someone recorded the ambiguity as an answer*.
+
+    ⭐ This guard costs nothing and would have caught the Electra mistake had anyone recorded
+    it — which `bench learn` would have done, unchecked, until 2026-09-17.
+    """
+
+    def test_the_live_registry_has_no_collision_in_any_of_the_three_fields(self):
+        reg.validate()
+        for field in ("expect", "cu_expect", "flip_expect"):
+            tokens = [getattr(p, field) for p in reg.ALL.values() if getattr(p, field)]
+            self.assertEqual(len(tokens), len(set(tokens)),
+                             "%s holds a duplicate token" % field)
+
+    def test_recording_electras_real_pm3_token_is_refused_by_name(self):
+        """⭐ The exact mistake, as the bench would have produced it."""
+        import dataclasses
+        broken = dict(reg.ALL)
+        broken["em410x_electra"] = dataclasses.replace(
+            broken["em410x_electra"], expect=reg.ALL["em410x"].expect)
+        with self.assertRaises(reg.RegistryError) as cm:
+            reg.validate(broken)
+        msg = str(cm.exception)
+        self.assertIn("em410x and em410x_electra", msg)
+        self.assertIn("pass the other's cell", msg, "and say what it would cost")
+        self.assertIn("PM3_INDISTINGUISHABLE", msg, "and where the collision belongs instead")
+
+    def test_a_collision_is_caught_in_the_chameleon_and_flipper_fields_too(self):
+        """⚠ Not only `rd.pm3` — the other two readers grade byte-exact in the same way."""
+        import dataclasses
+        for field, donor in (("cu_expect", "viking"), ("flip_expect", "keri")):
+            if not getattr(reg.ALL[donor], field):
+                continue
+            broken = dict(reg.ALL)
+            broken["jablotron"] = dataclasses.replace(
+                broken["jablotron"], **{field: getattr(reg.ALL[donor], field)})
+            with self.assertRaises(reg.RegistryError):
+                reg.validate(broken)
+
+
 class ItValidates(unittest.TestCase):
 
     def test_tier0_is_complete_and_valid(self):
