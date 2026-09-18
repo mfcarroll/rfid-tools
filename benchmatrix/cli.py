@@ -679,6 +679,22 @@ def _why_not_learnable(p, reader: str) -> str | None:
     station, after the tag had been wiped and written. `plan.py` refuses impossible cells by naming
     the firmware fact; so does this.
     """
+    # ⛔⛔⛔ THIS CHECK GOES FIRST, AND THE ORDER IS THE WHOLE POINT — exactly as `plan._refuse`
+    # puts `gap:pm3-indistinguishable` BEFORE its no-expectation rule. Both an unmeasured
+    # protocol and an indistinguishable one arrive here with `expect = None`, so every check
+    # below passes for BOTH and the bare absence cannot tell them apart. For
+    # `em410x_electra` every one of them passed: the Proxmark has a clone command, a read
+    # command and a decode marker, so this returned None and the protocol was LEARNABLE — and
+    # a bare `bench learn`, with no arguments, sweeps it by default. It would have written the
+    # tag, read it, and recorded `2244668800` as Electra's `rd.pm3` expectation, which is
+    # byte-identical to plain `em410x`'s and would let each protocol's emission pass the
+    # other's cell. ⇒ THE PLANNER AND `bench scope` BOTH REFUSE THIS; THE COMMAND THAT
+    # ACTUALLY WRITES IT DOWN DID NOT.
+    if reader == "rd.pm3" and p.key in reg.PM3_INDISTINGUISHABLE:
+        return ("PERMANENT: the Proxmark cannot distinguish %s from the protocol it shares a "
+                "token with, so there is no value to learn — recording what it prints would "
+                "build in a false pass (registry.PM3_INDISTINGUISHABLE). ⛔ Not a to-do, and "
+                "`--relearn` does not override it" % p.key)
     if not p.pm3_write:
         return ("the Proxmark has no clone command for %s, so there is no gold tag to learn from"
                 % p.key)
@@ -1059,7 +1075,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     def common(sp, with_plan=True):
         sp.add_argument("-p", "--protocol", action="append",
-                        help="repeatable; default is all 16 tier-0 arms")
+                        help="repeatable; default is all 18 tier-0 arms")
         sp.add_argument("--learned", default=learned.DEFAULT_PATH)
         sp.add_argument("--session", help="override the session stamp (normally the timestamp)")
         if with_plan:
