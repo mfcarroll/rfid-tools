@@ -19,6 +19,32 @@ re-run needs **no rebuild** — flash, then confirm **31 vs 62 frames by asking 
 ⚠ `enterdfu.py` failed to TRIGGER once in four attempts with nothing flashed; retry, do not
 suspect the device.
 
+## ✅ 2026-09-17 20:4x — TWO STALE ITEMS IN AUTOPILOT §2c CLOSED, ONE BY MEASUREMENT
+
+⭐ Both were live *work it* items that a future cold tick would have spent a unit rediscovering.
+
+1. ⛔ **`indala224`'s writer "TIMES OUT" is RETRACTED — `CMD 3039` never hung.** C481/L449 had
+   already measured this *before §2c was written*; the host's `send_cmd_sync` default is 3 s and
+   the call takes ~3.5 s, and the client already passes `timeout=30`. ✅ **Re-measured today rather
+   than taken on the note's word: `3.43 s` and `3.54 s` against `1.51 s` for the 64-bit writer next
+   door** (C481 had 3.42/3.71 against 1.34). The cost is structural — `passes x blocks x 2 sends`,
+   64 against 24, and `indala224` is the only **eight-block** writer in the tree. ⚠ **What survives
+   is the only part worth carrying: the 3 s default is a latent trap for any FUTURE multi-block
+   writer, because from the host a slow writer and a hung one are indistinguishable.** That is an
+   upstream note (§2e), not a bug. ⛔ `cu1·wr` for `indala224` is still genuinely absent and needs a
+   tag — operator-return.
+2. ✅ **Electra's `rd.pm3` is now refused by the PLANNER, permanently.** §2c asked for exactly this.
+   The registry row already carried the evidence; the planner did not, so the published refusal
+   still read as a to-do and **told the operator to record the token — which is the false pass the
+   registry row forbids.** Now `gap:pm3-indistinguishable`. ⇒ **three states, not two: unlicensable
+   · unmeasured · indistinguishable.** `./runtests` 475 (+1).
+
+⚠ **The remaining §2c item, `fdxb emu.pm3 → rd.cu2` SILENT, is NOT workable unattended and should
+not be attempted**: separating *the Proxmark's `lf fdxb sim` is wrong* from *our reader cannot take
+an emulated fdxb* needs either a real fdxb tag in the Proxmark's stack (Rig B is deliberately
+tagless) or the Flipper in the same field (it is on Rig A and will not couple). ⇒ **operator-return,
+and say so rather than spending a capture on an ambiguous null.**
+
 ## ⛔⛔⛔⛔ 2026-09-17 20:2x — **THE GATE RAN AND PASSED; THE RUN IS STILL REFUSED (C553, M85)**
 
 **The gate was captured as pre-registered — two caps, no flash, `disarm: ok` twice, cu2 verified

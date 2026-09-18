@@ -269,8 +269,19 @@ from source. **The hardware disagrees:**
 ("record the token it prints") was written before anyone ran it, and is wrong.
 
 ⇒ **On this bench only the Flipper can judge Electra.** That is a gap-register row about the
-Proxmark, not a limit of ours: `rd.pm3` cannot distinguish the two protocols at all. Electra's
-`rd.pm3` column should be refused by name, permanently, rather than left as "go and measure it".
+Proxmark, not a limit of ours: `rd.pm3` cannot distinguish the two protocols at all.
+
+✅✅ **DONE 2026-09-17 — the refusal is now the planner's, not a comment's.** `rd.pm3` for
+`em410x_electra` is refused by name and permanently as **`gap:pm3-indistinguishable`**
+(`registry.PM3_INDISTINGUISHABLE`, `plan._refuse` ordered BEFORE the `no-expectation` rule, since
+both cases carry `expect=None` and the bare absence cannot tell them apart). ⇒ **three states, not
+two: unlicensable** (the bench cannot) · **unmeasured** (nobody has looked yet) ·
+**indistinguishable** (looking cannot answer). ⛔ The published refusal no longer tells anyone to
+record the token — which mattered, because that token builds in a false pass by construction.
+⚠ The test that used Electra as its example of a *missing* expectation had the refuted premise in
+its docstring and now runs on a synthetic protocol: after this measurement Electra was the **last**
+real protocol with a missing `rd.pm3` expectation, so there is no genuine example left.
+
 ⚠ `cu_read` is still genuinely absent (`–`), which is ours and is real work.
 
 ⛔⛔ **RETRACTED 2026-09-17 — `CMD 3039` NEVER HUNG, AND THIS ITEM WAS ALREADY CLOSED BY C481
