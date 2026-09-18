@@ -100,6 +100,39 @@ reps 16, **336 reads** — and `k34bsim.py --from` reads it directly.
 > `dectime.py`. ⭐ **The gate's bar is the region's height `>= 0.55`** — the banked burst-500 value
 > is 0.725, so it is the BUILD in question, not the bench.
 
+✅✅ **AND M81's CHECK IS DONE — THE DESIGN SURVIVES INTO THE IMPLEMENTATION, VERIFIED OFFLINE
+RATHER THAN DISCOVERED AFTER THE FLASH.** M81 is the round's most expensive lesson and this is
+exactly its shape: a requirement computed in a design note has to be expressible by the tool.
+
+1. ✅ **`burstsync.py --primers` takes fractional cells and renders integral ones as `"100"` not
+   `"100.0"`** (the K32 comment at the parse site says so), so cell keys and scorer matching are
+   safe. ⭐ **And at 1 ms every cell of this ladder is an INTEGER anyway** — there are no
+   fractional keys at all. ⇒ **the ladder, verbatim, so nobody re-derives it (35 cells):**
+
+       --primers 70,75,77,78,79,80,81,82,83,84,85,86,87,88,89,90,91,92,93,95,100,105,110,115,120,125,130,135,140,141,142,143,144,145,150
+
+   and ⭐ **the coarse GATE pair (17 cells, 5 ms, reps 16):**
+
+       --primers 70,75,80,85,90,95,100,105,110,115,120,125,130,135,140,145,150
+
+2. ⭐⭐ **THE LADDER TOP CHECKS OUT AND IT INDEPENDENTLY REPRODUCES THE PINNED DESIGN'S OWN TWO
+   PERCENTAGES**, from `burstsync.py`'s corrected C548 formula `(burst − 85 − probe_ms) / per`,
+   with `idteck`'s probe `lf read -s 6144` = 69.3 ms:
+
+   | burst | dec 2 top, `idteck` | where 140-145 sits |
+   |---|---|---|
+   | 500 | **138.2** nominal ms | ⛔ **101%** — above it, which is M82's failure mode and why K34b was blocked |
+   | 1000 | **338.1** nominal ms | ✅ **41-43%** — and this ladder's top, 150, is at **44%** |
+
+   ⇒ **the design note's *101% of the reachable top* and *41% of it* both fall straight out of the
+   formula**, which is two independent routes to the same numbers agreeing. ⛔ **And it says the
+   gate pair cannot be rehearsed at burst 500 either** — 140,145,150 are above that build's top —
+   so the coarse pair must be captured AFTER the flash, exactly as the sequence has it.
+   ⚠ One caveat worth carrying: the formula's own dec-2/dec-1 cost ratio is **1.774**, which sits
+   at the **upper edge** of C556's measured 1.559-1.833. At the low end the top would be ~356
+   rather than 338 — either way 150 is comfortable, so it changes nothing here, but a design that
+   pushed toward the top would need the measured interval and not this constant.
+
 ⛔ **THE NO-VERDICT BRANCHES, GIVEN MEANINGS IN ADVANCE (M74):** *neither window fires* ⇒ the
 feature did not replicate at dec 2 on this build at all — a statement about the run's sensitivity,
 and ⛔ **not** evidence for either alignment. *both fire* ⇒ the ladder carries structure the design
