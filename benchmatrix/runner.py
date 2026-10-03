@@ -870,6 +870,16 @@ def _read(op: Op, devices: Devices, session: str, pad: str, out, protocol=None, 
     the 20 banked runs used repeat > 1** — checked before the pause was added, because a change
     that silently moved a past cell would be the defect it is guarding against.
     ⚠ `--no-repeat-jitter` reproduces the pre-C507 behaviour and should be used only for that.
+
+    ⛔ AN EMULATED SOURCE ALSO WAITS BEFORE ITS FIRST READ — the same span, the same draw. Arming
+    and then reading after a fixed delay puts the first read at a fixed time since emulation
+    started, which is a fixed phase of the beat: a cell can be lucky or unlucky by schedule alone,
+    and stay that way. Measured on ChameleonUltra 2026-10-03 (`research/upstream/
+    hwtest-indala-402.md`): at a near-fixed read cadence one build read its Indala emulation
+    82-91% and another, with the SAME emission (identical long-capture analysis), 40-68%; with the
+    reads randomised both sat at ~55%. ⚠ A real tag has no beat — it is locked to the reader's
+    carrier — so `t55.*` and `oem` sources are untouched and the default path for them is as
+    before. The span stays under C513's ~160 ms knee, so the pause cannot itself stale a burst.
     """
     p = protocol or op.cell.protocol
     src = source or op.cell.source
@@ -878,7 +888,7 @@ def _read(op: Op, devices: Devices, session: str, pad: str, out, protocol=None, 
     seen = []
     jitter = getattr(getattr(res, "plan", None), "repeat_jitter", REPEAT_JITTER_S)
     for i in range(max(1, repeat)):
-        if i:
+        if i or src.startswith("emu."):
             # ⛔ BETWEEN the repeats, never before the first or after the last: the pause exists
             # to decorrelate one read's phase from the previous one's, and a pause with no read
             # on both sides of it decorrelates nothing while still costing the operator time.
