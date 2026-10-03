@@ -37,7 +37,7 @@ from .stations import READER_OF, T5577
 HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.normpath(os.path.join(HERE, "..", ".."))          # .../rfid
 CHAMELEON_ROOT = os.path.join(REPO, "ChameleonUltra")
-RESEARCH = os.path.join(CHAMELEON_ROOT, "research", "indala-psk-read")
+RESEARCH = os.path.join(CHAMELEON_ROOT, "research", "lf")
 
 DEFAULT_PM3 = os.environ.get("PM3", os.path.join(REPO, "proxmark3", "pm3"))
 DEFAULT_CU_PY = os.environ.get("CHAMELEON_CLI",
@@ -648,7 +648,7 @@ class Flipper:
     """Reader `rd.flip`, emitter `emu.flip`, and the `t55.flip` writer.
 
     ⭐ DRIVEN IN-PROCESS THROUGH `benchmatrix.flipper`, WHICH IS NOW OURS. It used to shell out to
-    the ChameleonUltra project's `research/indala-psk-read/flipper.py` and parse that script's
+    the ChameleonUltra project's `research/lf/flipper.py` (formerly `research/indala-psk-read/`) and parse that script's
     stdout — and parsed the wrong half of it, so `rd.flip` returned an empty string for every
     protocol it was ever asked about while the Flipper decoded perfectly. See `flipper.py` for the
     two independent reasons the same real decode was invisible.

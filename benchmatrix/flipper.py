@@ -2,7 +2,7 @@
 """Drive the Flipper Zero's `lfrfid` CLI over USB serial, and return RESULTS rather than prose.
 
 ⭐ DERIVED FROM `flipper.py` BY MATTHEW CARROLL, in the ChameleonUltra project at
-`research/indala-psk-read/flipper.py` (c704a5c3 2026-09-11, then 96f46ab9, 629bef55, 21aeaf9d and
+`research/lf/flipper.py` (formerly `research/indala-psk-read/`) (c704a5c3 2026-09-11, then 96f46ab9, 629bef55, 21aeaf9d and
 969138a3). Everything that makes this channel trustworthy was worked out there and is carried over
 unchanged in substance: the anchored `^name HEX$` success line, the structural rejection of the
 usage banner and the protocol listing, ETX termination because `rfid read` never returns on its own,
