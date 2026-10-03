@@ -2,7 +2,7 @@
 """Nordic DFU flashing for one named device — trigger and program in a single process.
 
 ⭐ DERIVED FROM `enterdfu.py` BY MATTHEW CARROLL, in the ChameleonUltra project at
-`research/indala-psk-read/enterdfu.py` (commits 61599a30 and 34a78cbe, 2026-09-15). Everything that
+`research/lf/enterdfu.py` (formerly `research/indala-psk-read/`) (commits 61599a30 and 34a78cbe, 2026-09-15). Everything that
 makes this work correctly was worked out there and is carried over unchanged in substance: the DFU
 trigger frame, the USB ids, the `cu.`/`tty.` equivalence, refusing to fire when a device is already
 in DFU, targeting one NAMED port instead of the first match, and above all polling for the

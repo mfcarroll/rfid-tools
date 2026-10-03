@@ -1,7 +1,7 @@
 """Building and flashing firmware — `bench build` and `bench flash`.
 
 ⭐ The flashing half stands on `enterdfu.py` by Matthew Carroll (ChameleonUltra,
-`research/indala-psk-read/enterdfu.py`) — see `dfu.py`, which is the port. The build environment
+`research/lf/enterdfu.py` (formerly `research/indala-psk-read/`)) — see `dfu.py`, which is the port. The build environment
 recorded in `firmware.toml` is his too: which three pieces the ChameleonUltra build needs and why,
 and that the closing `mergehex` step fails harmlessly after the zips are already written.
 
