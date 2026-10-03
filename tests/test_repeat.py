@@ -148,9 +148,10 @@ class TheRepeatsAreSpacedBecauseUnspacedTheyResampleOnePhase(NoRealPauses):
             p.repeat_jitter = jitter
         return runner.run(p, make_devices(), interactive=False, session="S", out=quiet)
 
-    def test_a_single_read_never_waits(self):
-        """⚠ THE DEFAULT PATH MUST BE UNTOUCHED. `repeat` is 1 for every run ever banked, so a
-        pause reachable at repeat=1 would tax every station for a feature nobody asked for."""
+    def test_a_single_read_of_a_real_tag_never_waits(self):
+        """⚠ THE DEFAULT PATH FOR A TAG MUST BE UNTOUCHED. `repeat` is 1 for every run ever
+        banked, and a tag has no beat to decorrelate from, so a pause there would tax every
+        station for nothing. (An EMULATED source does wait — see the class below.)"""
         self._run(1)
         self.assertEqual(self.slept, [])
 
@@ -194,3 +195,32 @@ class TheRepeatsAreSpacedBecauseUnspacedTheyResampleOnePhase(NoRealPauses):
         unspaced = self._run(4, jitter=0.0)
         self.assertEqual([c.outcome.value for c in spaced.cells],
                          [c.outcome.value for c in unspaced.cells])
+
+
+class AnEmulationsFirstReadIsSpacedToo(NoRealPauses):
+    """⛔ ARM, THEN READ AFTER A FIXED DELAY, IS A FIXED BEAT PHASE. ChameleonUltra 2026-10-03:
+    two builds with the same emission (identical long-capture analysis) read 82-91% and 40-68% at
+    a near-fixed cadence, and both ~55% once the reads were randomised. So an emulated source's
+    FIRST read is preceded by the same random pause the repeats use; a tag's is not."""
+
+    def _run(self, source, reader, repeat=1):
+        protos = reg.resolve(["em410x"])
+        p = planning.build(protos, [source], [reader], Bench())
+        p.repeat = repeat
+        return runner.run(p, make_devices(), interactive=False, session="S", out=quiet)
+
+    def test_an_emulated_single_read_waits_once_inside_the_span(self):
+        self._run("emu.cu1", "rd.pm3")
+        self.assertGreaterEqual(len(self.slept), 1, "the first read of an emulation must be spaced")
+        self.assertTrue(all(0.0 <= d <= runner.REPEAT_JITTER_S for d in self.slept), self.slept)
+
+    def test_each_cell_waits_once_per_read_except_a_tags_first(self):
+        """⚠ The plan also reads its calibration row from a real tag, so the count is per cell:
+        repeat-1 pauses for every cell, plus one before the first read of each emulated cell."""
+        res = self._run("emu.cu1", "rd.pm3", repeat=4)
+        sources = [c.source for c in res.cells]
+        self.assertTrue(any(s.startswith("emu.") for s in sources), sources)
+        self.assertTrue(any(not s.startswith("emu.") for s in sources), sources)
+        want = sum(3 + (1 if s.startswith("emu.") else 0) for s in sources)
+        self.assertEqual(len(self.slept), want, sources)
+
