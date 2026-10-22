@@ -4,6 +4,9 @@ A bench-test harness and protocol-capability database that lives **outside** any
 project. It is not part of the ChameleonUltra work and not part of the T5577 work; both of those
 are *subjects* it tests, alongside the Proxmark3 and the Flipper.
 
+Not to be confused with `rfid-credentials` (private, the operator's own): tools that load real credentials onto the
+devices. Real credentials never come into this repo; it is public.
+
 ## Why this exists
 
 Three separate failures in an earlier LF investigation had the same root cause, and none of them
