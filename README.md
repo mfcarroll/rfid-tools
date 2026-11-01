@@ -412,6 +412,18 @@ what happens next: "intermittent" says the reading is noise and should be repeat
 settles; "disagreed" says there is an uncontrolled variable and somebody should go and find it. The
 first retires a cause nobody looked for.
 
+### `cu_hf_field`: an HF field for NFC tests
+
+```bash
+./cu_hf_field on      # cu1
+./cu_hf_field off
+```
+
+It turns a Chameleon's 13.56 MHz field on or off, as a steady NFC source (for example for the
+Flipper's NFC/RFID detector). `on` puts the Chameleon in reader mode and keeps an `hf 14a raw` field
+up after the tool exits. `off` drops the field and puts it back in tag mode. `--cu cu2` picks the
+other unit. The label resolves by chip id, as `bench` does.
+
 ## How it is built
 
 ```

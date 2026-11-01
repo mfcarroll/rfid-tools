@@ -1,0 +1,49 @@
+#!/usr/bin/env python3
+"""Turn a Chameleon's HF (13.56 MHz) field on or off, as an NFC source for bench tests.
+
+    ./cu_hf_field on          # cu1, from .env
+    ./cu_hf_field off
+    ./cu_hf_field on --cu cu2
+
+`on` puts the Chameleon in reader mode and sends an empty `hf 14a raw` that activates the field and
+keeps it. The field stays on after this exits. `off` sends it again without keeping the field, then
+puts the Chameleon back in tag mode. Slots and their data are left alone.
+
+The label resolves to a port by chip id, as `bench` does (`./bench setup` records the ids). Each
+command checks the chip id on the way.
+"""
+import argparse
+import os
+import sys
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, HERE)
+from benchmatrix.bootstrap import ensure  # noqa: E402
+
+ensure(HERE)
+from benchmatrix.devices import Chameleon  # noqa: E402
+from benchmatrix.setup import load_env, resolve_chameleons  # noqa: E402
+
+COMMANDS = {
+    "on": ("hw mode -r", "hf 14a raw -a -k -r"),
+    "off": ("hf 14a raw -r", "hw mode -e"),
+}
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
+    parser.add_argument("state", choices=sorted(COMMANDS))
+    parser.add_argument("--cu", default="cu1", choices=("cu1", "cu2"), help="which Chameleon (default cu1)")
+    args = parser.parse_args()
+
+    known = load_env()
+    port = resolve_chameleons(known, write_back=False).get(args.cu)
+    if not port:
+        raise SystemExit(f"{args.cu} not found. Plug it in, or run ./bench setup.")
+    chameleon = Chameleon(port=port, expect_chipid=known.get(f"{args.cu.upper()}_CHIPID", ""))
+    chameleon.exec(*COMMANDS[args.state])
+    print(f"{args.cu} ({port}): HF field {args.state}")
+
+
+if __name__ == "__main__":
+    main()
