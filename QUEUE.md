@@ -950,7 +950,7 @@ the cross-arm run, the beat's period, `indala224`, the n=24 rates, and `fdxb emu
 
 ⭐⭐ **The Proxmark reads our Indala emulation byte-exact, live, 23 of 26.** `lf indala reader`
 is silent because it reads **30,000 samples** (`cmdlfindala.c:633`, 240 ms); `lf read -s 4096`
-followed by `lf indala demod` returns `a00000008f49d2a1` / Fmt 26 FC 123 Card 1337. Same session,
+followed by `lf indala demod` returns the bench fob's frame and its FC and card number. Same session,
 same field, same arm, alternated. ⛔ Controls: cu2 disarmed silent 3/3 live, a PAC capture asked
 for Indala silent, the same samples at 40,000 silent, and Rig B is tagless.
 
@@ -2326,7 +2326,7 @@ gap-register row only.
 LEVEL, NOT AS A PHASE-REVERSED SUBCARRIER.** The Proxmark's raw buffer with `indala` armed shows
 level runs at 256/512/768/1024us — multiples of the bit — and **no 8us alternation**,
 which a 62.5 kHz subcarrier sampled once per carrier cycle must show (L03). On that same buffer
-`data rawdemod --p1` returns **nothing** and `--nr` returns our credential `a00000008f49d2a1`,
+`data rawdemod --p1` returns **nothing** and `--nr` returns the bench fob's frame,
 stable and repeating. ⇒ `lf indala reader` asks for PSK1 and is handed NRZ, so it is silent while
 every bit of the credential is sitting there. **That is how a byte-perfect buffer (C476/C477) and
 a silent reader were both true at once.**

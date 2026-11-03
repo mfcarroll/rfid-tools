@@ -330,7 +330,7 @@ class WhatAClonSaysAboutItsOwnWrite(unittest.TestCase):
     already been thrown away. Both look identical without it, and both happened this session.
     """
 
-    CLONE = ("[=] Preparing to clone Indala 64 bit to T55x7 raw a00000008f49d2a1\n"
+    CLONE = ("[=] Preparing to clone Indala 64 bit to T55x7 raw A00000008F49D2A1\n"
              "[+] Blk | Data \n[+]  00 | 00081040\n[+]  01 | A0000000\n"
              "[+] Data written and verified\n[+] Done!\n")
 

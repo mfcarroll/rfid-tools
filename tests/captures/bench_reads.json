@@ -57,7 +57,8 @@
    "protocol": "indala",
    "reader": "rd.pm3",
    "source": "t55.pm3",
-   "evidence": "[=] Session log /Users/matthew.carroll.personal/.proxmark3/logs/log_20260916024804.txt\n[+] loaded `/Users/matthew.carroll.personal/.proxmark3/preferences.json`\n[+] execute command from commandline: lf indala reader\n\n[+] Using UART port /dev/tty.usbmodemiceman1\n[+] Communicating with PM3 over USB-CDC\n[+] Max frame size: 624 bytes\n[usb|script] pm3 --> lf indala reader\n[+] Indala (len 64)  Raw: a00000008f49d2a1\n[+] Fmt 26 FC: 123 Card: 1337 Parity: 11\n[=] \n[+] Possible de-scramble patterns\n[+]   Printed....... __0__  ( 0x0 )\n[+]   Internal ID... 0\n[+]   Heden-2L...... 0\n\n"
+   "evidence": "[=] Session log /Users/matthew.carroll.personal/.proxmark3/logs/log_20260916024804.txt\n[+] loaded `/Users/matthew.carroll.personal/.proxmark3/preferences.json`\n[+] execute command from commandline: lf indala reader\n\n[+] Using UART port /dev/tty.usbmodemiceman1\n[+] Communicating with PM3 over USB-CDC\n[+] Max frame size: 624 bytes\n[usb|script] pm3 --> lf indala reader\n[+] Indala (len 64)  Raw: a00000008f49d2a1\n[+] Fmt 26 FC: 123 Card: 1337 Parity: 11\n[=] \n\n",
+   "_redacted": "A real credential was replaced with the made-up frame a00000008f49d2a1 (FC 123, card 1337). Its de-scramble lines (the printed number and other IDs) were removed. The rest of the reading is as the device printed it."
   },
   {
    "run": "run_20260915_194721.json",
@@ -169,7 +170,8 @@
    "protocol": "indala",
    "reader": "rd.pm3",
    "source": "t55.pm3",
-   "evidence": "[=] Session log /Users/matthew.carroll.personal/.proxmark3/logs/log_20260916034254.txt\n[+] loaded `/Users/matthew.carroll.personal/.proxmark3/preferences.json`\n[+] execute command from commandline: lf indala reader\n\n[+] Using UART port /dev/tty.usbmodemiceman1\n[+] Communicating with PM3 over USB-CDC\n[+] Max frame size: 624 bytes\n[usb|script] pm3 --> lf indala reader\n[+] Indala (len 64)  Raw: a00000008f49d2a1\n[+] Fmt 26 FC: 123 Card: 1337 Parity: 11\n[=] \n[+] Possible de-scramble patterns\n[+]   Printed....... __0__  ( 0x0 )\n[+]   Internal ID... 0\n[+]   Heden-2L...... 0\n\n"
+   "evidence": "[=] Session log /Users/matthew.carroll.personal/.proxmark3/logs/log_20260916034254.txt\n[+] loaded `/Users/matthew.carroll.personal/.proxmark3/preferences.json`\n[+] execute command from commandline: lf indala reader\n\n[+] Using UART port /dev/tty.usbmodemiceman1\n[+] Communicating with PM3 over USB-CDC\n[+] Max frame size: 624 bytes\n[usb|script] pm3 --> lf indala reader\n[+] Indala (len 64)  Raw: a00000008f49d2a1\n[+] Fmt 26 FC: 123 Card: 1337 Parity: 11\n[=] \n\n",
+   "_redacted": "A real credential was replaced with the made-up frame a00000008f49d2a1 (FC 123, card 1337). Its de-scramble lines (the printed number and other IDs) were removed. The rest of the reading is as the device printed it."
   },
   {
    "run": "run_20260915_204212.json",
