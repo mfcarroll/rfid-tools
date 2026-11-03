@@ -1,0 +1,61 @@
+#!/usr/bin/env python3
+"""Stream the Flipper's debug log to the terminal and a file, each line prefixed with host time.
+
+    ./flipper_log runs/flipper_app_read.txt
+    ./flipper_log out.txt --level trace
+    ./flipper_log out.txt --port /dev/cu.usbmodemflip_X
+
+It runs the Flipper CLI's `log debug`, which also sets the Flipper's global log level. The RFID
+worker checks that level before it logs each decode, so the app's reads show up only at debug or
+above. Ctrl-C stops it and ends `log`, which puts the previous level back. The port comes from
+FLIPPER_PORT in `.env` unless `--port` is given. Close qFlipper and any web page holding the port
+first.
+"""
+import argparse
+import os
+import sys
+import time
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, HERE)
+from benchmatrix.bootstrap import ensure  # noqa: E402
+
+ensure(HERE)
+import serial  # noqa: E402
+from benchmatrix.setup import load_env  # noqa: E402
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
+    parser.add_argument("out", help="file to append the log to")
+    parser.add_argument("--port", help="Flipper serial port (default FLIPPER_PORT from .env)")
+    parser.add_argument("--level", default="debug", choices=("info", "debug", "trace"))
+    args = parser.parse_args()
+
+    port = args.port or load_env().get("FLIPPER_PORT")
+    if not port:
+        raise SystemExit("No Flipper port. Pass --port, or run ./bench setup.")
+    s = serial.Serial(port, 230400, timeout=0.1)
+    s.write(b"\x03\r")
+    time.sleep(0.3)
+    s.reset_input_buffer()
+    s.write(f"log {args.level}\r".encode())
+    buf = b""
+    with open(args.out, "a", buffering=1) as f:
+        f.write(f"# start {time.time():.3f} {port}\n")
+        try:
+            while True:
+                buf += s.read(4096)
+                while b"\n" in buf:
+                    line, buf = buf.split(b"\n", 1)
+                    text = f"{time.time():.3f} {line.decode(errors='replace').rstrip()}"
+                    print(text)
+                    f.write(text + "\n")
+        except KeyboardInterrupt:
+            s.write(b"\x03")
+            time.sleep(0.3)
+            f.write(f"# stop {time.time():.3f}\n")
+
+
+if __name__ == "__main__":
+    main()

@@ -424,6 +424,19 @@ Flipper's NFC/RFID detector). `on` puts the Chameleon in reader mode and keeps a
 up after the tool exits. `off` drops the field and puts it back in tag mode. `--cu cu2` picks the
 other unit. The label resolves by chip id, as `bench` does.
 
+### `flipper_log`: the Flipper's debug log, with host times
+
+```bash
+./flipper_log runs/flipper_app_read.txt
+```
+
+It runs `log debug` on the Flipper CLI and prints and appends each line with the host time in
+front. The Flipper's own line starts with its tick in ms. Use it to time things driven by hand on
+the Flipper, such as reads in the 125 kHz RFID app: the worker logs `Start ASK`/`Start PSK`, each
+decode and `Read stopped`, but only at debug level or above. Ctrl-C stops it and puts the previous
+level back. The port is `FLIPPER_PORT` from `.env`, or `--port`. qFlipper and web pages must let go
+of the port first.
+
 ## How it is built
 
 ```
