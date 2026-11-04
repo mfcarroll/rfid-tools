@@ -104,7 +104,7 @@ def pixels(data):
 
 
 def write_png(path, px, scale=4):
-    orange, black = (255, 130, 0), (0, 0, 0)
+    orange, black = (254, 138, 44), (0, 0, 0)  # qFlipper's screenshot colours
     rows = b""
     for row in px:
         line = b"".join(bytes(black if p else orange) * scale for p in row)
