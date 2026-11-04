@@ -437,6 +437,19 @@ decode and `Read stopped`, but only at debug level or above. Ctrl-C stops it and
 level back. The port is `FLIPPER_PORT` from `.env`, or `--port`. qFlipper and web pages must let go
 of the port first.
 
+### `flipper_screen`: the Flipper's screen as a PNG, and its buttons
+
+```bash
+./flipper_screen shot.png
+./flipper_screen shot.png --press left --press ok:long --wait 1 --text
+```
+
+It opens an RPC session, the protocol qFlipper uses, sends the `--press` buttons in order, waits
+`--wait` seconds and saves one screen frame. `--text` also prints the screen as text. With it the
+Flipper can be driven and read with nobody at the bench. An app's CLI session (such as the RFID
+detector's calibration) holds the same port, so presses can't reach the app while one runs. The port
+is `FLIPPER_PORT` from `.env`, or `--port`.
+
 ## How it is built
 
 ```
